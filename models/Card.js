@@ -9,6 +9,7 @@ const cardSchema = new mongoose.Schema({
   nextReview: { type: Date, default: Date.now },
   easiness: { type: Number, default: 2.5 },
   repetitions: { type: Number, default: 0 },
+  lastReviewed: { type: Date , default: Date.now},
 });
 
 module.exports = mongoose.model('Card', cardSchema);

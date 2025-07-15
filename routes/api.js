@@ -5,6 +5,19 @@ const jwt = require("jsonwebtoken");
 const Card = require("../models/Card");
 const User = require("../models/User");
 
+// Middleware
+const authenticate = (req, res, next) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(401).json({ error: "Unauthorized" });
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.userId = decoded.userId;
+    next();
+  } catch (error) {
+    res.status(401).json({ error: "Invalid token" });
+  }
+};
+
 // POST /api/register
 router.post("/register", async (req, res) => {
   try {
@@ -48,19 +61,6 @@ router.post("/login", async (req, res) => {
     res.status(400).json({ error: `Failed to login user: ${error.message}` });
   }
 });
-
-// Middleware
-const authenticate = (req, res, next) => {
-  const token = req.headers.authorization?.split(" ")[1];
-  if (!token) return res.status(401).json({ error: "Unauthorized" });
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.userId = decoded.userId;
-    next();
-  } catch (error) {
-    res.status(401).json({ error: "Invalid token" });
-  }
-};
 
 // PUT /api/user
 router.put("/user", authenticate, async (req, res) => {
@@ -175,10 +175,11 @@ router.put("/cards/:id/review", authenticate, async (req, res) => {
       else if (repetitions === 2) interval = 6;
       else interval = Math.round(interval * easiness);
     }
+    const lastReviewed = new Date();
     const nextReview = new Date(Date.now() + interval * 24 * 60 * 60 * 1000);
     const updateCard = await Card.findOneAndUpdate(
       { _id: req.params.id, userId: req.userId },
-      { interval, nextReview, easiness, repetitions },
+      { interval, nextReview, easiness, repetitions, lastReviewed },
       { new: true }
     );
     res.json(updateCard);
@@ -191,15 +192,11 @@ router.put("/cards/:id/review", authenticate, async (req, res) => {
 // PUT /api/cards/:id
 router.put("/cards/:id", authenticate, async (req, res) => {
   try {
-    const { word, translation, category, interval, nextReview, easiness } =
-      req.body;
+    const { word, translation, category } = req.body;
     const updateData = {};
     if (word) updateData.word = word;
     if (translation) updateData.translation = translation;
     if (category !== undefined) updateData.category = category;
-    if (interval !== undefined) updateData.interval = interval;
-    if (nextReview) updateData.nextReview = nextReview;
-    if (easiness !== undefined) updateData.easiness = easiness;
     if (!updateData.word || !updateData.translation) {
       return res
         .status(400)
@@ -230,6 +227,29 @@ router.delete("/cards/:id", authenticate, async (req, res) => {
   } catch (error) {
     console.error("Error deleting card:", error);
     res.status(400).json({ error: `Failed to delete card: ${error.message}` });
+  }
+});
+
+// GET /api/progress
+router.get("/progress", authenticate, async (req, res) => {
+  try {
+    const totalCards = await Card.countDocuments({ userId: req.userId });
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const reviewedToday = await Card.countDocuments({
+      userId: req.userId,
+      lastReviewed: { $gte: startOfDay },
+    });
+    const learnedCards = await Card.countDocuments({
+      userId: req.userId,
+      repetitions: { $gte: 5 },
+    });
+    res.json({ totalCards, reviewedToday, learnedCards });
+  } catch (error) {
+    console.error("Error fetching progress", error);
+    res
+      .status(500)
+      .json({ error: `Failed to fetch progress ${error.message}` });
   }
 });
 
