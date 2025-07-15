@@ -39,7 +39,9 @@ router.post("/login", async (req, res) => {
     if (!user || !bcrypt.compare(password, user.password)) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
-    const token = jwt.sign({ userId: user._id }, "secret", { expiresIn: "1h" });
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "1h",
+    });
     res.json({ token, user: { email: user.email } });
   } catch (error) {
     console.error("Error logging in:", error);
@@ -47,18 +49,61 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// Middleware для проверки JWT
+// Middleware
 const authenticate = (req, res, next) => {
   const token = req.headers.authorization?.split(" ")[1];
   if (!token) return res.status(401).json({ error: "Unauthorized" });
   try {
-    const decoded = jwt.verify(token, "secret");
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.userId = decoded.userId;
     next();
   } catch (error) {
     res.status(401).json({ error: "Invalid token" });
   }
 };
+
+// PUT /api/user
+router.put("/user", authenticate, async (req, res) => {
+  try {
+    const { email, password, settings } = req.body;
+    const updateData = {};
+    if (email) updateData.email = email;
+    if (password) updateData.password = await bcrypt.hash(password, 10);
+    if (settings) updateData.settings = settings;
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ error: "No valid fields to update" });
+    }
+    const user = await User.findOneAndUpdate({ _id: req.userId }, updateData, {
+      new: true,
+    });
+    if (!user) return res.status(404).json({ error: "User not found" });
+    res.json({
+      message: "User updated",
+      user: { email: user.email, settings: user.settings },
+    });
+  } catch (error) {
+    console.error("Error updating user credentials:", error);
+    res
+      .status(400)
+      .json({ error: `Failed to update user credentials: ${error.message}` });
+  }
+});
+
+// DELETE /api/user
+router.delete("/user", authenticate, async (req, res) => {
+  try {
+    const user = await User.findOneAndDelete({
+      _id: req.userId,
+    });
+    if (!user) return res.status(404).json({ error: "User not found" });
+    await Card.deleteMany({ userId: req.userId });
+    res.json({ message: 'User and associated cards deleted' });
+  } catch (error) {
+    console.error("Error deleting user:", error);
+    res.status(400).json({ error: `Failed to delete user: ${error.message}` });
+  }
+});
 
 // GET /api/cards
 router.get("/cards", authenticate, async (req, res) => {
@@ -131,11 +176,12 @@ router.put("/cards/:id", authenticate, async (req, res) => {
 // DELETE /api/cards/:id
 router.delete("/cards/:id", authenticate, async (req, res) => {
   try {
-    const card = await Card.findOneAndDelete(
-      { _id: req.params.id, userId: req.userId }
-    );
+    const card = await Card.findOneAndDelete({
+      _id: req.params.id,
+      userId: req.userId,
+    });
     if (!card) return res.status(404).json({ error: "Card not found" });
-    res.json({ message: 'Card deleted' });
+    res.json({ message: "Card deleted" });
   } catch (error) {
     console.error("Error deleting card:", error);
     res.status(400).json({ error: `Failed to delete card: ${error.message}` });
