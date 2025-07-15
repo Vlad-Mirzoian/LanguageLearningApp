@@ -2,6 +2,8 @@ const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const { parse } = require("csv-parse");
+const { Parser } = require("json2csv");
 const Card = require("../models/Card");
 const User = require("../models/User");
 
@@ -250,6 +252,56 @@ router.get("/progress", authenticate, async (req, res) => {
     res
       .status(500)
       .json({ error: `Failed to fetch progress ${error.message}` });
+  }
+});
+
+// POST /api/cards/import
+router.post("/cards/import", authenticate, async (req, res) => {
+  try {
+    const { csvData } = req.body;
+    if (!csvData) {
+      return res.status(400).json({ error: "CSV data is required" });
+    }
+    const cards = [];
+    parse(csvData, { columns: true, trim: true }, async (err, records) => {
+      if (err) {
+        return res.status(400).json({ error: "Invalid CSV format" });
+      }
+      records.forEach((record) => {
+        if (record.word && record.translation) {
+          cards.push({
+            userId: req.userId,
+            word: record.word,
+            translation: record.translation,
+            category: record.category || "",
+          });
+        }
+      });
+      if (cards.length === 0) {
+        return res.status(400).json({ error: "No valid cards found in CSV" });
+      }
+      await Card.insertMany(cards);
+      res.json({ message: `Imported ${cards.length} cards` });
+    });
+  } catch (error) {
+    console.error("Error importing cards", error);
+    res.status(400).json({ error: `Failed to import cards ${error.message}` });
+  }
+});
+
+// GET /api/cards/export
+router.get("/cards/export", authenticate, async (req, res) => {
+  try {
+    const cards = await Card.find({ userId: req.userId });
+    const fields = ["word", "translation", "category"];
+    const json2csv = new Parser({ fields });
+    const csv = json2csv.parse(cards);
+    res.header("Content-Type", "text/csv");
+    res.attachment("cards.csv");
+    res.send(csv);
+  } catch (error) {
+    console.error("Error exporting cards", error);
+    res.status(500).json({ error: `Failed to export cards ${error.message}` });
   }
 });
 
