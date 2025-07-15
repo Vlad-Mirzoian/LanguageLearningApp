@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
 const Card = require("../models/Card");
 const User = require("../models/User");
 
@@ -43,36 +43,49 @@ router.post("/login", async (req, res) => {
     res.json({ token, user: { email: user.email } });
   } catch (error) {
     console.error("Error logging in:", error);
-    res
-      .status(400)
-      .json({ error: `Failed to login user: ${error.message}` });
+    res.status(400).json({ error: `Failed to login user: ${error.message}` });
   }
 });
 
 // Middleware для проверки JWT
 const authenticate = (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(401).json({ error: "Unauthorized" });
   try {
-    const decoded = jwt.verify(token, 'secret');
+    const decoded = jwt.verify(token, "secret");
     req.userId = decoded.userId;
     next();
   } catch (error) {
-    res.status(401).json({ error: 'Invalid token' });
+    res.status(401).json({ error: "Invalid token" });
   }
 };
 
-/*
 // GET /api/cards
-router.get("/cards", async (req, res) => {
+router.get("/cards", authenticate, async (req, res) => {
   try {
-    res.status(200).json(card);
+    const cards = await Card.find({ userId: req.userId });
+    res.json(cards);
   } catch (error) {
-    console.error("Error getting cards:", error);
-    res.status(400).json({ error: `Failed to get cards: ${error.message}` });
+    console.error("Error fetching cards:", error);
+    res.status(500).json({ error: `Failed to fetch cards: ${error.message}` });
   }
 });
-*/
+
+// GET /api/cards/review
+router.get("/cards/review", authenticate, async (req, res) => {
+  try {
+    const cards = await Card.find({
+      userId: req.userId,
+      nextReview: { $lte: new Date() },
+    });
+    res.json(cards);
+  } catch (error) {
+    console.error("Error fetching review cards:", error);
+    res
+      .status(500)
+      .json({ error: `Failed to fetch review cards: ${error.message}` });
+  }
+});
 
 // POST /api/cards
 router.post("/cards", authenticate, async (req, res) => {
@@ -81,7 +94,7 @@ router.post("/cards", authenticate, async (req, res) => {
     if (!word || !translation) {
       return res
         .status(400)
-        .json({ error: "Word, and translation are required" });
+        .json({ error: "Word and translation are required" });
     }
     const card = new Card({ userId: req.userId, word, translation, category });
     await card.save();
@@ -92,26 +105,41 @@ router.post("/cards", authenticate, async (req, res) => {
   }
 });
 
-/*
-// PUT /api/cards
-router.put("/cards", async (req, res) => {
+// PUT /api/cards/:id
+router.put("/cards/:id", authenticate, async (req, res) => {
   try {
-    res.status(200).json(card);
+    const { word, translation, category, interval, nextReview, easiness } =
+      req.body;
+    if (!word || !translation) {
+      return res
+        .status(400)
+        .json({ error: "Word and translation are required" });
+    }
+    const card = await Card.findOneAndUpdate(
+      { _id: req.params.id, userId: req.userId },
+      { word, translation, category, interval, nextReview, easiness },
+      { new: true }
+    );
+    if (!card) return res.status(404).json({ error: "Card not found" });
+    res.json(card);
   } catch (error) {
     console.error("Error updating card:", error);
     res.status(400).json({ error: `Failed to update card: ${error.message}` });
   }
 });
 
-// DELETE /api/cards
-router.delete("/cards", async (req, res) => {
+// DELETE /api/cards/:id
+router.delete("/cards/:id", authenticate, async (req, res) => {
   try {
-    res.status(200).json(card);
+    const card = await Card.findOneAndDelete(
+      { _id: req.params.id, userId: req.userId }
+    );
+    if (!card) return res.status(404).json({ error: "Card not found" });
+    res.json({ message: 'Card deleted' });
   } catch (error) {
     console.error("Error deleting card:", error);
     res.status(400).json({ error: `Failed to delete card: ${error.message}` });
   }
 });
-*/
 
 module.exports = router;
