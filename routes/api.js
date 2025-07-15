@@ -98,7 +98,7 @@ router.delete("/user", authenticate, async (req, res) => {
     });
     if (!user) return res.status(404).json({ error: "User not found" });
     await Card.deleteMany({ userId: req.userId });
-    res.json({ message: 'User and associated cards deleted' });
+    res.json({ message: "User and associated cards deleted" });
   } catch (error) {
     console.error("Error deleting user:", error);
     res.status(400).json({ error: `Failed to delete user: ${error.message}` });
@@ -150,20 +150,65 @@ router.post("/cards", authenticate, async (req, res) => {
   }
 });
 
+// PUT /api/cards/:id/review
+router.put("/cards/:id/review", authenticate, async (req, res) => {
+  try {
+    const { quality } = req.body;
+    if (!Number.isInteger(quality) || quality < 0 || quality > 5) {
+      res
+        .status(400)
+        .json({ error: "Quality must be an integer between 0 and 5" });
+    }
+    const card = await Card.findOne({ _id: req.params.id, userId: req.userId });
+    if (!card) return res.status(404).json({ error: "Card not found" });
+
+    let { easiness, interval, repetitions } = card;
+    repetitions += 1;
+    easiness = Math.max(
+      1.3,
+      easiness + 0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02)
+    );
+    if (quality < 3) {
+      interval = 1;
+    } else {
+      if (repetitions === 1) interval = 1;
+      else if (repetitions === 2) interval = 6;
+      else interval = Math.round(interval * easiness);
+    }
+    const nextReview = new Date(Date.now() + interval * 24 * 60 * 60 * 1000);
+    const updateCard = await Card.findOneAndUpdate(
+      { _id: req.params.id, userId: req.userId },
+      { interval, nextReview, easiness, repetitions },
+      { new: true }
+    );
+    res.json(updateCard);
+  } catch (error) {
+    console.error("Error reviewing card:", error);
+    res.status(400).json({ error: `Failed to review card: ${error.message}` });
+  }
+});
+
 // PUT /api/cards/:id
 router.put("/cards/:id", authenticate, async (req, res) => {
   try {
     const { word, translation, category, interval, nextReview, easiness } =
       req.body;
-    if (!word || !translation) {
+    const updateData = {};
+    if (word) updateData.word = word;
+    if (translation) updateData.translation = translation;
+    if (category !== undefined) updateData.category = category;
+    if (interval !== undefined) updateData.interval = interval;
+    if (nextReview) updateData.nextReview = nextReview;
+    if (easiness !== undefined) updateData.easiness = easiness;
+    if (!updateData.word || !updateData.translation) {
       return res
         .status(400)
         .json({ error: "Word and translation are required" });
     }
     const card = await Card.findOneAndUpdate(
       { _id: req.params.id, userId: req.userId },
-      { word, translation, category, interval, nextReview, easiness },
-      { new: true }
+      updateData,
+      { new: true, runValidators: true }
     );
     if (!card) return res.status(404).json({ error: "Card not found" });
     res.json(card);

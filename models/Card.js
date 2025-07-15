@@ -8,6 +8,7 @@ const cardSchema = new mongoose.Schema({
   interval: { type: Number, default: 1 },
   nextReview: { type: Date, default: Date.now },
   easiness: { type: Number, default: 2.5 },
+  repetitions: { type: Number, default: 0 },
 });
 
 module.exports = mongoose.model('Card', cardSchema);
