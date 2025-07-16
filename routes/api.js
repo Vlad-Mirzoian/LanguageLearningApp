@@ -1,4 +1,5 @@
 const express = require("express");
+const mongoose = require('mongoose');
 const router = express.Router();
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
@@ -141,6 +142,9 @@ router.post("/categories", authenticate, async (req, res) => {
 // PUT /api/categories/:id
 router.put("/categories/:id", authenticate, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: "Invalid category ID" });
+    }
     const { name, description } = req.body;
     if (!name) {
       return res.status(400).json({ error: "Name is required" });
@@ -165,17 +169,18 @@ router.put("/categories/:id", authenticate, async (req, res) => {
 //DELETE /api/categories/:id
 router.delete("/categories/:id", authenticate, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: "Invalid category ID" });
+    }
     const category = await Category.findOneAndDelete({
       _id: req.params.id,
       userId: req.userId,
     });
     if (!category) return res.status(404).json({ error: "Category not found" });
-    /*
     await Card.updateMany(
       { categoryId: req.params.id, userId: req.userId },
       { $set: { categoryId: null } }
     );
-    */
     res.json({ message: "Category deleted, cards updated" });
   } catch (error) {
     console.error("Error deleting category", error);
@@ -188,7 +193,10 @@ router.delete("/categories/:id", authenticate, async (req, res) => {
 // GET /api/cards
 router.get("/cards", authenticate, async (req, res) => {
   try {
-    const cards = await Card.find({ userId: req.userId });
+    const cards = await Card.find({ userId: req.userId }).populate(
+      "categoryId",
+      "name"
+    );
     res.json(cards);
   } catch (error) {
     console.error("Error fetching cards:", error);
@@ -202,7 +210,7 @@ router.get("/cards/review", authenticate, async (req, res) => {
     const cards = await Card.find({
       userId: req.userId,
       nextReview: { $lte: new Date() },
-    });
+    }).populate("categoryId", "name");
     res.json(cards);
   } catch (error) {
     console.error("Error fetching review cards:", error);
@@ -215,13 +223,29 @@ router.get("/cards/review", authenticate, async (req, res) => {
 // POST /api/cards
 router.post("/cards", authenticate, async (req, res) => {
   try {
-    const { word, translation, category } = req.body;
+    const { word, translation, categoryId } = req.body;
     if (!word || !translation) {
       return res
         .status(400)
         .json({ error: "Word and translation are required" });
     }
-    const card = new Card({ userId: req.userId, word, translation, category });
+    if (categoryId && !mongoose.Types.ObjectId.isValid(categoryId)) {
+      return res.status(400).json({ error: "Invalid Category ID" });
+    }
+    if (categoryId) {
+      const category = await Category.findOne({
+        _id: categoryId,
+        userId: req.userId,
+      });
+      if (!category)
+        return res.status(404).json({ error: "Category not found" });
+    }
+    const card = new Card({
+      userId: req.userId,
+      word,
+      translation,
+      categoryId,
+    });
     await card.save();
     res.status(201).json(card);
   } catch (error) {
@@ -233,6 +257,9 @@ router.post("/cards", authenticate, async (req, res) => {
 // PUT /api/cards/:id/review
 router.put("/cards/:id/review", authenticate, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: "Invalid card ID" });
+    }
     const { quality } = req.body;
     if (!Number.isInteger(quality) || quality < 0 || quality > 5) {
       res
@@ -272,14 +299,27 @@ router.put("/cards/:id/review", authenticate, async (req, res) => {
 // PUT /api/cards/:id
 router.put("/cards/:id", authenticate, async (req, res) => {
   try {
-    const { word, translation, category } = req.body;
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: "Invalid card ID" });
+    }
+    const { word, translation, categoryId } = req.body;
     if (!word || !translation) {
       return res
         .status(400)
         .json({ error: "Word and translation are required" });
     }
-    const updateData = { word, translation };
-    if (category !== undefined) updateData.category = category;
+    if (categoryId && !mongoose.Types.ObjectId.isValid(categoryId)) {
+      return res.status(400).json({ error: "Invalid category ID" });
+    }
+    if (categoryId) {
+      const category = await Category.findOne({
+        _id: categoryId,
+        userId: req.userId,
+      });
+      if (!category)
+        return res.status(404).json({ error: "Category not found" });
+    }
+    const updateData = { word, translation, categoryId };
     const card = await Card.findOneAndUpdate(
       { _id: req.params.id, userId: req.userId },
       updateData,
@@ -296,6 +336,9 @@ router.put("/cards/:id", authenticate, async (req, res) => {
 // DELETE /api/cards/:id
 router.delete("/cards/:id", authenticate, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: "Invalid card ID" });
+    }
     const card = await Card.findOneAndDelete({
       _id: req.params.id,
       userId: req.userId,
@@ -349,7 +392,6 @@ router.post("/cards/import", authenticate, async (req, res) => {
             userId: req.userId,
             word: record.word,
             translation: record.translation,
-            category: record.category || "",
           });
         }
       });
@@ -369,7 +411,7 @@ router.post("/cards/import", authenticate, async (req, res) => {
 router.get("/cards/export", authenticate, async (req, res) => {
   try {
     const cards = await Card.find({ userId: req.userId });
-    const fields = ["word", "translation", "category"];
+    const fields = ["word", "translation"];
     const json2csv = new Parser({ fields });
     const csv = json2csv.parse(cards);
     res.header("Content-Type", "text/csv");
@@ -378,6 +420,61 @@ router.get("/cards/export", authenticate, async (req, res) => {
   } catch (error) {
     console.error("Error exporting cards", error);
     res.status(500).json({ error: `Failed to export cards ${error.message}` });
+  }
+});
+
+// POST /api/categories/import
+router.post("/categories/import", authenticate, async (req, res) => {
+  try {
+    const { csvData } = req.body;
+    if (!csvData) {
+      return res.status(400).json({ error: "CSV data is required" });
+    }
+    const categories = [];
+    parse(csvData, { columns: true, trim: true }, async (err, records) => {
+      if (err) {
+        return res.status(400).json({ error: "Invalid CSV format" });
+      }
+      records.forEach((record) => {
+        if (record.name) {
+          categories.push({
+            userId: req.userId,
+            name: record.name,
+            description: record.description || "",
+          });
+        }
+      });
+      if (categories.length === 0) {
+        return res
+          .status(400)
+          .json({ error: "No valid categories found in CSV" });
+      }
+      await Category.insertMany(categories);
+      res.json({ message: `Imported ${categories.length} categories` });
+    });
+  } catch (error) {
+    console.error("Error importing categories", error);
+    res
+      .status(400)
+      .json({ error: `Failed to import categories: ${error.message}` });
+  }
+});
+
+// GET /api/categories/export
+router.get("/categories/export", authenticate, async (req, res) => {
+  try {
+    const categories = await Category.find({ userId: req.userId });
+    const fields = ["name", "description"];
+    const json2csv = new Parser({ fields });
+    const csv = json2csv.parse(categories);
+    res.header("Content-Type", "text/csv");
+    res.attachment("categories.csv");
+    res.send(csv);
+  } catch (error) {
+    console.error("Error exporting categories", error);
+    res
+      .status(500)
+      .json({ error: `Failed to export categories ${error.message}` });
   }
 });
 
