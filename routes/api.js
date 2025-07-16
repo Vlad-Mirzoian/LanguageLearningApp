@@ -6,6 +6,7 @@ const { parse } = require("csv-parse");
 const { Parser } = require("json2csv");
 const Card = require("../models/Card");
 const User = require("../models/User");
+const Category = require("../models/Category");
 
 // Middleware
 const authenticate = (req, res, next) => {
@@ -72,7 +73,6 @@ router.put("/user", authenticate, async (req, res) => {
     if (email) updateData.email = email;
     if (password) updateData.password = await bcrypt.hash(password, 10);
     if (settings) updateData.settings = settings;
-
     if (Object.keys(updateData).length === 0) {
       return res.status(400).json({ error: "No valid fields to update" });
     }
@@ -104,6 +104,84 @@ router.delete("/user", authenticate, async (req, res) => {
   } catch (error) {
     console.error("Error deleting user:", error);
     res.status(400).json({ error: `Failed to delete user: ${error.message}` });
+  }
+});
+
+// GET /api/categories
+router.get("/categories", authenticate, async (req, res) => {
+  try {
+    const categories = await Category.find({ userId: req.userId });
+    res.json(categories);
+  } catch (error) {
+    console.error("Error fetching categories", error);
+    res
+      .status(500)
+      .json({ error: `Failed to fetch categories: ${error.message}` });
+  }
+});
+
+// POST /api/categories
+router.post("/categories", authenticate, async (req, res) => {
+  try {
+    const { name, description } = req.body;
+    if (!name) {
+      return res.status(400).json({ error: "Name is required" });
+    }
+    const category = new Category({ userId: req.userId, name, description });
+    await category.save();
+    res.status(201).json(category);
+  } catch (error) {
+    console.error("Error creating category", error);
+    res
+      .status(400)
+      .json({ error: `Failed to create category: ${error.message}` });
+  }
+});
+
+// PUT /api/categories/:id
+router.put("/categories/:id", authenticate, async (req, res) => {
+  try {
+    const { name, description } = req.body;
+    if (!name) {
+      return res.status(400).json({ error: "Name is required" });
+    }
+    const updateData = { name };
+    if (description !== undefined) updateData.description = description;
+    const category = await Category.findOneAndUpdate(
+      { _id: req.params.id, userId: req.userId },
+      updateData,
+      { new: true, runValidators: true }
+    );
+    if (!category) return res.status(404).json({ error: "Category not found" });
+    res.json(category);
+  } catch (error) {
+    console.error("Error updating category", error);
+    res
+      .status(400)
+      .json({ error: `Failed to update category: ${error.message}` });
+  }
+});
+
+//DELETE /api/categories/:id
+router.delete("/categories/:id", authenticate, async (req, res) => {
+  try {
+    const category = await Category.findOneAndDelete({
+      _id: req.params.id,
+      userId: req.userId,
+    });
+    if (!category) return res.status(404).json({ error: "Category not found" });
+    /*
+    await Card.updateMany(
+      { categoryId: req.params.id, userId: req.userId },
+      { $set: { categoryId: null } }
+    );
+    */
+    res.json({ message: "Category deleted, cards updated" });
+  } catch (error) {
+    console.error("Error deleting category", error);
+    res
+      .status(400)
+      .json({ error: `Failed to delete category: ${error.message}` });
   }
 });
 
@@ -195,15 +273,13 @@ router.put("/cards/:id/review", authenticate, async (req, res) => {
 router.put("/cards/:id", authenticate, async (req, res) => {
   try {
     const { word, translation, category } = req.body;
-    const updateData = {};
-    if (word) updateData.word = word;
-    if (translation) updateData.translation = translation;
-    if (category !== undefined) updateData.category = category;
-    if (!updateData.word || !updateData.translation) {
+    if (!word || !translation) {
       return res
         .status(400)
         .json({ error: "Word and translation are required" });
     }
+    const updateData = { word, translation };
+    if (category !== undefined) updateData.category = category;
     const card = await Card.findOneAndUpdate(
       { _id: req.params.id, userId: req.userId },
       updateData,

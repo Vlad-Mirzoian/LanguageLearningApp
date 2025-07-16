@@ -5,6 +5,7 @@ const cardSchema = new mongoose.Schema({
   word: { type: String, required: true },
   translation: { type: String, required: true },
   category: { type: String, default: "" },
+  // categoryId: {type: mongoose.Schema.Types.ObjectId, ref: "Category", default: null},
   interval: { type: Number, default: 1 },
   nextReview: { type: Date, default: Date.now },
   easiness: { type: Number, default: 2.5 },
