@@ -228,8 +228,22 @@ router.delete(
 // GET /api/cards
 router.get("/cards", authenticate, async (req, res) => {
   try {
+    const { categoryId } = req.query;
     const query = req.userRole === "admin" ? {} : { userId: req.userId };
-    const cards = await Card.find(query).populate("categoryId", "name");
+    if (categoryId) {
+      if (categoryId && !mongoose.Types.ObjectId.isValid(categoryId)) {
+        return res.status(400).json({ error: "Invalid category ID" });
+      }
+      const category = await Category.findOne({ _id: categoryId });
+      if (!category) {
+        return res.status(404).json({ error: "Category not found" });
+      }
+      query.categoryId = categoryId;
+    }
+    const cards = await Card.find(query).populate(
+      "categoryId",
+      "name"
+    );
     res.json(cards);
   } catch (error) {
     console.error("Error fetching cards:", error);
@@ -272,7 +286,7 @@ router.post(
           .json({ error: "Word and translation are required" });
       }
       if (categoryId && !mongoose.Types.ObjectId.isValid(categoryId)) {
-        return res.status(400).json({ error: "Invalid Category ID" });
+        return res.status(400).json({ error: "Invalid category ID" });
       }
       if (categoryId) {
         const category = await Category.findOne({
