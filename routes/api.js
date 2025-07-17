@@ -1,5 +1,5 @@
 const express = require("express");
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 const router = express.Router();
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
@@ -365,7 +365,34 @@ router.get("/progress", authenticate, async (req, res) => {
       userId: req.userId,
       repetitions: { $gte: 5 },
     });
-    res.json({ totalCards, reviewedToday, learnedCards });
+    const categoriesStats = await Card.aggregate([
+      { $match: { userId: new mongoose.Types.ObjectId(req.userId) } },
+      {
+        $group: {
+          _id: "$categoryId",
+          total: { $sum: 1 },
+          learned: { $sum: { $cond: [{ $gte: ["$repetitions", 5] }, 1, 0] } },
+        },
+      },
+      {
+        $lookup: {
+          from: "categories",
+          localField: "_id",
+          foreignField: "_id",
+          as: "category",
+        },
+      },
+      { $unwind: { path: "$category", preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: 0,
+          categoryName: { $ifNull: ["$category.name", "Uncategorized"] },
+          total: 1,
+          learned: 1,
+        },
+      },
+    ]);
+    res.json({ totalCards, reviewedToday, learnedCards, categoriesStats });
   } catch (error) {
     console.error("Error fetching progress", error);
     res
