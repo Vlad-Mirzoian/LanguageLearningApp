@@ -129,6 +129,133 @@ router.delete("/user", authenticate, async (req, res) => {
   }
 });
 
+// GET /api/languages
+router.get("/languages", authenticate, async (req, res) => {
+  try {
+    const languages = await Language.find();
+    res.json(languages);
+  } catch (error) {
+    console.error("Error fetching languages", error);
+    res
+      .status(500)
+      .json({ error: `Failed to fetch languages: ${error.message}` });
+  }
+});
+
+// POST /api/languages
+router.post(
+  "/languages",
+  authenticate,
+  authorizeRoles(["admin"]),
+  async (req, res) => {
+    try {
+      const { code, name } = req.body;
+      if (!code || !name) {
+        return res.status(400).json({ error: "Code and name are required" });
+      }
+      const language = new Language({ code, name });
+      await language.save();
+      res.status(201).json(language);
+    } catch (error) {
+      console.error("Error creating language", error);
+      res
+        .status(400)
+        .json({ error: `Failed to create language: ${error.message}` });
+    }
+  }
+);
+
+// PUT /api/languages/:id
+router.put(
+  "/languages/:id",
+  authenticate,
+  authorizeRoles(["admin"]),
+  async (req, res) => {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(400).json({ error: "Invalid language ID" });
+      }
+      const { code, name } = req.body;
+      if (!code || !name) {
+        return res.status(400).json({ error: "Code and name are required" });
+      }
+      const updateData = { code, name };
+      const language = await Language.findOneAndUpdate(
+        { _id: req.params.id },
+        updateData,
+        { new: true, runValidators: true }
+      );
+      if (!language) {
+        return res.status(404).json({ error: "Language not found" });
+      }
+      res.json(language);
+    } catch (error) {
+      console.error("Error updating language", error);
+      res
+        .status(400)
+        .json({ error: `Failed to update language: ${error.message}` });
+    }
+  }
+);
+
+// DELETE /api/languages/:id
+router.delete(
+  "/languages/:id",
+  authenticate,
+  authorizeRoles(["admin"]),
+  async (req, res) => {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(400).json({ error: "Invalid language id" });
+      }
+      const language = await Language.findOneAndDelete({ _id: req.params.id });
+      if (!language) {
+        return res.status(404).json({ error: "Language not found" });
+      }
+      /*
+      await Word.deleteMany({ languageId: req.params.id });
+      await Card.deleteMany({
+        $or: [
+          {
+            wordId: {
+              $in: await Word.find({ languageId: req.params.id }).distinct(
+                "_id"
+              ),
+            },
+          },
+          {
+            translationWordId: {
+              $in: await Word.find({ languageId: req.params.id }).distinct(
+                "_id"
+              ),
+            },
+          },
+        ],
+      });
+      await User.updateMany(
+        {
+          $or: [
+            { language: req.params.id },
+            { learningLanguage: req.params.id },
+          ],
+        },
+        {
+          $set: { language: null, learningLanguage: null },
+        }
+      );
+      */
+      res.json({
+        message: "Language deleted, related words and cards removed",
+      });
+    } catch (error) {
+      console.error("Error deleting language", error);
+      res
+        .status(400)
+        .json({ error: `Failed to delete language: ${error.message}` });
+    }
+  }
+);
+
 // GET /api/categories
 router.get("/categories", authenticate, async (req, res) => {
   try {
