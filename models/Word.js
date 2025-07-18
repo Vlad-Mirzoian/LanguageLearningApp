@@ -7,13 +7,7 @@ const wordSchema = new mongoose.Schema({
     ref: "Language",
     required: true,
   },
-  context: { type: String, default: "" },
-  pronunciation: { type: String, default: "" },
-  difficulty: {
-    type: String,
-    enum: ["beginner", "intermediate", "advanced"],
-    default: "beginner",
-  },
+  meaning: { type: String, default: "" },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
@@ -21,6 +15,6 @@ const wordSchema = new mongoose.Schema({
   },
 });
 
-wordSchema.index({ text: 1, language: 1, createdBy: 1 }, { unique: true });
+wordSchema.index({ text: 1, languageId: 1, createdBy: 1 }, { unique: true });
 
 module.exports = mongoose.model("Word", wordSchema);

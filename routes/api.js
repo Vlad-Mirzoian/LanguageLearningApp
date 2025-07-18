@@ -256,6 +256,124 @@ router.delete(
   }
 );
 
+// GET /api/words
+router.get("/words", authenticate, async (req, res) => {
+  try {
+    const { languageId } = req.query;
+    const query = req.userRole === "admin" ? {} : { createdBy: req.userId };
+    if (languageId) {
+      if (!mongoose.Types.ObjectId.isValid(languageId)) {
+        return res.status(400).json({ error: "Invalid language ID" });
+      }
+      const language = await Language.findById(languageId);
+      if (!language) {
+        return res.status(404).json({ error: "Language not found" });
+      }
+      query.languageId = languageId;
+    }
+    const words = await Word.find(query).populate("languageId", "code");
+    res.json(words);
+  } catch (error) {
+    console.error("Error fetching words", error);
+    res.status(500).json({ error: `Failed to fetch words: ${error.message}` });
+  }
+});
+
+// POST /api/words
+router.post(
+  "/words",
+  authenticate,
+  authorizeRoles(["user"]),
+  async (req, res) => {
+    try {
+      const { text, languageId, meaning } = req.body;
+      if (!text || !languageId) {
+        return res
+          .status(400)
+          .json({ error: "Text and language are required" });
+      }
+      if (!mongoose.Types.ObjectId.isValid(languageId)) {
+        return res.status(400).json({ error: "Invalid language ID" });
+      }
+      const language = await Language.findById(languageId);
+      if (!language) {
+        return res.status(404).json({ error: "Language not found" });
+      }
+      const word = new Word({
+        text,
+        languageId,
+        meaning,
+        createdBy: req.userId,
+      });
+      await word.save();
+      res.status(201).json(word);
+    } catch (error) {
+      console.error("Error creating word", error);
+      res
+        .status(400)
+        .json({ error: `Failed to create word: ${error.message}` });
+    }
+  }
+);
+
+// PUT /api/words/:id
+router.put("/words/:id", authenticate, async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: "Invalid word ID" });
+    }
+    const { text, languageId, meaning } = req.body;
+    if (!text || !languageId) {
+      return res.status(400).json({ error: "Text and language are required" });
+    }
+    if (!mongoose.Types.ObjectId.isValid(languageId)) {
+      return res.status(400).json({ error: "Invalid language ID" });
+    }
+    const language = await Language.findById(languageId);
+    if (!language) {
+      return res.status(404).json({ error: "Language not found" });
+    }
+    const updateData = { text, languageId };
+    if (meaning !== undefined) updateData.meaning = meaning;
+    const query =
+      req.userRole === "admin"
+        ? { _id: req.params.id }
+        : { _id: req.params.id, createdBy: req.userId };
+    const word = await Word.findOneAndUpdate(query, updateData, {
+      new: true,
+      runValidators: true,
+    });
+    if (!word) return res.status(404).json({ error: "Word not found" });
+    res.json(word);
+  } catch (error) {
+    console.error("Error updating word", error);
+    res.status(400).json({ error: `Failed to update word: ${error.message}` });
+  }
+});
+
+// DELETE /api/words/:id
+router.delete("/words/:id", authenticate, async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: "Invalid word ID" });
+    }
+    const query =
+      req.userRole === "admin"
+        ? { _id: req.params.id }
+        : { _id: req.params.id, createdBy: req.userId };
+    const word = await Word.findOneAndDelete(query);
+    if (!word) return res.status(404).json({ error: "Word not found" });
+    await Card.deleteMany({
+      $or: [{ wordId: req.params.id }, { translationWordId: req.params.id }],
+      userId: req.userRole === "admin" ? { $exists: true } : req.userId,
+    });
+    res.json({ message: "Word deleted" });
+  } catch (error) {
+    console.error("Error deleting word", error);
+    res.status(400).json({ error: `Failed to delete word: ${error.message}` });
+  }
+});
+
 // GET /api/categories
 router.get("/categories", authenticate, async (req, res) => {
   try {
@@ -363,7 +481,7 @@ router.get("/cards", authenticate, async (req, res) => {
       if (categoryId && !mongoose.Types.ObjectId.isValid(categoryId)) {
         return res.status(400).json({ error: "Invalid category ID" });
       }
-      const category = await Category.findOne({ _id: categoryId });
+      const category = await Category.findById(categoryId);
       if (!category) {
         return res.status(404).json({ error: "Category not found" });
       }
@@ -415,10 +533,7 @@ router.post(
         return res.status(400).json({ error: "Invalid category ID" });
       }
       if (categoryId) {
-        const category = await Category.findOne({
-          _id: categoryId,
-          userId: req.userId,
-        });
+        const category = await Category.findById(categoryId);
         if (!category)
           return res.status(404).json({ error: "Category not found" });
       }
@@ -507,7 +622,7 @@ router.put("/cards/:id", authenticate, async (req, res) => {
       return res.status(400).json({ error: "Invalid category ID" });
     }
     if (categoryId) {
-      const category = await Category.findOne({ _id: categoryId });
+      const category = await Category.findById(categoryId);
       if (!category)
         return res.status(404).json({ error: "Category not found" });
     }
