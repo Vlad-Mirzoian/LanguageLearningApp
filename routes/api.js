@@ -8,6 +8,8 @@ const { Parser } = require("json2csv");
 const Card = require("../models/Card");
 const User = require("../models/User");
 const Category = require("../models/Category");
+const Word = require("../models/Word");
+const Language = require("../models/Language");
 
 // Middleware
 const authenticate = (req, res, next) => {
@@ -240,10 +242,7 @@ router.get("/cards", authenticate, async (req, res) => {
       }
       query.categoryId = categoryId;
     }
-    const cards = await Card.find(query).populate(
-      "categoryId",
-      "name"
-    );
+    const cards = await Card.find(query).populate("categoryId", "name");
     res.json(cards);
   } catch (error) {
     console.error("Error fetching cards:", error);
