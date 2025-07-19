@@ -4,7 +4,18 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   role: { type: String, enum: ["user", "admin"], default: "user" },
-  settings: { type: Object, default: { language: "ua" } },
+  nativeLanguageId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Language",
+    default: null,
+  },
+  learningLanguagesIds: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Language",
+      default: [],
+    },
+  ],
 });
 
 module.exports = mongoose.model("User", userSchema);

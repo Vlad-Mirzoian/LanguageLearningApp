@@ -39,7 +39,8 @@ const authorizeRoles = (role) => {
 // POST /api/register
 router.post("/register", async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, nativeLanguageId, learningLanguagesIds } =
+      req.body;
     if (!email || !password) {
       return res.status(400).json({ error: "Email and password are required" });
     }
@@ -47,8 +48,40 @@ router.post("/register", async (req, res) => {
     if (existingUser) {
       return res.status(400).json({ error: "Email already exists" });
     }
+    if (nativeLanguageId) {
+      if (!mongoose.Types.ObjectId.isValid(nativeLanguageId)) {
+        return res.status(400).json({ error: "Invalid nativeLanguageId" });
+      }
+      const nativeLang = await Language.findById(nativeLanguageId);
+      if (!nativeLang)
+        return res.status(404).json({ error: "Native language not found" });
+    }
+    if (learningLanguagesIds && !Array.isArray(learningLanguagesIds)) {
+      return res
+        .status(400)
+        .json({ error: "LearningLanguagesIds must be an array" });
+    }
+    if (learningLanguagesIds?.length > 0) {
+      for (const langId of learningLanguagesIds) {
+        if (!mongoose.Types.ObjectId.isValid(langId)) {
+          return res
+            .status(400)
+            .json({ error: `Invalid learning language ID: ${langId}` });
+        }
+        const lang = await Language.findById(langId);
+        if (!lang)
+          return res
+            .status(404)
+            .json({ error: `Learning language not found: ${langId}` });
+      }
+    }
     const hashed_password = await bcrypt.hash(password, 10);
-    const user = new User({ email, password: hashed_password });
+    const user = new User({
+      email,
+      password: hashed_password,
+      nativeLanguageId,
+      learningLanguagesIds,
+    });
     await user.save();
     res.status(201).json({ message: "User created" });
   } catch (error) {
@@ -79,7 +112,12 @@ router.post("/login", async (req, res) => {
     );
     res.json({
       token,
-      user: { email: user.email, role: user.role, settings: user.settings },
+      user: {
+        email: user.email,
+        role: user.role,
+        nativeLanguageId: user.nativeLanguageId,
+        learningLanguagesIds: user.learningLanguagesIds,
+      },
     });
   } catch (error) {
     console.error("Error logging in:", error);
@@ -90,11 +128,50 @@ router.post("/login", async (req, res) => {
 // PUT /api/user
 router.put("/user", authenticate, async (req, res) => {
   try {
-    const { email, password, settings } = req.body;
+    const { email, password, nativeLanguageId, learningLanguagesIds } =
+      req.body;
     const updateData = {};
-    if (email) updateData.email = email;
+    if (email) {
+      const existingUser = await User.findOne({
+        email,
+        _id: { $ne: req.userId },
+      });
+      if (existingUser)
+        return res.status(400).json({ error: "Email already exists" });
+      updateData.email = email;
+    }
     if (password) updateData.password = await bcrypt.hash(password, 10);
-    if (settings) updateData.settings = settings;
+    if (nativeLanguageId) {
+      if (!mongoose.Types.ObjectId.isValid(nativeLanguageId)) {
+        return res.status(400).json({ error: "Invalid nativeLanguageId" });
+      }
+      const lang = await Language.findById(nativeLanguageId);
+      if (!lang)
+        return res.status(404).json({ error: "Native language not found" });
+      updateData.nativeLanguageId = nativeLanguageId;
+    } else if (nativeLanguageId === null) {
+      updateData.nativeLanguageId = null;
+    }
+    if (learningLanguagesIds) {
+      if (!Array.isArray(learningLanguagesIds)) {
+        return res
+          .status(400)
+          .json({ error: "learningLanguages must be an array" });
+      }
+      for (const langId of learningLanguagesIds) {
+        if (!mongoose.Types.ObjectId.isValid(langId)) {
+          return res
+            .status(400)
+            .json({ error: `Invalid learningLanguage ID: ${langId}` });
+        }
+        const lang = await Language.findById(langId);
+        if (!lang)
+          return res
+            .status(404)
+            .json({ error: `Learning language not found: ${langId}` });
+      }
+      updateData.learningLanguagesIds = learningLanguagesIds;
+    }
     if (Object.keys(updateData).length === 0) {
       return res.status(400).json({ error: "No valid fields to update" });
     }
@@ -104,7 +181,12 @@ router.put("/user", authenticate, async (req, res) => {
     if (!user) return res.status(404).json({ error: "User not found" });
     res.json({
       message: "User updated",
-      user: { email: user.email, settings: user.settings },
+      user: {
+        email: user.email,
+        role: user.role,
+        nativeLanguageId: user.nativeLanguageId,
+        learningLanguagesIds: user.learningLanguagesIds,
+      },
     });
   } catch (error) {
     console.error("Error updating user credentials:", error);
@@ -231,19 +313,18 @@ router.delete(
         ],
       });
       await Word.deleteMany({ languageId: req.params.id });
-      /*
       await User.updateMany(
         {
           $or: [
-            { language: req.params.id },
-            { learningLanguage: req.params.id },
+            { nativeLanguageId: req.params.id },
+            { learningLanguagesIds: req.params.id },
           ],
         },
         {
-          $set: { language: null, learningLanguage: null },
+          $set: { nativeLanguageId: null },
+          $pull: { learningLanguagesIds: req.params.id },
         }
       );
-      */
       res.json({
         message: "Language deleted, related words and cards removed",
       });
