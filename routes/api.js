@@ -212,8 +212,6 @@ router.delete(
       if (!language) {
         return res.status(404).json({ error: "Language not found" });
       }
-      await Word.deleteMany({ languageId: req.params.id });
-      /*
       await Card.deleteMany({
         $or: [
           {
@@ -224,7 +222,7 @@ router.delete(
             },
           },
           {
-            translationWordId: {
+            translationId: {
               $in: await Word.find({ languageId: req.params.id }).distinct(
                 "_id"
               ),
@@ -232,6 +230,8 @@ router.delete(
           },
         ],
       });
+      await Word.deleteMany({ languageId: req.params.id });
+      /*
       await User.updateMany(
         {
           $or: [
@@ -396,10 +396,10 @@ router.delete("/words/:id", authenticate, async (req, res) => {
     const word = await Word.findOneAndDelete(query);
     if (!word) return res.status(404).json({ error: "Word not found" });
     await Card.deleteMany({
-      $or: [{ wordId: req.params.id }, { translationWordId: req.params.id }],
+      $or: [{ wordId: req.params.id }, { translationId: req.params.id }],
       userId: req.userRole === "admin" ? { $exists: true } : req.userId,
     });
-    res.json({ message: "Word deleted" });
+    res.json({ message: "Word and related cards deleted" });
   } catch (error) {
     console.error("Error deleting word", error);
     res.status(400).json({ error: `Failed to delete word: ${error.message}` });
@@ -490,10 +490,6 @@ router.delete(
       });
       if (!category)
         return res.status(404).json({ error: "Category not found" });
-      await Card.updateMany(
-        { categoryId: req.params.id },
-        { $set: { categoryId: null } }
-      );
       await Word.updateMany(
         { categoryId: req.params.id },
         { $set: { categoryId: null } }
@@ -513,19 +509,10 @@ router.delete(
 // GET /api/cards
 router.get("/cards", authenticate, async (req, res) => {
   try {
-    const { categoryId } = req.query;
     const query = req.userRole === "admin" ? {} : { userId: req.userId };
-    if (categoryId) {
-      if (categoryId && !mongoose.Types.ObjectId.isValid(categoryId)) {
-        return res.status(400).json({ error: "Invalid category ID" });
-      }
-      const category = await Category.findById(categoryId);
-      if (!category) {
-        return res.status(404).json({ error: "Category not found" });
-      }
-      query.categoryId = categoryId;
-    }
-    const cards = await Card.find(query).populate("categoryId", "name");
+    const cards = await Card.find(query)
+      .populate("wordId", "text languageId categoryId meaning")
+      .populate("translationId", "text languageId categoryId meaning");
     res.json(cards);
   } catch (error) {
     console.error("Error fetching cards:", error);
@@ -543,7 +530,9 @@ router.get(
       const cards = await Card.find({
         userId: req.userId,
         nextReview: { $lte: new Date() },
-      }).populate("categoryId", "name");
+      })
+        .populate("wordId", "text languageId meaning categoryId")
+        .populate("translationId", "text languageId meaning categoryId");
       res.json(cards);
     } catch (error) {
       console.error("Error fetching review cards:", error);
@@ -561,25 +550,30 @@ router.post(
   authorizeRoles(["user"]),
   async (req, res) => {
     try {
-      const { word, translation, categoryId } = req.body;
-      if (!word || !translation) {
+      const { wordId, translationId } = req.body;
+      if (!wordId || !translationId) {
         return res
           .status(400)
           .json({ error: "Word and translation are required" });
       }
-      if (categoryId && !mongoose.Types.ObjectId.isValid(categoryId)) {
-        return res.status(400).json({ error: "Invalid category ID" });
+      if (!mongoose.Types.ObjectId.isValid(wordId)) {
+        return res.status(400).json({ error: "Invalid original word ID" });
       }
-      if (categoryId) {
-        const category = await Category.findById(categoryId);
-        if (!category)
-          return res.status(404).json({ error: "Category not found" });
+      const word = await Word.findById(wordId);
+      if (!word) {
+        return res.status(404).json({ error: "Original word not found" });
+      }
+      if (!mongoose.Types.ObjectId.isValid(translationId)) {
+        return res.status(400).json({ error: "Invalid translation word ID" });
+      }
+      const translationWord = await Word.findById(translationId);
+      if (!translationWord) {
+        return res.status(404).json({ error: "Translation word not found" });
       }
       const card = new Card({
         userId: req.userId,
-        word,
-        translation,
-        categoryId,
+        wordId,
+        translationId,
       });
       await card.save();
       res.status(201).json(card);
@@ -613,7 +607,6 @@ router.put(
         userId: req.userId,
       });
       if (!card) return res.status(404).json({ error: "Card not found" });
-
       let { easiness, interval, repetitions } = card;
       repetitions += 1;
       easiness = Math.max(
@@ -650,25 +643,31 @@ router.put("/cards/:id", authenticate, async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ error: "Invalid card ID" });
     }
-    const { word, translation, categoryId } = req.body;
-    if (!word || !translation) {
+    const { wordId, translationId } = req.body;
+    if (!wordId || !translationId) {
       return res
         .status(400)
         .json({ error: "Word and translation are required" });
     }
-    if (categoryId && !mongoose.Types.ObjectId.isValid(categoryId)) {
-      return res.status(400).json({ error: "Invalid category ID" });
+    if (!mongoose.Types.ObjectId.isValid(wordId)) {
+      return res.status(400).json({ error: "Invalid original word ID" });
     }
-    if (categoryId) {
-      const category = await Category.findById(categoryId);
-      if (!category)
-        return res.status(404).json({ error: "Category not found" });
+    const word = await Word.findById(wordId);
+    if (!word) {
+      return res.status(404).json({ error: "Original word not found" });
+    }
+    if (!mongoose.Types.ObjectId.isValid(translationId)) {
+      return res.status(400).json({ error: "Invalid translation word ID" });
+    }
+    const translationWord = await Word.findById(translationId);
+    if (!translationWord) {
+      return res.status(404).json({ error: "Translation word not found" });
     }
     const query =
       req.userRole === "admin"
         ? { _id: req.params.id }
         : { _id: req.params.id, userId: req.userId };
-    const updateData = { word, translation, categoryId };
+    const updateData = { wordId, translationId };
     const card = await Card.findOneAndUpdate(query, updateData, {
       new: true,
       runValidators: true,
@@ -700,174 +699,185 @@ router.delete("/cards/:id", authenticate, async (req, res) => {
   }
 });
 
-// GET /api/progress
-router.get(
-  "/progress",
-  authenticate,
-  authorizeRoles(["user"]),
-  async (req, res) => {
-    try {
-      const totalCards = await Card.countDocuments({ userId: req.userId });
-      const startOfDay = new Date();
-      startOfDay.setHours(0, 0, 0, 0);
-      const reviewedToday = await Card.countDocuments({
-        userId: req.userId,
-        lastReviewed: { $gte: startOfDay },
-      });
-      const learnedCards = await Card.countDocuments({
-        userId: req.userId,
-        repetitions: { $gte: 5 },
-      });
-      const categoriesStats = await Card.aggregate([
-        { $match: { userId: new mongoose.Types.ObjectId(req.userId) } },
-        {
-          $group: {
-            _id: "$categoryId",
-            total: { $sum: 1 },
-            learned: { $sum: { $cond: [{ $gte: ["$repetitions", 5] }, 1, 0] } },
-          },
-        },
-        {
-          $lookup: {
-            from: "categories",
-            localField: "_id",
-            foreignField: "_id",
-            as: "category",
-          },
-        },
-        { $unwind: { path: "$category", preserveNullAndEmptyArrays: true } },
-        {
-          $project: {
-            _id: 0,
-            categoryName: { $ifNull: ["$category.name", "Uncategorized"] },
-            total: 1,
-            learned: 1,
-          },
-        },
-      ]);
-      res.json({ totalCards, reviewedToday, learnedCards, categoriesStats });
-    } catch (error) {
-      console.error("Error fetching progress", error);
-      res
-        .status(500)
-        .json({ error: `Failed to fetch progress ${error.message}` });
-    }
-  }
-);
-
-// POST /api/cards/import
-router.post(
-  "/cards/import",
-  authenticate,
-  authorizeRoles(["user"]),
-  async (req, res) => {
-    try {
-      const { csvData } = req.body;
-      if (!csvData) {
-        return res.status(400).json({ error: "CSV data is required" });
-      }
-      const cards = [];
-      parse(csvData, { columns: true, trim: true }, async (err, records) => {
-        if (err) {
-          return res.status(400).json({ error: "Invalid CSV format" });
-        }
-        records.forEach((record) => {
-          if (record.word && record.translation) {
-            cards.push({
-              userId: req.userId,
-              word: record.word,
-              translation: record.translation,
-            });
-          }
-        });
-        if (cards.length === 0) {
-          return res.status(400).json({ error: "No valid cards found in CSV" });
-        }
-        await Card.insertMany(cards);
-        res.json({ message: `Imported ${cards.length} cards` });
-      });
-    } catch (error) {
-      console.error("Error importing cards", error);
-      res
-        .status(400)
-        .json({ error: `Failed to import cards ${error.message}` });
-    }
-  }
-);
-
-// GET /api/cards/export
-router.get("/cards/export", authenticate, async (req, res) => {
+/*
+router.get('/progress', authenticate, authorizeRoles(['user']), async (req, res) => {
   try {
-    const cards = await Card.find({ userId: req.userId });
-    const fields = ["word", "translation"];
-    const json2csv = new Parser({ fields });
-    const csv = json2csv.parse(cards);
-    res.header("Content-Type", "text/csv");
-    res.attachment("cards.csv");
-    res.send(csv);
+    const user = await User.findById(req.userId).populate('nativeLanguage learningLanguage');
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // Total cards
+    const totalCards = await Card.countDocuments({ userId: req.userId });
+
+    // Cards reviewed today
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const reviewedToday = await Card.countDocuments({
+      userId: req.userId,
+      lastReviewed: { $gte: startOfDay },
+    });
+
+    // Learned cards (repetitions >= 5)
+    const learnedCards = await Card.countDocuments({
+      userId: req.userId,
+      repetitions: { $gte: 5 },
+    });
+
+    // Cards by language
+    const languageStats = await Card.aggregate([
+      { $match: { userId: mongoose.Types.ObjectId(req.userId) } },
+      {
+        $lookup: {
+          from: 'words',
+          localField: 'wordId',
+          foreignField: '_id',
+          as: 'word',
+        },
+      },
+      { $unwind: '$word' },
+      {
+        $lookup: {
+          from: 'words',
+          localField: 'translationId',
+          foreignField: '_id',
+          as: 'translation',
+        },
+      },
+      { $unwind: '$translation' },
+      {
+        $lookup: {
+          from: 'languages',
+          localField: 'word.languageId',
+          foreignField: '_id',
+          as: 'nativeLang',
+        },
+      },
+      { $unwind: '$nativeLang' },
+      {
+        $lookup: {
+          from: 'languages',
+          localField: 'translation.languageId',
+          foreignField: '_id',
+          as: 'learningLang',
+        },
+      },
+      { $unwind: '$learningLang' },
+      {
+        $group: {
+          _id: {
+            nativeLanguage: '$nativeLang._id',
+            learningLanguage: '$learningLang._id',
+          },
+          nativeLanguageName: { $first: '$nativeLang.name' },
+          learningLanguageName: { $first: '$learningLang.name' },
+          total: { $sum: 1 },
+          learned: { $sum: { $cond: [{ $gte: ['$repetitions', 5] }, 1, 0] } },
+          avgEasiness: { $avg: '$easiness' },
+          avgInterval: { $avg: '$interval' },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          nativeLanguage: {
+            id: '$_id.nativeLanguage',
+            name: '$nativeLanguageName',
+          },
+          learningLanguage: {
+            id: '$_id.learningLanguage',
+            name: '$learningLanguageName',
+          },
+          total: 1,
+          learned: 1,
+          avgEasiness: { $round: ['$avgEasiness', 2] },
+          avgInterval: { $round: ['$avgInterval', 2] },
+        },
+      },
+    ]);
+
+    // Category stats (based on Word.categoryId for wordId and translationId)
+    const categoriesStats = await Card.aggregate([
+      { $match: { userId: new mongoose.Types.ObjectId(req.userId) } },
+      {
+        $lookup: {
+          from: 'words',
+          localField: 'wordId',
+          foreignField: '_id',
+          as: 'word',
+        },
+      },
+      { $unwind: '$word' },
+      {
+        $lookup: {
+          from: 'words',
+          localField: 'translationId',
+          foreignField: '_id',
+          as: 'translation',
+        },
+      },
+      { $unwind: '$translation' },
+      {
+        $lookup: {
+          from: 'categories',
+          localField: 'word.categoryId',
+          foreignField: '_id',
+          as: 'wordCategory',
+        },
+      },
+      { $unwind: { path: '$wordCategory', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'categories',
+          localField: 'translation.categoryId',
+          foreignField: '_id',
+          as: 'translationCategory',
+        },
+      },
+      { $unwind: { path: '$translationCategory', preserveNullAndEmptyArrays: true } },
+      {
+        $group: {
+          _id: {
+            wordCategoryId: '$word.categoryId',
+            translationCategoryId: '$translation.categoryId',
+          },
+          wordCategoryName: { $first: { $ifNull: ['$wordCategory.name', 'Uncategorized'] } },
+          translationCategoryName: { $first: { $ifNull: ['$translationCategory.name', 'Uncategorized'] } },
+          total: { $sum: 1 },
+          learned: { $sum: { $cond: [{ $gte: ['$repetitions', 5] }, 1, 0] } },
+          avgEasiness: { $avg: '$easiness' },
+          avgInterval: { $avg: '$interval' },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          wordCategory: {
+            id: '$_id.wordCategoryId',
+            name: '$wordCategoryName',
+          },
+          translationCategory: {
+            id: '$_id.translationCategoryId',
+            name: '$translationCategoryName',
+          },
+          total: 1,
+          learned: 1,
+          avgEasiness: { $round: ['$avgEasiness', 2] },
+          avgInterval: { $round: ['$avgInterval', 2] },
+        },
+      },
+    ]);
+
+    res.json({
+      totalCards,
+      reviewedToday,
+      learnedCards,
+      languageStats,
+      categoriesStats,
+    });
   } catch (error) {
-    console.error("Error exporting cards", error);
-    res.status(500).json({ error: `Failed to export cards ${error.message}` });
+    console.error('Error fetching progress:', error);
+    res.status(500).json({ error: `Failed to fetch progress: ${error.message}` });
   }
 });
-
-// POST /api/categories/import
-router.post(
-  "/categories/import",
-  authenticate,
-  authorizeRoles(["admin"]),
-  async (req, res) => {
-    try {
-      const { csvData } = req.body;
-      if (!csvData) {
-        return res.status(400).json({ error: "CSV data is required" });
-      }
-      const categories = [];
-      parse(csvData, { columns: true, trim: true }, async (err, records) => {
-        if (err) {
-          return res.status(400).json({ error: "Invalid CSV format" });
-        }
-        records.forEach((record) => {
-          if (record.name) {
-            categories.push({
-              name: record.name,
-              description: record.description || "",
-            });
-          }
-        });
-        if (categories.length === 0) {
-          return res
-            .status(400)
-            .json({ error: "No valid categories found in CSV" });
-        }
-        await Category.insertMany(categories);
-        res.json({ message: `Imported ${categories.length} categories` });
-      });
-    } catch (error) {
-      console.error("Error importing categories", error);
-      res
-        .status(400)
-        .json({ error: `Failed to import categories: ${error.message}` });
-    }
-  }
-);
-
-// GET /api/categories/export
-router.get("/categories/export", authenticate, async (req, res) => {
-  try {
-    const categories = await Category.find();
-    const fields = ["name", "description"];
-    const json2csv = new Parser({ fields });
-    const csv = json2csv.parse(categories);
-    res.header("Content-Type", "text/csv");
-    res.attachment("categories.csv");
-    res.send(csv);
-  } catch (error) {
-    console.error("Error exporting categories", error);
-    res
-      .status(500)
-      .json({ error: `Failed to export categories ${error.message}` });
-  }
-});
+*/
 
 module.exports = router;
