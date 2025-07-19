@@ -326,7 +326,7 @@ router.delete(
         }
       );
       res.json({
-        message: "Language deleted, related words and cards removed",
+        message: "Language deleted, related users updated, related words and cards removed",
       });
     } catch (error) {
       console.error("Error deleting language", error);
