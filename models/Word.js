@@ -7,6 +7,11 @@ const wordSchema = new mongoose.Schema({
     ref: "Language",
     required: true,
   },
+  categoryId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Category",
+    default: null,
+  },
   meaning: { type: String, default: "" },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,

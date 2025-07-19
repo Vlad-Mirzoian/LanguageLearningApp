@@ -212,8 +212,8 @@ router.delete(
       if (!language) {
         return res.status(404).json({ error: "Language not found" });
       }
-      /*
       await Word.deleteMany({ languageId: req.params.id });
+      /*
       await Card.deleteMany({
         $or: [
           {
@@ -259,7 +259,7 @@ router.delete(
 // GET /api/words
 router.get("/words", authenticate, async (req, res) => {
   try {
-    const { languageId } = req.query;
+    const { languageId, categoryId } = req.query;
     const query = req.userRole === "admin" ? {} : { createdBy: req.userId };
     if (languageId) {
       if (!mongoose.Types.ObjectId.isValid(languageId)) {
@@ -271,7 +271,19 @@ router.get("/words", authenticate, async (req, res) => {
       }
       query.languageId = languageId;
     }
-    const words = await Word.find(query).populate("languageId", "code");
+    if (categoryId) {
+      if (!mongoose.Types.ObjectId.isValid(categoryId)) {
+        return res.status(400).json({ error: "Invalid category ID" });
+      }
+      const category = await Category.findById(categoryId);
+      if (!category) {
+        return res.status(404).json({ error: "Category not found" });
+      }
+      query.categoryId = categoryId;
+    }
+    const words = await Word.find(query)
+      .populate("languageId", "code")
+      .populate("categoryId", "name");
     res.json(words);
   } catch (error) {
     console.error("Error fetching words", error);
@@ -286,7 +298,7 @@ router.post(
   authorizeRoles(["user"]),
   async (req, res) => {
     try {
-      const { text, languageId, meaning } = req.body;
+      const { text, languageId, categoryId, meaning } = req.body;
       if (!text || !languageId) {
         return res
           .status(400)
@@ -299,9 +311,19 @@ router.post(
       if (!language) {
         return res.status(404).json({ error: "Language not found" });
       }
+      if (categoryId) {
+        if (!mongoose.Types.ObjectId.isValid(categoryId)) {
+          return res.status(400).json({ error: "Invalid category ID" });
+        }
+        const category = await Category.findById(categoryId);
+        if (!category) {
+          return res.status(404).json({ error: "Category not found" });
+        }
+      }
       const word = new Word({
         text,
         languageId,
+        categoryId,
         meaning,
         createdBy: req.userId,
       });
@@ -322,7 +344,7 @@ router.put("/words/:id", authenticate, async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ error: "Invalid word ID" });
     }
-    const { text, languageId, meaning } = req.body;
+    const { text, languageId, categoryId, meaning } = req.body;
     if (!text || !languageId) {
       return res.status(400).json({ error: "Text and language are required" });
     }
@@ -334,6 +356,16 @@ router.put("/words/:id", authenticate, async (req, res) => {
       return res.status(404).json({ error: "Language not found" });
     }
     const updateData = { text, languageId };
+    if (categoryId) {
+      if (!mongoose.Types.ObjectId.isValid(categoryId)) {
+        return res.status(400).json({ error: "Invalid category ID" });
+      }
+      const category = await Category.findById(categoryId);
+      if (!category) {
+        return res.status(404).json({ error: "Category not found" });
+      }
+      updateData.categoryId = categoryId;
+    }
     if (meaning !== undefined) updateData.meaning = meaning;
     const query =
       req.userRole === "admin"
@@ -462,7 +494,13 @@ router.delete(
         { categoryId: req.params.id },
         { $set: { categoryId: null } }
       );
-      res.json({ message: "Category deleted, cards updated" });
+      await Word.updateMany(
+        { categoryId: req.params.id },
+        { $set: { categoryId: null } }
+      );
+      res.json({
+        message: "Category deleted, related cards and words updated",
+      });
     } catch (error) {
       console.error("Error deleting category", error);
       res

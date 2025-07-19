@@ -8,11 +8,11 @@ mongoose
   .catch((err) => console.error("MongoDB connection error:", err));
 
 const languages = [
-  { code: "uk", name: "Ukrainian" },
-  { code: "en", name: "English" },
-  { code: "fr", name: "French" },
-  { code: "es", name: "Spanish" },
-  { code: "de", name: "German" },
+  { code: 'en', name: 'English' },
+  { code: 'uk', name: 'Ukrainian' },
+  { code: 'es', name: 'Spanish' },
+  { code: 'fr', name: 'French' },
+  { code: 'de', name: 'German' },
 ];
 
 const initLanguages = async () => {
