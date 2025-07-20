@@ -18,4 +18,7 @@ const userSchema = new mongoose.Schema({
   ],
 });
 
+userSchema.index({ nativeLanguageId: 1 });
+userSchema.index({ learningLanguagesIds: 1 });
+
 module.exports = mongoose.model("User", userSchema);

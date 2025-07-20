@@ -15,5 +15,10 @@ const cardSchema = new mongoose.Schema({
 });
 
 cardSchema.index({ nextReview: 1 });
+cardSchema.index({ wordId: 1 });
+cardSchema.index({ translationId: 1 });
+cardSchema.index({ wordId: 1, translationId: 1 });
+cardSchema.index({ lastReviewed: 1 });
+cardSchema.index({ repetitions: 1 });
 
 module.exports = mongoose.model("Card", cardSchema);

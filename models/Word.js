@@ -15,4 +15,8 @@ const wordSchema = new mongoose.Schema({
   meaning: { type: String, default: "" },
 });
 
+wordSchema.index({ text: 1, languageId: 1 }, { unique: true });
+wordSchema.index({ languageId: 1 });
+wordSchema.index({ categoryId: 1 });
+
 module.exports = mongoose.model("Word", wordSchema);
