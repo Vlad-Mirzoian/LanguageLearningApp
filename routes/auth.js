@@ -19,7 +19,7 @@ router.post(
       .withMessage("Password must be at least 8 characters"),
     body("nativeLanguageId")
       .optional()
-      .isMongoId("Invalid nativeLanguageId")
+      .isMongoId().withMessage("Invalid nativeLanguageId")
       .custom(async (value) => {
         const lang = await Language.findById(value);
         if (!lang) throw new Error("Native language not found");
@@ -123,7 +123,7 @@ router.put(
       .withMessage("Password must be at least 8 characters"),
     body("nativeLanguageId")
       .optional()
-      .isMongoId("Invalid nativeLanguageId")
+      .isMongoId().withMessage("Invalid nativeLanguageId")
       .custom(async (value) => {
         const lang = await Language.findById(value);
         if (!lang) throw new Error("Native language not found");
