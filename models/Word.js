@@ -13,13 +13,6 @@ const wordSchema = new mongoose.Schema({
     default: null,
   },
   meaning: { type: String, default: "" },
-  createdBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-    required: true,
-  },
 });
-
-wordSchema.index({ text: 1, languageId: 1, createdBy: 1 }, { unique: true });
 
 module.exports = mongoose.model("Word", wordSchema);

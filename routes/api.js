@@ -3,8 +3,6 @@ const mongoose = require("mongoose");
 const router = express.Router();
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const { parse } = require("csv-parse");
-const { Parser } = require("json2csv");
 const Card = require("../models/Card");
 const User = require("../models/User");
 const Category = require("../models/Category");
@@ -326,7 +324,8 @@ router.delete(
         }
       );
       res.json({
-        message: "Language deleted, related users updated, related words and cards removed",
+        message:
+          "Language deleted, related users updated, related words and cards removed",
       });
     } catch (error) {
       console.error("Error deleting language", error);
@@ -341,7 +340,20 @@ router.delete(
 router.get("/words", authenticate, async (req, res) => {
   try {
     const { languageId, categoryId } = req.query;
-    const query = req.userRole === "admin" ? {} : { createdBy: req.userId };
+    const user = await User.findById(req.userId).populate(
+      "nativeLanguageId learningLanguagesIds"
+    );
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    const query = {};
+    if (req.userRole !== "admin") {
+      const allowedLanguagesIds = [
+        user.nativeLanguageId._id,
+        ...user.learningLanguagesIds.map((lang) => lang._id),
+      ];
+      query.languageId = { $in: allowedLanguagesIds };
+    }
     if (languageId) {
       if (!mongoose.Types.ObjectId.isValid(languageId)) {
         return res.status(400).json({ error: "Invalid language ID" });
@@ -349,6 +361,14 @@ router.get("/words", authenticate, async (req, res) => {
       const language = await Language.findById(languageId);
       if (!language) {
         return res.status(404).json({ error: "Language not found" });
+      }
+      if (
+        req.userRole !== "admin" &&
+        !query.languageId.$in.includes(languageId)
+      ) {
+        return res
+          .status(403)
+          .json({ error: "Access to this language is restricted" });
       }
       query.languageId = languageId;
     }
@@ -363,7 +383,7 @@ router.get("/words", authenticate, async (req, res) => {
       query.categoryId = categoryId;
     }
     const words = await Word.find(query)
-      .populate("languageId", "code")
+      .populate("languageId", "code name")
       .populate("categoryId", "name");
     res.json(words);
   } catch (error) {
@@ -376,7 +396,7 @@ router.get("/words", authenticate, async (req, res) => {
 router.post(
   "/words",
   authenticate,
-  authorizeRoles(["user"]),
+  authorizeRoles(["admin"]),
   async (req, res) => {
     try {
       const { text, languageId, categoryId, meaning } = req.body;
@@ -406,7 +426,6 @@ router.post(
         languageId,
         categoryId,
         meaning,
-        createdBy: req.userId,
       });
       await word.save();
       res.status(201).json(word);
@@ -420,72 +439,83 @@ router.post(
 );
 
 // PUT /api/words/:id
-router.put("/words/:id", authenticate, async (req, res) => {
-  try {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-      return res.status(400).json({ error: "Invalid word ID" });
-    }
-    const { text, languageId, categoryId, meaning } = req.body;
-    if (!text || !languageId) {
-      return res.status(400).json({ error: "Text and language are required" });
-    }
-    if (!mongoose.Types.ObjectId.isValid(languageId)) {
-      return res.status(400).json({ error: "Invalid language ID" });
-    }
-    const language = await Language.findById(languageId);
-    if (!language) {
-      return res.status(404).json({ error: "Language not found" });
-    }
-    const updateData = { text, languageId };
-    if (categoryId) {
-      if (!mongoose.Types.ObjectId.isValid(categoryId)) {
-        return res.status(400).json({ error: "Invalid category ID" });
+router.put(
+  "/words/:id",
+  authenticate,
+  authorizeRoles(["admin"]),
+  async (req, res) => {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(400).json({ error: "Invalid word ID" });
       }
-      const category = await Category.findById(categoryId);
-      if (!category) {
-        return res.status(404).json({ error: "Category not found" });
+      const { text, languageId, categoryId, meaning } = req.body;
+      if (!text || !languageId) {
+        return res
+          .status(400)
+          .json({ error: "Text and language are required" });
       }
-      updateData.categoryId = categoryId;
+      if (!mongoose.Types.ObjectId.isValid(languageId)) {
+        return res.status(400).json({ error: "Invalid language ID" });
+      }
+      const language = await Language.findById(languageId);
+      if (!language) {
+        return res.status(404).json({ error: "Language not found" });
+      }
+      const updateData = { text, languageId };
+      if (categoryId) {
+        if (!mongoose.Types.ObjectId.isValid(categoryId)) {
+          return res.status(400).json({ error: "Invalid category ID" });
+        }
+        const category = await Category.findById(categoryId);
+        if (!category) {
+          return res.status(404).json({ error: "Category not found" });
+        }
+        updateData.categoryId = categoryId;
+      }
+      if (meaning !== undefined) updateData.meaning = meaning;
+      const word = await Word.findOneAndUpdate(
+        { _id: req.params.id },
+        updateData,
+        {
+          new: true,
+          runValidators: true,
+        }
+      );
+      if (!word) return res.status(404).json({ error: "Word not found" });
+      res.json(word);
+    } catch (error) {
+      console.error("Error updating word", error);
+      res
+        .status(400)
+        .json({ error: `Failed to update word: ${error.message}` });
     }
-    if (meaning !== undefined) updateData.meaning = meaning;
-    const query =
-      req.userRole === "admin"
-        ? { _id: req.params.id }
-        : { _id: req.params.id, createdBy: req.userId };
-    const word = await Word.findOneAndUpdate(query, updateData, {
-      new: true,
-      runValidators: true,
-    });
-    if (!word) return res.status(404).json({ error: "Word not found" });
-    res.json(word);
-  } catch (error) {
-    console.error("Error updating word", error);
-    res.status(400).json({ error: `Failed to update word: ${error.message}` });
   }
-});
+);
 
 // DELETE /api/words/:id
-router.delete("/words/:id", authenticate, async (req, res) => {
-  try {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-      return res.status(400).json({ error: "Invalid word ID" });
+router.delete(
+  "/words/:id",
+  authenticate,
+  authorizeRoles(["admin"]),
+  async (req, res) => {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(400).json({ error: "Invalid word ID" });
+      }
+      const word = await Word.findOneAndDelete({ _id: req.params.id });
+      if (!word) return res.status(404).json({ error: "Word not found" });
+      await Card.deleteMany({
+        $or: [{ wordId: req.params.id }, { translationId: req.params.id }],
+      });
+      res.json({ message: "Word and related cards deleted" });
+    } catch (error) {
+      console.error("Error deleting word", error);
+      res
+        .status(400)
+        .json({ error: `Failed to delete word: ${error.message}` });
     }
-    const query =
-      req.userRole === "admin"
-        ? { _id: req.params.id }
-        : { _id: req.params.id, createdBy: req.userId };
-    const word = await Word.findOneAndDelete(query);
-    if (!word) return res.status(404).json({ error: "Word not found" });
-    await Card.deleteMany({
-      $or: [{ wordId: req.params.id }, { translationId: req.params.id }],
-      userId: req.userRole === "admin" ? { $exists: true } : req.userId,
-    });
-    res.json({ message: "Word and related cards deleted" });
-  } catch (error) {
-    console.error("Error deleting word", error);
-    res.status(400).json({ error: `Failed to delete word: ${error.message}` });
   }
-});
+);
 
 // GET /api/categories
 router.get("/categories", authenticate, async (req, res) => {
@@ -590,7 +620,35 @@ router.delete(
 // GET /api/cards
 router.get("/cards", authenticate, async (req, res) => {
   try {
-    const query = req.userRole === "admin" ? {} : { userId: req.userId };
+    const user = await User.findById(req.userId).populate(
+      "nativeLanguageId learningLanguagesIds"
+    );
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    const query =
+      req.userRole === "admin"
+        ? {}
+        : {
+            $and: [
+              {
+                wordId: {
+                  $in: await Word.find({
+                    languageId: user.nativeLanguageId._id,
+                  }).distinct("_id"),
+                },
+              },
+              {
+                translationId: {
+                  $in: await Word.find({
+                    languageId: {
+                      $in: user.learningLanguagesIds.map((lang) => lang._id),
+                    },
+                  }).distinct("_id"),
+                },
+              },
+            ],
+          };
     const cards = await Card.find(query)
       .populate("wordId", "text languageId categoryId meaning")
       .populate("translationId", "text languageId categoryId meaning");
@@ -608,9 +666,35 @@ router.get(
   authorizeRoles(["user"]),
   async (req, res) => {
     try {
+      const user = await User.findById(req.userId).populate(
+        "nativeLanguageId learningLanguagesIds"
+      );
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      if (!user.learningLanguagesIds?.length) {
+        return res
+          .status(400)
+          .json({ error: "User must have at least one learning language" });
+      }
       const cards = await Card.find({
-        userId: req.userId,
-        nextReview: { $lte: new Date() },
+        $and: [
+          { nextReview: { $lte: new Date() } },
+          {
+            wordId: {
+              $in: await Word.find({
+                languageId: user.nativeLanguageId._id,
+              }).distinct("_id"),
+            },
+          },
+          {
+            translationId: {
+              $in: await Word.find({
+                languageId: user.learningLanguagesIds[0]._id,
+              }).distinct("_id"),
+            },
+          },
+        ],
       })
         .populate("wordId", "text languageId meaning categoryId")
         .populate("translationId", "text languageId meaning categoryId");
@@ -628,7 +712,7 @@ router.get(
 router.post(
   "/cards",
   authenticate,
-  authorizeRoles(["user"]),
+  authorizeRoles(["admin"]),
   async (req, res) => {
     try {
       const { wordId, translationId } = req.body;
@@ -652,7 +736,6 @@ router.post(
         return res.status(404).json({ error: "Translation word not found" });
       }
       const card = new Card({
-        userId: req.userId,
         wordId,
         translationId,
       });
@@ -683,9 +766,33 @@ router.put(
           .status(400)
           .json({ error: "Quality must be an integer between 0 and 5" });
       }
+      const user = await User.findById(req.userId).populate(
+        "nativeLanguageId learningLanguagesIds"
+      );
+      if (!user) return res.status(404).json({ error: "User not found" });
+      if (!user.learningLanguagesIds?.length) {
+        return res
+          .status(400)
+          .json({ error: "User must have at least one learning language" });
+      }
       const card = await Card.findOne({
         _id: req.params.id,
-        userId: req.userId,
+        $and: [
+          {
+            wordId: {
+              $in: await Word.find({
+                languageId: user.nativeLanguageId._id,
+              }).distinct("_id"),
+            },
+          },
+          {
+            translationId: {
+              $in: await Word.find({
+                languageId: user.learningLanguagesIds[0]._id,
+              }).distinct("_id"),
+            },
+          },
+        ],
       });
       if (!card) return res.status(404).json({ error: "Card not found" });
       let { easiness, interval, repetitions } = card;
@@ -704,7 +811,7 @@ router.put(
       const lastReviewed = new Date();
       const nextReview = new Date(Date.now() + interval * 24 * 60 * 60 * 1000);
       const updateCard = await Card.findOneAndUpdate(
-        { _id: req.params.id, userId: req.userId },
+        { _id: req.params.id },
         { interval, nextReview, easiness, repetitions, lastReviewed },
         { new: true }
       );
@@ -719,66 +826,76 @@ router.put(
 );
 
 // PUT /api/cards/:id
-router.put("/cards/:id", authenticate, async (req, res) => {
-  try {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-      return res.status(400).json({ error: "Invalid card ID" });
-    }
-    const { wordId, translationId } = req.body;
-    if (!wordId || !translationId) {
-      return res
+router.put(
+  "/cards/:id",
+  authenticate,
+  authorizeRoles("admin"),
+  async (req, res) => {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(400).json({ error: "Invalid card ID" });
+      }
+      const { wordId, translationId } = req.body;
+      if (!wordId || !translationId) {
+        return res
+          .status(400)
+          .json({ error: "Word and translation are required" });
+      }
+      if (!mongoose.Types.ObjectId.isValid(wordId)) {
+        return res.status(400).json({ error: "Invalid original word ID" });
+      }
+      const word = await Word.findById(wordId);
+      if (!word) {
+        return res.status(404).json({ error: "Original word not found" });
+      }
+      if (!mongoose.Types.ObjectId.isValid(translationId)) {
+        return res.status(400).json({ error: "Invalid translation word ID" });
+      }
+      const translationWord = await Word.findById(translationId);
+      if (!translationWord) {
+        return res.status(404).json({ error: "Translation word not found" });
+      }
+      const updateData = { wordId, translationId };
+      const card = await Card.findOneAndUpdate(
+        { _id: req.params.id },
+        updateData,
+        {
+          new: true,
+          runValidators: true,
+        }
+      );
+      if (!card) return res.status(404).json({ error: "Card not found" });
+      res.json(card);
+    } catch (error) {
+      console.error("Error updating card:", error);
+      res
         .status(400)
-        .json({ error: "Word and translation are required" });
+        .json({ error: `Failed to update card: ${error.message}` });
     }
-    if (!mongoose.Types.ObjectId.isValid(wordId)) {
-      return res.status(400).json({ error: "Invalid original word ID" });
-    }
-    const word = await Word.findById(wordId);
-    if (!word) {
-      return res.status(404).json({ error: "Original word not found" });
-    }
-    if (!mongoose.Types.ObjectId.isValid(translationId)) {
-      return res.status(400).json({ error: "Invalid translation word ID" });
-    }
-    const translationWord = await Word.findById(translationId);
-    if (!translationWord) {
-      return res.status(404).json({ error: "Translation word not found" });
-    }
-    const query =
-      req.userRole === "admin"
-        ? { _id: req.params.id }
-        : { _id: req.params.id, userId: req.userId };
-    const updateData = { wordId, translationId };
-    const card = await Card.findOneAndUpdate(query, updateData, {
-      new: true,
-      runValidators: true,
-    });
-    if (!card) return res.status(404).json({ error: "Card not found" });
-    res.json(card);
-  } catch (error) {
-    console.error("Error updating card:", error);
-    res.status(400).json({ error: `Failed to update card: ${error.message}` });
   }
-});
+);
 
 // DELETE /api/cards/:id
-router.delete("/cards/:id", authenticate, async (req, res) => {
-  try {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-      return res.status(400).json({ error: "Invalid card ID" });
+router.delete(
+  "/cards/:id",
+  authenticate,
+  authorizeRoles(["admin"]),
+  async (req, res) => {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(400).json({ error: "Invalid card ID" });
+      }
+      const card = await Card.findOneAndDelete({ _id: req.params.id });
+      if (!card) return res.status(404).json({ error: "Card not found" });
+      res.json({ message: "Card deleted" });
+    } catch (error) {
+      console.error("Error deleting card:", error);
+      res
+        .status(400)
+        .json({ error: `Failed to delete card: ${error.message}` });
     }
-    const query =
-      req.userRole === "admin"
-        ? { _id: req.params.id }
-        : { _id: req.params.id, userId: req.userId };
-    const card = await Card.findOneAndDelete(query);
-    if (!card) return res.status(404).json({ error: "Card not found" });
-    res.json({ message: "Card deleted" });
-  } catch (error) {
-    console.error("Error deleting card:", error);
-    res.status(400).json({ error: `Failed to delete card: ${error.message}` });
   }
-});
+);
 
 /*
 router.get('/progress', authenticate, authorizeRoles(['user']), async (req, res) => {

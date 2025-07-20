@@ -1,7 +1,6 @@
 const mongoose = require("mongoose");
 
 const cardSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   wordId: { type: mongoose.Schema.Types.ObjectId, ref: "Word", required: true },
   translationId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -15,6 +14,6 @@ const cardSchema = new mongoose.Schema({
   lastReviewed: { type: Date, default: Date.now },
 });
 
-cardSchema.index({ userId: 1, nextReview: 1 });
+cardSchema.index({ nextReview: 1 });
 
 module.exports = mongoose.model("Card", cardSchema);

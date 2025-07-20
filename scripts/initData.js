@@ -1,57 +1,32 @@
 const mongoose = require("mongoose");
-const bcrypt = require("bcrypt");
 require("dotenv").config({
   path: require("path").resolve(__dirname, "../.env"),
 });
+const bcrypt = require("bcrypt");
 const User = require("../models/User");
-const Language = require("../models/Language");
-const Category = require("../models/Category");
 const Word = require("../models/Word");
 const Card = require("../models/Card");
+const Language = require("../models/Language");
+const Category = require("../models/Category");
 
 mongoose
   .connect(process.env.MONGODB_URI)
   .then(() => console.log("Connected to MongoDB"))
   .catch((err) => console.error("MongoDB connection error:", err));
 
-const userId1 = new mongoose.Types.ObjectId(); // User 1 ID (user)
-const userId2 = new mongoose.Types.ObjectId(); // User 2 ID (user)
-const userId3 = new mongoose.Types.ObjectId(); // User 3 ID (admin)
-
 const initData = async () => {
   try {
-    // Clear existing data
-    await User.deleteMany({});
-    await Language.deleteMany({});
-    await Category.deleteMany({});
-    await Word.deleteMany({ createdBy: { $in: [userId1, userId2] } });
-    await Card.deleteMany({ userId: { $in: [userId1, userId2] } });
+    // Очистка существующих коллекций
+    await Promise.all([
+      User.deleteMany({}),
+      Word.deleteMany({}),
+      Card.deleteMany({}),
+      Language.deleteMany({}),
+      Category.deleteMany({}),
+    ]);
+    console.log("Collections cleared");
 
-    // Create Users
-    const users = [
-      {
-        _id: userId1,
-        email: "user1@example.com",
-        password: await bcrypt.hash("password123", 10),
-        role: "user",
-      },
-      {
-        _id: userId2,
-        email: "user2@example.com",
-        password: await bcrypt.hash("password123", 10),
-        role: "user",
-      },
-            {
-        _id: userId3,
-        email: "admin@example.com",
-        password: await bcrypt.hash("password123", 10),
-        role: "admin",
-      },
-    ];
-    const createdUsers = await User.insertMany(users);
-    console.log("Created 2 users");
-
-    // Create Languages
+    // Создание языков
     const languages = [
       { code: "uk", name: "Ukrainian" },
       { code: "en", name: "English" },
@@ -59,385 +34,528 @@ const initData = async () => {
       { code: "de", name: "German" },
       { code: "es", name: "Spanish" },
     ];
-    const createdLanguages = await Language.insertMany(languages);
-    console.log("Created 5 languages");
+    const languageDocs = await Language.insertMany(languages);
+    const languageMap = languageDocs.reduce((map, lang) => {
+      map[lang.code] = lang._id;
+      return map;
+    }, {});
+    console.log("Languages created:", languageDocs.length);
 
-    const languageMap = {};
-    createdLanguages.forEach((lang) => {
-      languageMap[lang.code] = lang._id;
-    });
-
-    // Assign languages to users
-    await User.updateOne(
-      { _id: userId1 },
-      { nativeLanguageId: languageMap.uk, learningLanguagesIds: [languageMap.en] }
-    );
-    await User.updateOne(
-      { _id: userId2 },
-      { nativeLanguageId: null, learningLanguagesIds: [languageMap.fr, languageMap.es] }
-    );
-    console.log("Assigned languages to users");
-
-    // Create Categories
+    // Создание категорий (на английском)
     const categories = [
       {
         name: "Greetings",
-        description: "Words for greetings and introductions",
+        description: "Words and phrases for greetings and introductions",
       },
-      { name: "Food", description: "Words related to food and dining" },
+      { name: "Food", description: "Vocabulary related to food and dining" },
       { name: "Travel", description: "Words for travel and transportation" },
-      { name: "Work", description: "Words related to jobs and professions" },
       {
         name: "Family",
-        description: "Words for family members and relationships",
+        description: "Terms related to family and relationships",
       },
+      { name: "Numbers", description: "Numbers and counting vocabulary" },
+      { name: "Colors", description: "Words for colors and descriptions" },
+      {
+        name: "Daily Activities",
+        description: "Phrases for everyday activities",
+      },
+      { name: "Animals", description: "Vocabulary related to animals" },
+      { name: "Weather", description: "Terms for weather and climate" },
+      { name: "Clothing", description: "Words for clothing and fashion" },
     ];
-    const createdCategories = await Category.insertMany(categories);
-    console.log("Created 5 categories");
+    const categoryDocs = await Category.insertMany(categories);
+    const categoryMap = categoryDocs.reduce((map, cat, index) => {
+      map[categories[index].name.toLowerCase()] = cat._id;
+      return map;
+    }, {});
+    console.log("Categories created:", categoryDocs.length);
 
-    const categoryMap = {};
-    createdCategories.forEach((cat) => {
-      categoryMap[cat.name] = cat._id;
-    });
-
-    // Create Words (6 per language, 30 total)
+    // Создание слов (по 10 слов на язык, с meaning на том же языке)
     const words = [
       // Ukrainian
       {
         text: "привіт",
         languageId: languageMap.uk,
-        categoryId: categoryMap.Greetings,
+        categoryId: categoryMap.greetings,
         meaning: "вітання",
-        createdBy: userId1,
       },
       {
         text: "дякую",
         languageId: languageMap.uk,
-        categoryId: categoryMap.Greetings,
-        meaning: "подяка",
-        createdBy: userId1,
+        categoryId: categoryMap.greetings,
+        meaning: "вираження вдячності",
       },
       {
         text: "хліб",
         languageId: languageMap.uk,
-        categoryId: categoryMap.Food,
+        categoryId: categoryMap.food,
         meaning: "їжа з борошна",
-        createdBy: userId1,
       },
       {
-        text: "вода",
+        text: "яблуко",
         languageId: languageMap.uk,
-        categoryId: categoryMap.Food,
-        meaning: "рідина для пиття",
-        createdBy: userId1,
+        categoryId: categoryMap.food,
+        meaning: "фрукт",
       },
       {
-        text: "поїзд",
+        text: "подорож",
         languageId: languageMap.uk,
-        categoryId: categoryMap.Travel,
-        meaning: "транспорт на рейках",
-        createdBy: userId1,
+        categoryId: categoryMap.travel,
+        meaning: "переміщення між місцями",
       },
       {
         text: "літак",
         languageId: languageMap.uk,
-        categoryId: null,
-        meaning: "повітряний транспорт",
-        createdBy: userId1,
+        categoryId: categoryMap.travel,
+        meaning: "транспорт у повітрі",
       },
-
+      {
+        text: "мама",
+        languageId: languageMap.uk,
+        categoryId: categoryMap.family,
+        meaning: "мати",
+      },
+      {
+        text: "брат",
+        languageId: languageMap.uk,
+        categoryId: categoryMap.family,
+        meaning: "чоловічий родич",
+      },
+      {
+        text: "один",
+        languageId: languageMap.uk,
+        categoryId: categoryMap.numbers,
+        meaning: "перше число",
+      },
+      {
+        text: "червоний",
+        languageId: languageMap.uk,
+        categoryId: categoryMap.colors,
+        meaning: "колір",
+      },
       // English
       {
         text: "hello",
         languageId: languageMap.en,
-        categoryId: categoryMap.Greetings,
+        categoryId: categoryMap.greetings,
         meaning: "greeting",
-        createdBy: userId1,
       },
       {
         text: "thank you",
         languageId: languageMap.en,
-        categoryId: categoryMap.Greetings,
+        categoryId: categoryMap.greetings,
         meaning: "expression of gratitude",
-        createdBy: userId1,
       },
       {
         text: "bread",
         languageId: languageMap.en,
-        categoryId: categoryMap.Food,
+        categoryId: categoryMap.food,
         meaning: "food made from flour",
-        createdBy: userId1,
       },
       {
-        text: "water",
+        text: "apple",
         languageId: languageMap.en,
-        categoryId: categoryMap.Food,
-        meaning: "drinking liquid",
-        createdBy: userId1,
+        categoryId: categoryMap.food,
+        meaning: "fruit",
       },
       {
-        text: "train",
+        text: "travel",
         languageId: languageMap.en,
-        categoryId: categoryMap.Travel,
-        meaning: "rail transport",
-        createdBy: userId1,
+        categoryId: categoryMap.travel,
+        meaning: "movement between places",
       },
       {
         text: "airplane",
         languageId: languageMap.en,
-        categoryId: null,
+        categoryId: categoryMap.travel,
         meaning: "air transport",
-        createdBy: userId1,
       },
-
+      {
+        text: "mother",
+        languageId: languageMap.en,
+        categoryId: categoryMap.family,
+        meaning: "female parent",
+      },
+      {
+        text: "brother",
+        languageId: languageMap.en,
+        categoryId: categoryMap.family,
+        meaning: "male sibling",
+      },
+      {
+        text: "one",
+        languageId: languageMap.en,
+        categoryId: categoryMap.numbers,
+        meaning: "first number",
+      },
+      {
+        text: "red",
+        languageId: languageMap.en,
+        categoryId: categoryMap.colors,
+        meaning: "color",
+      },
       // French
       {
         text: "bonjour",
         languageId: languageMap.fr,
-        categoryId: categoryMap.Greetings,
+        categoryId: categoryMap.greetings,
         meaning: "salutation",
-        createdBy: userId2,
       },
       {
         text: "merci",
         languageId: languageMap.fr,
-        categoryId: categoryMap.Greetings,
-        meaning: "remerciement",
-        createdBy: userId2,
+        categoryId: categoryMap.greetings,
+        meaning: "expression de gratitude",
       },
       {
         text: "pain",
         languageId: languageMap.fr,
-        categoryId: categoryMap.Food,
+        categoryId: categoryMap.food,
         meaning: "aliment à base de farine",
-        createdBy: userId2,
       },
       {
-        text: "eau",
+        text: "pomme",
         languageId: languageMap.fr,
-        categoryId: categoryMap.Food,
-        meaning: "liquide potable",
-        createdBy: userId2,
+        categoryId: categoryMap.food,
+        meaning: "fruit",
       },
       {
-        text: "train",
+        text: "voyage",
         languageId: languageMap.fr,
-        categoryId: categoryMap.Travel,
-        meaning: "transport ferroviaire",
-        createdBy: userId2,
+        categoryId: categoryMap.travel,
+        meaning: "déplacement entre lieux",
       },
       {
         text: "avion",
         languageId: languageMap.fr,
-        categoryId: null,
+        categoryId: categoryMap.travel,
         meaning: "transport aérien",
-        createdBy: userId2,
       },
-
+      {
+        text: "mère",
+        languageId: languageMap.fr,
+        categoryId: categoryMap.family,
+        meaning: "parent féminin",
+      },
+      {
+        text: "frère",
+        languageId: languageMap.fr,
+        categoryId: categoryMap.family,
+        meaning: "frère masculin",
+      },
+      {
+        text: "un",
+        languageId: languageMap.fr,
+        categoryId: categoryMap.numbers,
+        meaning: "premier nombre",
+      },
+      {
+        text: "rouge",
+        languageId: languageMap.fr,
+        categoryId: categoryMap.colors,
+        meaning: "couleur",
+      },
       // German
       {
         text: "hallo",
         languageId: languageMap.de,
-        categoryId: categoryMap.Greetings,
-        meaning: "Begrüßung",
-        createdBy: userId1,
+        categoryId: categoryMap.greetings,
+        meaning: "Gruß",
       },
       {
         text: "danke",
         languageId: languageMap.de,
-        categoryId: categoryMap.Greetings,
-        meaning: "Dank",
-        createdBy: userId1,
+        categoryId: categoryMap.greetings,
+        meaning: "Ausdruck der Dankbarkeit",
       },
       {
         text: "Brot",
         languageId: languageMap.de,
-        categoryId: categoryMap.Food,
+        categoryId: categoryMap.food,
         meaning: "Nahrung aus Mehl",
-        createdBy: userId1,
       },
       {
-        text: "Wasser",
+        text: "Apfel",
         languageId: languageMap.de,
-        categoryId: categoryMap.Food,
-        meaning: "Trinkflüssigkeit",
-        createdBy: userId1,
+        categoryId: categoryMap.food,
+        meaning: "Frucht",
       },
       {
-        text: "Zug",
+        text: "Reise",
         languageId: languageMap.de,
-        categoryId: categoryMap.Travel,
-        meaning: "Schienentransport",
-        createdBy: userId1,
+        categoryId: categoryMap.travel,
+        meaning: "Bewegung zwischen Orten",
       },
       {
         text: "Flugzeug",
         languageId: languageMap.de,
-        categoryId: null,
+        categoryId: categoryMap.travel,
         meaning: "Lufttransport",
-        createdBy: userId1,
       },
-
+      {
+        text: "Mutter",
+        languageId: languageMap.de,
+        categoryId: categoryMap.family,
+        meaning: "weiblicher Elternteil",
+      },
+      {
+        text: "Bruder",
+        languageId: languageMap.de,
+        categoryId: categoryMap.family,
+        meaning: "männliches Geschwisterkind",
+      },
+      {
+        text: "eins",
+        languageId: languageMap.de,
+        categoryId: categoryMap.numbers,
+        meaning: "erste Zahl",
+      },
+      {
+        text: "rot",
+        languageId: languageMap.de,
+        categoryId: categoryMap.colors,
+        meaning: "Farbe",
+      },
       // Spanish
       {
         text: "hola",
         languageId: languageMap.es,
-        categoryId: categoryMap.Greetings,
+        categoryId: categoryMap.greetings,
         meaning: "saludo",
-        createdBy: userId2,
       },
       {
         text: "gracias",
         languageId: languageMap.es,
-        categoryId: categoryMap.Greetings,
-        meaning: "agradecimiento",
-        createdBy: userId2,
+        categoryId: categoryMap.greetings,
+        meaning: "expresión de gratitud",
       },
       {
         text: "pan",
         languageId: languageMap.es,
-        categoryId: categoryMap.Food,
+        categoryId: categoryMap.food,
         meaning: "alimento de harina",
-        createdBy: userId2,
       },
       {
-        text: "agua",
+        text: "manzana",
         languageId: languageMap.es,
-        categoryId: categoryMap.Food,
-        meaning: "líquido para beber",
-        createdBy: userId2,
+        categoryId: categoryMap.food,
+        meaning: "fruta",
       },
       {
-        text: "tren",
+        text: "viaje",
         languageId: languageMap.es,
-        categoryId: categoryMap.Travel,
-        meaning: "transporte ferroviario",
-        createdBy: userId2,
+        categoryId: categoryMap.travel,
+        meaning: "movimiento entre lugares",
       },
       {
         text: "avión",
         languageId: languageMap.es,
-        categoryId: null,
+        categoryId: categoryMap.travel,
         meaning: "transporte aéreo",
-        createdBy: userId2,
+      },
+      {
+        text: "madre",
+        languageId: languageMap.es,
+        categoryId: categoryMap.family,
+        meaning: "progenitor femenino",
+      },
+      {
+        text: "hermano",
+        languageId: languageMap.es,
+        categoryId: categoryMap.family,
+        meaning: "hermano masculino",
+      },
+      {
+        text: "uno",
+        languageId: languageMap.es,
+        categoryId: categoryMap.numbers,
+        meaning: "primer número",
+      },
+      {
+        text: "rojo",
+        languageId: languageMap.es,
+        categoryId: categoryMap.colors,
+        meaning: "color",
       },
     ];
-    const createdWords = await Word.insertMany(words);
-    console.log("Created 30 words");
+    const wordDocs = await Word.insertMany(words);
+    const wordMap = wordDocs.reduce((map, word) => {
+      map[`${word.text}_${word.languageId}`] = word._id;
+      return map;
+    }, {});
+    console.log("Words created:", wordDocs.length);
 
-    const wordMap = {};
-    createdWords.forEach((word) => {
-      wordMap[`${word.text}_${word.languageId}`] = word._id;
-    });
-
-    // Create Cards (15 for User 1: Ukrainian to English/French/Spanish, 5 for User 2: Ukrainian to French)
+    // Создание карточек (wordId: украинский, translationId: en/fr/de/es)
     const cards = [
-      // User 1 Cards (Ukrainian to English/French/Spanish)
+      // Ukrainian -> English
       {
-        userId: userId1,
-        wordId: wordMap[`привіт_${languageMap.uk}`],
-        translationId: wordMap[`hello_${languageMap.en}`],
+        wordId: wordMap["привіт_" + languageMap.uk],
+        translationId: wordMap["hello_" + languageMap.en],
       },
       {
-        userId: userId1,
-        wordId: wordMap[`привіт_${languageMap.uk}`],
-        translationId: wordMap[`bonjour_${languageMap.fr}`],
+        wordId: wordMap["дякую_" + languageMap.uk],
+        translationId: wordMap["thank you_" + languageMap.en],
       },
       {
-        userId: userId1,
-        wordId: wordMap[`привіт_${languageMap.uk}`],
-        translationId: wordMap[`hola_${languageMap.es}`],
+        wordId: wordMap["хліб_" + languageMap.uk],
+        translationId: wordMap["bread_" + languageMap.en],
       },
       {
-        userId: userId1,
-        wordId: wordMap[`дякую_${languageMap.uk}`],
-        translationId: wordMap[`thank you_${languageMap.en}`],
+        wordId: wordMap["яблуко_" + languageMap.uk],
+        translationId: wordMap["apple_" + languageMap.en],
       },
       {
-        userId: userId1,
-        wordId: wordMap[`дякую_${languageMap.uk}`],
-        translationId: wordMap[`merci_${languageMap.fr}`],
+        wordId: wordMap["подорож_" + languageMap.uk],
+        translationId: wordMap["travel_" + languageMap.en],
       },
       {
-        userId: userId1,
-        wordId: wordMap[`хліб_${languageMap.uk}`],
-        translationId: wordMap[`bread_${languageMap.en}`],
+        wordId: wordMap["літак_" + languageMap.uk],
+        translationId: wordMap["airplane_" + languageMap.en],
       },
       {
-        userId: userId1,
-        wordId: wordMap[`хліб_${languageMap.uk}`],
-        translationId: wordMap[`pain_${languageMap.fr}`],
+        wordId: wordMap["мама_" + languageMap.uk],
+        translationId: wordMap["mother_" + languageMap.en],
       },
       {
-        userId: userId1,
-        wordId: wordMap[`вода_${languageMap.uk}`],
-        translationId: wordMap[`water_${languageMap.en}`],
+        wordId: wordMap["брат_" + languageMap.uk],
+        translationId: wordMap["brother_" + languageMap.en],
       },
       {
-        userId: userId1,
-        wordId: wordMap[`вода_${languageMap.uk}`],
-        translationId: wordMap[`agua_${languageMap.es}`],
+        wordId: wordMap["один_" + languageMap.uk],
+        translationId: wordMap["one_" + languageMap.en],
       },
       {
-        userId: userId1,
-        wordId: wordMap[`поїзд_${languageMap.uk}`],
-        translationId: wordMap[`train_${languageMap.en}`],
+        wordId: wordMap["червоний_" + languageMap.uk],
+        translationId: wordMap["red_" + languageMap.en],
+      },
+      // Ukrainian -> French
+      {
+        wordId: wordMap["привіт_" + languageMap.uk],
+        translationId: wordMap["bonjour_" + languageMap.fr],
       },
       {
-        userId: userId1,
-        wordId: wordMap[`поїзд_${languageMap.uk}`],
-        translationId: wordMap[`train_${languageMap.fr}`],
+        wordId: wordMap["дякую_" + languageMap.uk],
+        translationId: wordMap["merci_" + languageMap.fr],
       },
       {
-        userId: userId1,
-        wordId: wordMap[`літак_${languageMap.uk}`],
-        translationId: wordMap[`airplane_${languageMap.en}`],
+        wordId: wordMap["хліб_" + languageMap.uk],
+        translationId: wordMap["pain_" + languageMap.fr],
       },
       {
-        userId: userId1,
-        wordId: wordMap[`літак_${languageMap.uk}`],
-        translationId: wordMap[`avión_${languageMap.es}`],
+        wordId: wordMap["яблуко_" + languageMap.uk],
+        translationId: wordMap["pomme_" + languageMap.fr],
       },
       {
-        userId: userId1,
-        wordId: wordMap[`дякую_${languageMap.uk}`],
-        translationId: wordMap[`gracias_${languageMap.es}`],
+        wordId: wordMap["подорож_" + languageMap.uk],
+        translationId: wordMap["voyage_" + languageMap.fr],
       },
       {
-        userId: userId1,
-        wordId: wordMap[`хліб_${languageMap.uk}`],
-        translationId: wordMap[`pan_${languageMap.es}`],
-      },
-
-      // User 2 Cards (Ukrainian to French)
-      {
-        userId: userId2,
-        wordId: wordMap[`привіт_${languageMap.uk}`],
-        translationId: wordMap[`bonjour_${languageMap.fr}`],
+        wordId: wordMap["літак_" + languageMap.uk],
+        translationId: wordMap["avion_" + languageMap.fr],
       },
       {
-        userId: userId2,
-        wordId: wordMap[`дякую_${languageMap.uk}`],
-        translationId: wordMap[`merci_${languageMap.fr}`],
+        wordId: wordMap["мама_" + languageMap.uk],
+        translationId: wordMap["mère_" + languageMap.fr],
       },
       {
-        userId: userId2,
-        wordId: wordMap[`хліб_${languageMap.uk}`],
-        translationId: wordMap[`pain_${languageMap.fr}`],
+        wordId: wordMap["брат_" + languageMap.uk],
+        translationId: wordMap["frère_" + languageMap.fr],
       },
       {
-        userId: userId2,
-        wordId: wordMap[`вода_${languageMap.uk}`],
-        translationId: wordMap[`eau_${languageMap.fr}`],
+        wordId: wordMap["один_" + languageMap.uk],
+        translationId: wordMap["un_" + languageMap.fr],
       },
       {
-        userId: userId2,
-        wordId: wordMap[`поїзд_${languageMap.uk}`],
-        translationId: wordMap[`train_${languageMap.fr}`],
+        wordId: wordMap["червоний_" + languageMap.uk],
+        translationId: wordMap["rouge_" + languageMap.fr],
+      },
+      // Ukrainian -> German
+      {
+        wordId: wordMap["привіт_" + languageMap.uk],
+        translationId: wordMap["hallo_" + languageMap.de],
+      },
+      {
+        wordId: wordMap["дякую_" + languageMap.uk],
+        translationId: wordMap["danke_" + languageMap.de],
+      },
+      {
+        wordId: wordMap["хліб_" + languageMap.uk],
+        translationId: wordMap["Brot_" + languageMap.de],
+      },
+      {
+        wordId: wordMap["яблуко_" + languageMap.uk],
+        translationId: wordMap["Apfel_" + languageMap.de],
+      },
+      {
+        wordId: wordMap["подорож_" + languageMap.uk],
+        translationId: wordMap["Reise_" + languageMap.de],
+      },
+      // Ukrainian -> Spanish
+      {
+        wordId: wordMap["привіт_" + languageMap.uk],
+        translationId: wordMap["hola_" + languageMap.es],
+      },
+      {
+        wordId: wordMap["дякую_" + languageMap.uk],
+        translationId: wordMap["gracias_" + languageMap.es],
+      },
+      {
+        wordId: wordMap["хліб_" + languageMap.uk],
+        translationId: wordMap["pan_" + languageMap.es],
+      },
+      {
+        wordId: wordMap["яблуко_" + languageMap.uk],
+        translationId: wordMap["manzana_" + languageMap.es],
+      },
+      {
+        wordId: wordMap["подорож_" + languageMap.uk],
+        translationId: wordMap["viaje_" + languageMap.es],
       },
     ];
-    await Card.insertMany(cards);
-    console.log("Created 20 cards (15 for User 1, 5 for User 2)");
+    const cardDocs = await Card.insertMany(cards);
+    console.log("Cards created:", cardDocs.length);
+
+    // Создание пользователей
+    const hashedPassword = await bcrypt.hash("password123", 10);
+    const users = [
+      {
+        email: "admin@example.com",
+        password: hashedPassword,
+        role: "admin",
+        nativeLanguageId: languageMap.uk,
+        learningLanguagesIds: [languageMap.en, languageMap.fr],
+      },
+      {
+        email: "user1@example.com",
+        password: hashedPassword,
+        role: "user",
+        nativeLanguageId: languageMap.uk,
+        learningLanguagesIds: [languageMap.en],
+      },
+      {
+        email: "user2@example.com",
+        password: hashedPassword,
+        role: "user",
+        nativeLanguageId: languageMap.uk,
+        learningLanguagesIds: [languageMap.fr, languageMap.de],
+      },
+      {
+        email: "user3@example.com",
+        password: hashedPassword,
+        role: "user",
+        nativeLanguageId: languageMap.en,
+        learningLanguagesIds: [languageMap.fr],
+      },
+      {
+        email: "user4@example.com",
+        password: hashedPassword,
+        role: "user",
+        nativeLanguageId: languageMap.fr,
+        learningLanguagesIds: [languageMap.es, languageMap.de],
+      },
+    ];
+    const userDocs = await User.insertMany(users);
+    console.log("Users created:", userDocs.length);
 
     console.log("Initialization completed successfully");
     process.exit(0);
