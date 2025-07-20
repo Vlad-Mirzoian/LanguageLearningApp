@@ -4,6 +4,8 @@ const router = express.Router();
 const Word = require("../models/Word");
 const Category = require("../models/Category");
 const { authenticate, authorizeRoles } = require("../middleware/auth");
+const { validate } = require("../middleware/validation");
+const { body, param } = require("express-validator");
 
 // GET /api/categories
 router.get("/", authenticate, async (req, res) => {
@@ -23,19 +25,25 @@ router.post(
   "/",
   authenticate,
   authorizeRoles(["admin"]),
+  [
+    body("name").notEmpty().withMessage("Name are required").trim(),
+    body("description")
+      .optional()
+      .notEmpty()
+      .withMessage("Description cannot be empty if provided")
+      .trim(),
+  ],
+  validate,
   async (req, res) => {
     try {
       const { name, description } = req.body;
-      if (!name) {
-        return res.status(400).json({ error: "Name is required" });
-      }
       const category = new Category({ name, description });
       await category.save();
       res.status(201).json(category);
     } catch (error) {
       console.error("Error creating category", error);
       res
-        .status(400)
+        .status(500)
         .json({ error: `Failed to create category: ${error.message}` });
     }
   }
@@ -46,16 +54,21 @@ router.put(
   "/:id",
   authenticate,
   authorizeRoles(["admin"]),
+  [
+    param("id").isMongoId().withMessage("Invalid category ID"),
+    body("name")
+      .optional()
+      .notEmpty()
+      .withMessage("Name cannot be empty if provided")
+      .trim(),
+    body("description").optional().trim(),
+  ],
+  validate,
   async (req, res) => {
     try {
-      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-        return res.status(400).json({ error: "Invalid category ID" });
-      }
       const { name, description } = req.body;
-      if (!name) {
-        return res.status(400).json({ error: "Name is required" });
-      }
-      const updateData = { name };
+      const updateData = {};
+      if (name) updateData.name = name;
       if (description !== undefined) updateData.description = description;
       const category = await Category.findOneAndUpdate(
         { _id: req.params.id },
@@ -68,7 +81,7 @@ router.put(
     } catch (error) {
       console.error("Error updating category", error);
       res
-        .status(400)
+        .status(500)
         .json({ error: `Failed to update category: ${error.message}` });
     }
   }
@@ -79,11 +92,10 @@ router.delete(
   "/:id",
   authenticate,
   authorizeRoles(["admin"]),
+  [param("id").isMongoId().withMessage("Invalid category ID")],
+  validate,
   async (req, res) => {
     try {
-      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-        return res.status(400).json({ error: "Invalid category ID" });
-      }
       const category = await Category.findOneAndDelete({
         _id: req.params.id,
       });
@@ -99,7 +111,7 @@ router.delete(
     } catch (error) {
       console.error("Error deleting category", error);
       res
-        .status(400)
+        .status(500)
         .json({ error: `Failed to delete category: ${error.message}` });
     }
   }

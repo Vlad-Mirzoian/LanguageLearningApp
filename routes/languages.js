@@ -69,7 +69,9 @@ router.put(
   async (req, res) => {
     try {
       const { code, name } = req.body;
-      const updateData = { code, name };
+      const updateData = {};
+      if (code) updateData.code = code;
+      if (name) updateData.name = name;
       const language = await Language.findOneAndUpdate(
         { _id: req.params.id },
         updateData,
@@ -82,7 +84,7 @@ router.put(
     } catch (error) {
       console.error("Error updating language", error);
       res
-        .status(400)
+        .status(500)
         .json({ error: `Failed to update language: ${error.message}` });
     }
   }
@@ -139,7 +141,7 @@ router.delete(
     } catch (error) {
       console.error("Error deleting language", error);
       res
-        .status(400)
+        .status(500)
         .json({ error: `Failed to delete language: ${error.message}` });
     }
   }

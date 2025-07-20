@@ -202,7 +202,7 @@ router.delete("/user", authenticate, async (req, res) => {
     res.json({ message: "User and associated cards deleted" });
   } catch (error) {
     console.error("Error deleting user:", error);
-    res.status(400).json({ error: `Failed to delete user: ${error.message}` });
+    res.status(500).json({ error: `Failed to delete user: ${error.message}` });
   }
 });
 
