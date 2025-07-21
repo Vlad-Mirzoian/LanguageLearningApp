@@ -100,7 +100,6 @@ router.post(
       .isMongoId()
       .withMessage("Invalid category ID")
       .custom(async (value) => {
-        if (!value) return true;
         const category = await Category.findById(value);
         if (!category) throw new Error("Category not found");
         return true;

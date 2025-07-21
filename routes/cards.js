@@ -3,8 +3,10 @@ const mongoose = require("mongoose");
 const router = express.Router();
 const Word = require("../models/Word");
 const Card = require("../models/Card");
-const User = require('../models/User');
+const User = require("../models/User");
 const { authenticate, authorizeRoles } = require("../middleware/auth");
+const { validate } = require("../middleware/validation");
+const { body, param } = require("express-validator");
 
 // GET /api/cards
 router.get("/", authenticate, async (req, res) => {
@@ -102,38 +104,39 @@ router.post(
   "/",
   authenticate,
   authorizeRoles(["admin"]),
+  [
+    body("wordId")
+      .notEmpty()
+      .withMessage("Original word is required")
+      .isMongoId()
+      .withMessage("Invalid word ID")
+      .custom(async (value) => {
+        const word = await Word.findById(value);
+        if (!word) throw new Error("Original word not found");
+        return true;
+      }),
+    body("translationId")
+      .notEmpty()
+      .withMessage("Translation word is required")
+      .isMongoId()
+      .withMessage("Invalid translation ID")
+      .custom(async (value) => {
+        const translation = await Word.findById(value);
+        if (!translation) throw new Error("Translation word not found");
+        return true;
+      }),
+  ],
+  validate,
   async (req, res) => {
     try {
       const { wordId, translationId } = req.body;
-      if (!wordId || !translationId) {
-        return res
-          .status(400)
-          .json({ error: "Word and translation are required" });
-      }
-      if (!mongoose.Types.ObjectId.isValid(wordId)) {
-        return res.status(400).json({ error: "Invalid original word ID" });
-      }
-      const word = await Word.findById(wordId);
-      if (!word) {
-        return res.status(404).json({ error: "Original word not found" });
-      }
-      if (!mongoose.Types.ObjectId.isValid(translationId)) {
-        return res.status(400).json({ error: "Invalid translation word ID" });
-      }
-      const translationWord = await Word.findById(translationId);
-      if (!translationWord) {
-        return res.status(404).json({ error: "Translation word not found" });
-      }
-      const card = new Card({
-        wordId,
-        translationId,
-      });
+      const card = new Card({ wordId, translationId });
       await card.save();
       res.status(201).json(card);
     } catch (error) {
       console.error("Error creating card:", error);
       res
-        .status(400)
+        .status(500)
         .json({ error: `Failed to create card: ${error.message}` });
     }
   }
@@ -144,17 +147,16 @@ router.put(
   "/:id/review",
   authenticate,
   authorizeRoles(["user"]),
+  [
+    param("id").isMongoId().withMessage("Invalid card ID"),
+    body("quality")
+      .isInt({ min: 0, max: 5 })
+      .withMessage("Quality must be an integer between 0 and 5"),
+  ],
+  validate,
   async (req, res) => {
     try {
-      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-        return res.status(400).json({ error: "Invalid card ID" });
-      }
       const { quality } = req.body;
-      if (!Number.isInteger(quality) || quality < 0 || quality > 5) {
-        res
-          .status(400)
-          .json({ error: "Quality must be an integer between 0 and 5" });
-      }
       const user = await User.findById(req.userId).populate(
         "nativeLanguageId learningLanguagesIds"
       );
@@ -208,7 +210,7 @@ router.put(
     } catch (error) {
       console.error("Error reviewing card:", error);
       res
-        .status(400)
+        .status(500)
         .json({ error: `Failed to review card: ${error.message}` });
     }
   }
@@ -219,31 +221,35 @@ router.put(
   "/:id",
   authenticate,
   authorizeRoles("admin"),
+  [
+    param("id").isMongoId().withMessage("Invalid card ID"),
+    body("wordId")
+      .optional()
+      .notEmpty()
+      .withMessage("Original word is required")
+      .isMongoId()
+      .withMessage("Invalid word ID")
+      .custom(async (value) => {
+        const word = await Word.findById(value);
+        if (!word) throw new Error("Original word not found");
+        return true;
+      }),
+    body("translationId")
+      .optional()
+      .notEmpty()
+      .withMessage("Translation word is required")
+      .isMongoId()
+      .withMessage("Invalid translation ID")
+      .custom(async (value) => {
+        const translation = await Word.findById(value);
+        if (!translation) throw new Error("Translation word not found");
+        return true;
+      }),
+  ],
+  validate,
   async (req, res) => {
     try {
-      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-        return res.status(400).json({ error: "Invalid card ID" });
-      }
       const { wordId, translationId } = req.body;
-      if (!wordId || !translationId) {
-        return res
-          .status(400)
-          .json({ error: "Word and translation are required" });
-      }
-      if (!mongoose.Types.ObjectId.isValid(wordId)) {
-        return res.status(400).json({ error: "Invalid original word ID" });
-      }
-      const word = await Word.findById(wordId);
-      if (!word) {
-        return res.status(404).json({ error: "Original word not found" });
-      }
-      if (!mongoose.Types.ObjectId.isValid(translationId)) {
-        return res.status(400).json({ error: "Invalid translation word ID" });
-      }
-      const translationWord = await Word.findById(translationId);
-      if (!translationWord) {
-        return res.status(404).json({ error: "Translation word not found" });
-      }
       const updateData = { wordId, translationId };
       const card = await Card.findOneAndUpdate(
         { _id: req.params.id },
@@ -258,7 +264,7 @@ router.put(
     } catch (error) {
       console.error("Error updating card:", error);
       res
-        .status(400)
+        .status(500)
         .json({ error: `Failed to update card: ${error.message}` });
     }
   }
@@ -269,18 +275,17 @@ router.delete(
   "/:id",
   authenticate,
   authorizeRoles(["admin"]),
+  [param("id").isMongoId().withMessage("Invalid card ID")],
+  validate,
   async (req, res) => {
     try {
-      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-        return res.status(400).json({ error: "Invalid card ID" });
-      }
       const card = await Card.findOneAndDelete({ _id: req.params.id });
       if (!card) return res.status(404).json({ error: "Card not found" });
       res.json({ message: "Card deleted" });
     } catch (error) {
       console.error("Error deleting card:", error);
       res
-        .status(400)
+        .status(500)
         .json({ error: `Failed to delete card: ${error.message}` });
     }
   }
