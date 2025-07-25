@@ -1,5 +1,11 @@
 backend/node_modules/
 backend/.env
+
+language-app-frontend/node_modules
+language-app-frontend/.env
+language-app-frontend/dist
+language-app-frontend/dist-ssr
+
 *.log
-backend/dist/
 *.http
+*.local
