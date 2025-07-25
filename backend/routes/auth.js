@@ -13,7 +13,7 @@ const { authenticate } = require("../middleware/auth");
 const { validate } = require("../middleware/validation");
 const { param, body } = require("express-validator");
 
-// POST /api/register
+// POST /api/auth/register
 router.post(
   "/register",
   [
@@ -84,6 +84,7 @@ router.post(
   }
 );
 
+// GET /api/auth/verify/:token
 router.get(
   "/verify/:token",
   [param("token").notEmpty().withMessage("Verification token is required")],
@@ -125,7 +126,7 @@ router.get(
   }
 );
 
-// POST /api/login
+// POST /api/auth/login
 router.post(
   "/login",
   [
@@ -170,6 +171,7 @@ router.post(
   }
 );
 
+// POST /api/auth/forgot-password
 router.post("/forgot-password", [
   body("email").isEmail().withMessage("Invalid email format"),
   validate,
@@ -206,6 +208,7 @@ router.post("/forgot-password", [
   },
 ]);
 
+// POST /api/auth/reset-password/:token
 router.post(
   "/reset-password/:token",
   [
@@ -260,7 +263,7 @@ router.post(
   }
 );
 
-// PUT /api/user
+// PUT /api/auth/user
 router.put(
   "/user",
   [
@@ -341,7 +344,7 @@ router.put(
   }
 );
 
-// DELETE /api/user
+// DELETE /api/auth/user
 router.delete("/user", authenticate, async (req, res) => {
   try {
     const user = await User.findOneAndDelete({
