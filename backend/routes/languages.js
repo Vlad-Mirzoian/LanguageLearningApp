@@ -10,7 +10,7 @@ const { validate } = require("../middleware/validation");
 const { body, param } = require("express-validator");
 
 // GET /api/languages
-router.get("/", authenticate, async (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const languages = await Language.find();
     res.json(languages);
