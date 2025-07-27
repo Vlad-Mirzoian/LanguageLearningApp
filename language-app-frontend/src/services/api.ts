@@ -53,8 +53,8 @@ export const verifyEmail = async (token: string) => {
   return response.data;
 };
 
-export const forgotPassword = async (email: string) => {
-  const response = await api.post(`/auth/forgot-password`, { email });
+export const forgotPassword = async (data: {email: string} ) => {
+  const response = await api.post(`/auth/forgot-password`, data);
   return response.data;
 };
 

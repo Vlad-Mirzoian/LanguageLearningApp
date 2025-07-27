@@ -2,7 +2,7 @@ import { Route, Routes } from "react-router-dom";
 import RegisterPage from "./pages/RegisterPage";
 import LoginPage from "./pages/LoginPage";
 import VerifyEmailPage from "./pages/VerifyEmailPage";
-// import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 // import ResetPasswordPage from "./pages/ResetPasswordPage";
 // import DashboardPage from "./pages/DashboardPage";
 // import AdminPanelPage from "./pages/AdminPanelPage";
@@ -16,6 +16,7 @@ function App() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/verify/:token" element={<VerifyEmailPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/" element={<LoginPage />} />
       </Routes>
     </div>
