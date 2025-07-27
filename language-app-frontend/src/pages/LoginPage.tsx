@@ -1,35 +1,21 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import FormInput from "../components/FormInput";
-import FormSelect from "../components/FormSelect";
-import { register } from "../services/api";
-import { useQuery } from "@tanstack/react-query";
-import api from "../services/api";
-import type { Language } from "../types";
+import { login } from "../services/api";
+import { useAuth } from "../hooks/useAuth";
 
-const RegisterPage: React.FC = () => {
+const LoginPage: React.FC = () => {
   const navigate = useNavigate();
+  const { setAuth } = useAuth();
 
   const [formData, setFormData] = useState({
     email: "",
     password: "",
-    nativeLanguageId: "",
-    learningLanguagesIds: [] as string[],
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const { data: languages } = useQuery<Language[]>({
-    queryKey: ["languages"],
-    queryFn: async () => {
-      const response = await api.get("/languages");
-      return response.data;
-    },
-    enabled: true,
-  });
 
   const validateForm = useCallback(() => {
     const newErrors: Record<string, string> = {};
@@ -50,16 +36,6 @@ const RegisterPage: React.FC = () => {
       if (touched.password || isSubmitting) {
         newErrors.password =
           "Password must be at least 8 characters and contain a letter and a number";
-      }
-    }
-
-    if (
-      formData.nativeLanguageId &&
-      formData.learningLanguagesIds.includes(formData.nativeLanguageId)
-    ) {
-      if (touched.learningLanguagesIds || isSubmitting) {
-        newErrors.learningLanguagesIds =
-          "Learning language cannot be the same as native language";
       }
     }
 
@@ -92,17 +68,9 @@ const RegisterPage: React.FC = () => {
     }
 
     try {
-      await register({
-        ...formData,
-        nativeLanguageId: formData.nativeLanguageId || undefined,
-        learningLanguagesIds: formData.learningLanguagesIds.length
-          ? formData.learningLanguagesIds
-          : undefined,
-      });
-      setSuccessMessage("Registration successful! Please verify your email.");
-      setTimeout(() => {
-        navigate("/login");
-      }, 3000);
+      const { user, token } = await login(formData);
+      setAuth(user, token);
+      navigate("/dashboard");
     } catch (error: any) {
       if (error.response?.status === 400 && error.response.data?.details) {
         const validationErrors: any = {};
@@ -111,38 +79,23 @@ const RegisterPage: React.FC = () => {
         });
         setErrors((prev) => ({ ...prev, ...validationErrors }));
       } else {
-        setServerError(error.response?.data?.error || "Registration failed");
+        setServerError(error.response?.data?.error || "Logging in failed");
       }
     }
   };
-
-  const languageOptions =
-    languages?.map((lang) => ({
-      value: lang._id,
-      label: lang.name,
-    })) || [];
-
-  const filteredLearningOptions = languageOptions.filter(
-    (option) => option.value !== formData.nativeLanguageId
-  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 transform transition-all duration-300 hover:scale-105">
         <h2 className="text-3xl font-bold text-center text-indigo-700 mb-6">
-          Create Your Account
+          Welcome Back
         </h2>
         {serverError && (
           <div className="mb-6 p-3 bg-red-100 text-red-700 text-sm rounded-lg text-center animate-fade-in">
             {serverError}
           </div>
         )}
-        {successMessage && (
-          <div className="mb-6 p-3 bg-green-100 text-green-700 text-sm rounded-lg text-center animate-fade-in">
-            {successMessage}
-          </div>
-        )}
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="space-y-2">
           <FormInput
             label="Email"
             type="email"
@@ -161,41 +114,30 @@ const RegisterPage: React.FC = () => {
             required
             placeholder="Enter your password"
           />
-          <FormSelect
-            label="Native Language"
-            value={formData.nativeLanguageId}
-            onChange={(e) => handleChange("nativeLanguageId", e.target.value)}
-            options={[{ value: "", label: "None" }, ...languageOptions]}
-            error={errors.nativeLanguageId}
-          />
-          <FormSelect
-            label="Learning Languages"
-            multiple
-            value={formData.learningLanguagesIds}
-            onChange={(e) =>
-              handleChange(
-                "learningLanguagesIds",
-                Array.from(e.target.selectedOptions, (option) => option.value)
-              )
-            }
-            options={[{ value: "", label: "None" }, ...filteredLearningOptions]}
-            error={errors.learningLanguagesIds}
-          />
           <button
             type="submit"
             disabled={Object.keys(errors).length > 0}
             className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-indigo-700 transition-colors duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
-            Register
+            Login
           </button>
         </form>
         <p className="mt-6 text-center text-sm text-gray-600">
-          Already have an account?{" "}
+          Don't have an account?{" "}
           <a
-            href="/login"
+            href="/register"
             className="text-indigo-600 hover:text-indigo-800 font-semibold hover:underline transition-colors duration-200"
           >
-            Login
+            Register
+          </a>
+        </p>
+        <p className="mt-2 text-center text-sm text-gray-600">
+          Forgot password?{" "}
+          <a
+            href="/forgot-password"
+            className="text-indigo-600 hover:text-indigo-800 font-semibold hover:underline transition-colors duration-200"
+          >
+            Reset
           </a>
         </p>
       </div>
@@ -203,4 +145,4 @@ const RegisterPage: React.FC = () => {
   );
 };
 
-export default RegisterPage;
+export default LoginPage;

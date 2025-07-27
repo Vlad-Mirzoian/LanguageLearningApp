@@ -1,6 +1,6 @@
 import { Route, Routes } from "react-router-dom";
 import RegisterPage from "./pages/RegisterPage";
-// import LoginPage from "./pages/LoginPage";
+import LoginPage from "./pages/LoginPage";
 // import VerifyEmailPage from "./pages/VerifyEmailPage";
 // import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 // import ResetPasswordPage from "./pages/ResetPasswordPage";
@@ -14,6 +14,8 @@ function App() {
     <div className="min-h-screen bg-gray-100">
       <Routes>
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/" element={<LoginPage />} />
       </Routes>
     </div>
   );
