@@ -22,7 +22,7 @@ const VerifyEmailPage: React.FC = () => {
       }
 
       try {
-        isMounted.current = true; // Устанавливаем флаг
+        isMounted.current = true;
         await verifyEmail(token);
         setStatus("success");
         setMessage("Email verified successfully! Redirecting to login...");
@@ -30,7 +30,7 @@ const VerifyEmailPage: React.FC = () => {
           navigate("/login");
         }, 3000);
       } catch (error: any) {
-        isMounted.current = true; // Устанавливаем флаг даже при ошибке
+        isMounted.current = true;
         setStatus("error");
         setMessage(error.response?.data?.error || "Verification failed");
       }

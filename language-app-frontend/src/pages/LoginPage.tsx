@@ -103,6 +103,7 @@ const LoginPage: React.FC = () => {
             onChange={(e) => handleChange("email", e.target.value)}
             error={errors.email}
             required
+            autoComplete="email"
             placeholder="Enter your email"
           />
           <FormInput
@@ -112,6 +113,7 @@ const LoginPage: React.FC = () => {
             onChange={(e) => handleChange("password", e.target.value)}
             error={errors.password}
             required
+            autoComplete="current-password"
             placeholder="Enter your password"
           />
           <button

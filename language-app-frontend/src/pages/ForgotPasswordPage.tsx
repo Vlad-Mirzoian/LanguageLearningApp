@@ -56,7 +56,7 @@ const ForgotPasswordPage: React.FC = () => {
 
     try {
       await forgotPassword(formData);
-      setSuccessMessage('Reset password email sent! Redirecting to login...');
+      setSuccessMessage("Reset password email sent! Redirecting to login...");
       setTimeout(() => {
         navigate("/login");
       }, 3000);
@@ -68,7 +68,9 @@ const ForgotPasswordPage: React.FC = () => {
         });
         setErrors((prev) => ({ ...prev, ...validationErrors }));
       } else {
-        setServerError(error.response?.data?.error || "Logging in failed");
+        setServerError(
+          error.response?.data?.error || "Failed to send reset email"
+        );
       }
     }
   };
