@@ -100,22 +100,19 @@ router.get(
           .status(400)
           .json({ error: "Invalid or expired verification token" });
       }
-      const user = await User.findOneAndUpdate(
-        {
-          email: decoded.email,
-          verificationToken: token,
-          isVerified: false,
-        },
-        {
-          $set: { isVerified: true, verificationToken: null },
-        },
-        { new: true }
-      );
+      const user = await User.findOne({ email: decoded.email });
       if (!user) {
-        return res.status(400).json({
-          error: "User not found, token invalid, or already verified",
-        });
+        return res.status(400).json({ error: "User not found" });
       }
+      if (user.isVerified) {
+        return res.status(400).json({ error: "Email already verified" });
+      }
+      if (user.verificationToken !== token) {
+        return res.status(400).json({ error: "Invalid verification token" });
+      }
+      user.isVerified = true;
+      user.verificationToken = null;
+      await user.save();
       res.json({ message: "User verified successfully" });
     } catch (error) {
       console.error("Error verifying email:", error);

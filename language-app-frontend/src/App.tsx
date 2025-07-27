@@ -1,7 +1,7 @@
 import { Route, Routes } from "react-router-dom";
 import RegisterPage from "./pages/RegisterPage";
 import LoginPage from "./pages/LoginPage";
-// import VerifyEmailPage from "./pages/VerifyEmailPage";
+import VerifyEmailPage from "./pages/VerifyEmailPage";
 // import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 // import ResetPasswordPage from "./pages/ResetPasswordPage";
 // import DashboardPage from "./pages/DashboardPage";
@@ -15,6 +15,7 @@ function App() {
       <Routes>
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/verify/:token" element={<VerifyEmailPage />} />
         <Route path="/" element={<LoginPage />} />
       </Routes>
     </div>
