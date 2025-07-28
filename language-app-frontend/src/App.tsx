@@ -7,9 +7,9 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import DashboardPage from "./pages/DashboardPage";
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
+import ReviewCardsPage from "./pages/ReviewCardsPage";
+import ProgressPage from "./pages/ProgressPage";
 // import AdminPanelPage from "./pages/AdminPanelPage";
-// import ReviewCardsPage from "./pages/ReviewCardsPage";
-// import ProgressPage from "./pages/ProgressPage";
 
 function App() {
   return (
@@ -30,6 +30,22 @@ function App() {
             element={
               <ProtectedRoute>
                 <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/review"
+            element={
+              <ProtectedRoute>
+                <ReviewCardsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/progress"
+            element={
+              <ProtectedRoute>
+                <ProgressPage />
               </ProtectedRoute>
             }
           />
