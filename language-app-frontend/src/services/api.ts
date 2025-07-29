@@ -102,4 +102,9 @@ export const reviewCard = async (
   return response.data;
 };
 
+export const getProgress = async () => {
+  const response = await api.get("/progress");
+  return response.data;
+};
+
 export default api;

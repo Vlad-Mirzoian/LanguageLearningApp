@@ -83,7 +83,7 @@ router.get("/", authenticate, authorizeRoles(["user"]), async (req, res) => {
     });
 
     // Cards by language
-    const languageStats = await Card.aggregate([
+    const languagesStats = await Card.aggregate([
       {
         $match: {
           $and: [
@@ -277,7 +277,7 @@ router.get("/", authenticate, authorizeRoles(["user"]), async (req, res) => {
       totalCards,
       reviewedToday,
       learnedCards,
-      languageStats,
+      languagesStats,
       categoriesStats,
     });
   } catch (error) {

@@ -36,22 +36,26 @@ export interface Card {
   lastReviewed: string;
 }
 
-export interface Progress {
+export interface LanguageStat {
+  nativeLanguageId: { id: string; name: string };
+  learningLanguagesIds: { id: string; name: string };
+  total: number;
+  learned: number;
+}
+
+export interface CategoryStat {
+  wordCategory: { id: string; name: string };
+  translationCategory: { id: string; name: string };
+  total: number;
+  learned: number;
+}
+
+export interface ProgressData {
   totalCards: number;
   reviewedToday: number;
   learnedCards: number;
-  languageStats: Array<{
-    nativeLanguage: { id: string; name: string };
-    learningLanguage: { id: string; name: string };
-    total: number;
-    learned: number;
-  }>;
-  categoriesStats: Array<{
-    wordCategory: { id: string; name: string };
-    translationCategory: { id: string; name: string };
-    total: number;
-    learned: number;
-  }>;
+  languagesStats: LanguageStat[];
+  categoriesStats: CategoryStat[];
 }
 
 export interface AuthResponse {
