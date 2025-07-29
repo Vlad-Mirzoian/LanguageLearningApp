@@ -4,9 +4,11 @@ const router = express.Router();
 const Word = require("../models/Word");
 const Card = require("../models/Card");
 const User = require("../models/User");
+const Language = require("../models/Language");
+const Category = require("../models/Category");
 const { authenticate, authorizeRoles } = require("../middleware/auth");
 const { validate } = require("../middleware/validation");
-const { body, param } = require("express-validator");
+const { body, param, query } = require("express-validator");
 
 // GET /api/cards
 router.get("/", authenticate, async (req, res) => {
@@ -54,41 +56,87 @@ router.get("/", authenticate, async (req, res) => {
 router.get(
   "/review",
   authenticate,
+  [
+    query("languageId")
+      .optional()
+      .isMongoId()
+      .withMessage("Invalid language ID")
+      .custom(async (value, { req }) => {
+        if (!value) return true;
+        const language = await Language.findById(value);
+        if (!language) throw new Error("Language not found");
+        const user = await User.findById(req.userId);
+        if (
+          !user.nativeLanguageId.equals(value) &&
+          !user.learningLanguagesIds.some((id) => id.equals(value))
+        ) {
+          throw new Error("Access to this language is restricted");
+        }
+        return true;
+      }),
+    query("categoryId")
+      .optional()
+      .isMongoId()
+      .withMessage("Invalid category ID")
+      .custom(async (value) => {
+        if (!value) return true;
+        const category = await Category.findById(value);
+        if (!category) throw new Error("Category not found");
+        return true;
+      }),
+  ],
+  validate,
   authorizeRoles(["user"]),
   async (req, res) => {
     try {
       const user = await User.findById(req.userId).populate(
         "nativeLanguageId learningLanguagesIds"
       );
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
+      if (!user) return res.status(404).json({ error: "User not found" });
       if (!user.learningLanguagesIds?.length) {
         return res
           .status(400)
           .json({ error: "User must have at least one learning language" });
       }
-      const cards = await Card.find({
+      const { languageId, categoryId } = req.query;
+      const query = {
         $and: [
           { nextReview: { $lte: new Date() } },
           {
             wordId: {
               $in: await Word.find({
                 languageId: user.nativeLanguageId._id,
+                ...(categoryId && { categoryId }),
               }).distinct("_id"),
             },
           },
           {
             translationId: {
               $in: await Word.find({
-                languageId: user.learningLanguagesIds[0]._id,
+                languageId: languageId || user.learningLanguagesIds[0]._id,
+                ...(categoryId && { categoryId }),
               }).distinct("_id"),
             },
           },
         ],
-      })
-        .populate("wordId", "text languageId meaning categoryId")
-        .populate("translationId", "text languageId meaning categoryId");
+      };
+      const cards = await Card.find(query)
+        .populate({
+          path: "wordId",
+          select: "text languageId meaning categoryId",
+          populate: {
+            path: "categoryId",
+            select: "name",
+          },
+        })
+        .populate({
+          path: "translationId",
+          select: "text languageId meaning categoryId",
+          populate: {
+            path: "categoryId",
+            select: "name",
+          },
+        });
       res.json(cards);
     } catch (error) {
       console.error("Error fetching review cards:", error);
@@ -149,14 +197,31 @@ router.put(
   authorizeRoles(["user"]),
   [
     param("id").isMongoId().withMessage("Invalid card ID"),
+    body("languageId")
+      .notEmpty()
+      .withMessage("Language are required")
+      .isMongoId()
+      .withMessage("Invalid language ID")
+      .custom(async (value, { req }) => {
+        const language = await Language.findById(value);
+        if (!language) throw new Error("Language not found");
+        const user = await User.findById(req.userId);
+        if (
+          !user.nativeLanguageId.equals(value) &&
+          !user.learningLanguagesIds.some((id) => id.equals(value))
+        ) {
+          throw new Error("Access to this language is restricted");
+        }
+        return true;
+      }),
     body("quality")
-      .isInt({ min: 0, max: 5 })
+      .isInt({ min: 1, max: 5 })
       .withMessage("Quality must be an integer between 0 and 5"),
   ],
   validate,
   async (req, res) => {
     try {
-      const { quality } = req.body;
+      const { languageId, quality } = req.body;
       const user = await User.findById(req.userId).populate(
         "nativeLanguageId learningLanguagesIds"
       );
@@ -179,7 +244,7 @@ router.put(
           {
             translationId: {
               $in: await Word.find({
-                languageId: user.learningLanguagesIds[0]._id,
+                languageId: languageId,
               }).distinct("_id"),
             },
           },

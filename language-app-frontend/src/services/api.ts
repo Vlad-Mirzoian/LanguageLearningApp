@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { AuthResponse } from "../types";
+import type { AuthResponse, Card, Category, Language } from "../types";
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
@@ -71,6 +71,35 @@ export const resetPassword = async (
 export const logout = async () => {
   localStorage.removeItem("token");
   localStorage.removeItem("user");
+};
+
+export const getLanguages = async (): Promise<Language[]> => {
+  const response = await api.get("/languages");
+  return response.data;
+};
+
+export const getCategories = async (): Promise<Category[]> => {
+  const response = await api.get("/categories");
+  return response.data;
+};
+
+export const getReviewCards = async (filters: {
+  languageId?: string;
+  categoryId?: string;
+}): Promise<Card[]> => {
+  const response = await api.get("/cards/review", { params: filters });
+  return response.data;
+};
+
+export const reviewCard = async (
+  cardId: string,
+  data: { languageId: string; quality: number }
+): Promise<Card[]> => {
+  const response = await api.put(`/cards/${cardId}/review`, {
+    languageId: data.languageId,
+    quality: data.quality,
+  });
+  return response.data;
 };
 
 export default api;

@@ -16,7 +16,7 @@ mongoose
 
 const initData = async () => {
   try {
-    // Очистка существующих коллекций
+    // Clear existing collections
     await Promise.all([
       User.deleteMany({}),
       Word.deleteMany({}),
@@ -26,7 +26,7 @@ const initData = async () => {
     ]);
     console.log("Collections cleared");
 
-    // Создание языков
+    // Create languages
     const languages = [
       { code: "uk", name: "Ukrainian" },
       { code: "en", name: "English" },
@@ -41,11 +41,11 @@ const initData = async () => {
     }, {});
     console.log("Languages created:", languageDocs.length);
 
-    // Создание категорий (на английском)
+    // Create categories
     const categories = [
       {
         name: "Greetings",
-        description: "Words and phrases for greetings and introductions",
+        description: "Words for greetings and introductions",
       },
       { name: "Food", description: "Vocabulary related to food and dining" },
       { name: "Travel", description: "Words for travel and transportation" },
@@ -62,6 +62,14 @@ const initData = async () => {
       { name: "Animals", description: "Vocabulary related to animals" },
       { name: "Weather", description: "Terms for weather and climate" },
       { name: "Clothing", description: "Words for clothing and fashion" },
+      { name: "Hobbies", description: "Vocabulary for hobbies and leisure" },
+      { name: "Jobs", description: "Terms related to professions and work" },
+      { name: "Health", description: "Words for health and medical terms" },
+      { name: "Nature", description: "Vocabulary for natural phenomena" },
+      {
+        name: "Technology",
+        description: "Terms related to technology and devices",
+      },
     ];
     const categoryDocs = await Category.insertMany(categories);
     const categoryMap = categoryDocs.reduce((map, cat, index) => {
@@ -70,9 +78,9 @@ const initData = async () => {
     }, {});
     console.log("Categories created:", categoryDocs.length);
 
-    // Создание слов (по 10 слов на язык, с meaning на том же языке)
+    // Create words (100 words, 20 per language)
     const words = [
-      // Ukrainian
+      // Ukrainian (20 words)
       {
         text: "привіт",
         languageId: languageMap.uk,
@@ -133,7 +141,67 @@ const initData = async () => {
         categoryId: categoryMap.colors,
         meaning: "колір",
       },
-      // English
+      {
+        text: "спати",
+        languageId: languageMap.uk,
+        categoryId: categoryMap["daily activities"],
+        meaning: "відпочинок уві сні",
+      },
+      {
+        text: "їсти",
+        languageId: languageMap.uk,
+        categoryId: categoryMap["daily activities"],
+        meaning: "споживання їжі",
+      },
+      {
+        text: "кіт",
+        languageId: languageMap.uk,
+        categoryId: categoryMap.animals,
+        meaning: "домашня тварина",
+      },
+      {
+        text: "собака",
+        languageId: languageMap.uk,
+        categoryId: categoryMap.animals,
+        meaning: "домашня тварина",
+      },
+      {
+        text: "сонце",
+        languageId: languageMap.uk,
+        categoryId: categoryMap.weather,
+        meaning: "небесне тіло",
+      },
+      {
+        text: "дощ",
+        languageId: languageMap.uk,
+        categoryId: categoryMap.weather,
+        meaning: "опади",
+      },
+      {
+        text: "сорочка",
+        languageId: languageMap.uk,
+        categoryId: categoryMap.clothing,
+        meaning: "одяг для верхньої частини тіла",
+      },
+      {
+        text: "штани",
+        languageId: languageMap.uk,
+        categoryId: categoryMap.clothing,
+        meaning: "одяг для ніг",
+      },
+      {
+        text: "читання",
+        languageId: languageMap.uk,
+        categoryId: categoryMap.hobbies,
+        meaning: "дозвілля з книгами",
+      },
+      {
+        text: "лікар",
+        languageId: languageMap.uk,
+        categoryId: categoryMap.jobs,
+        meaning: "медичний працівник",
+      },
+      // English (20 words)
       {
         text: "hello",
         languageId: languageMap.en,
@@ -194,7 +262,67 @@ const initData = async () => {
         categoryId: categoryMap.colors,
         meaning: "color",
       },
-      // French
+      {
+        text: "sleep",
+        languageId: languageMap.en,
+        categoryId: categoryMap["daily activities"],
+        meaning: "rest through slumber",
+      },
+      {
+        text: "eat",
+        languageId: languageMap.en,
+        categoryId: categoryMap["daily activities"],
+        meaning: "consume food",
+      },
+      {
+        text: "cat",
+        languageId: languageMap.en,
+        categoryId: categoryMap.animals,
+        meaning: "domestic animal",
+      },
+      {
+        text: "dog",
+        languageId: languageMap.en,
+        categoryId: categoryMap.animals,
+        meaning: "domestic animal",
+      },
+      {
+        text: "sun",
+        languageId: languageMap.en,
+        categoryId: categoryMap.weather,
+        meaning: "celestial body",
+      },
+      {
+        text: "rain",
+        languageId: languageMap.en,
+        categoryId: categoryMap.weather,
+        meaning: "precipitation",
+      },
+      {
+        text: "shirt",
+        languageId: languageMap.en,
+        categoryId: categoryMap.clothing,
+        meaning: "upper body clothing",
+      },
+      {
+        text: "pants",
+        languageId: languageMap.en,
+        categoryId: categoryMap.clothing,
+        meaning: "lower body clothing",
+      },
+      {
+        text: "reading",
+        languageId: languageMap.en,
+        categoryId: categoryMap.hobbies,
+        meaning: "leisure with books",
+      },
+      {
+        text: "doctor",
+        languageId: languageMap.en,
+        categoryId: categoryMap.jobs,
+        meaning: "medical professional",
+      },
+      // French (20 words)
       {
         text: "bonjour",
         languageId: languageMap.fr,
@@ -255,7 +383,67 @@ const initData = async () => {
         categoryId: categoryMap.colors,
         meaning: "couleur",
       },
-      // German
+      {
+        text: "dormir",
+        languageId: languageMap.fr,
+        categoryId: categoryMap["daily activities"],
+        meaning: "repos par le sommeil",
+      },
+      {
+        text: "manger",
+        languageId: languageMap.fr,
+        categoryId: categoryMap["daily activities"],
+        meaning: "consommer de la nourriture",
+      },
+      {
+        text: "chat",
+        languageId: languageMap.fr,
+        categoryId: categoryMap.animals,
+        meaning: "animal domestique",
+      },
+      {
+        text: "chien",
+        languageId: languageMap.fr,
+        categoryId: categoryMap.animals,
+        meaning: "animal domestique",
+      },
+      {
+        text: "soleil",
+        languageId: languageMap.fr,
+        categoryId: categoryMap.weather,
+        meaning: "corps céleste",
+      },
+      {
+        text: "pluie",
+        languageId: languageMap.fr,
+        categoryId: categoryMap.weather,
+        meaning: "précipitation",
+      },
+      {
+        text: "chemise",
+        languageId: languageMap.fr,
+        categoryId: categoryMap.clothing,
+        meaning: "vêtement du haut du corps",
+      },
+      {
+        text: "pantalon",
+        languageId: languageMap.fr,
+        categoryId: categoryMap.clothing,
+        meaning: "vêtement du bas du corps",
+      },
+      {
+        text: "lecture",
+        languageId: languageMap.fr,
+        categoryId: categoryMap.hobbies,
+        meaning: "loisir avec des livres",
+      },
+      {
+        text: "médecin",
+        languageId: languageMap.fr,
+        categoryId: categoryMap.jobs,
+        meaning: "professionnel médical",
+      },
+      // German (20 words)
       {
         text: "hallo",
         languageId: languageMap.de,
@@ -316,7 +504,67 @@ const initData = async () => {
         categoryId: categoryMap.colors,
         meaning: "Farbe",
       },
-      // Spanish
+      {
+        text: "schlafen",
+        languageId: languageMap.de,
+        categoryId: categoryMap["daily activities"],
+        meaning: "Ruhe durch Schlaf",
+      },
+      {
+        text: "essen",
+        languageId: languageMap.de,
+        categoryId: categoryMap["daily activities"],
+        meaning: "Nahrung konsumieren",
+      },
+      {
+        text: "Katze",
+        languageId: languageMap.de,
+        categoryId: categoryMap.animals,
+        meaning: "Haustier",
+      },
+      {
+        text: "Hund",
+        languageId: languageMap.de,
+        categoryId: categoryMap.animals,
+        meaning: "Haustier",
+      },
+      {
+        text: "Sonne",
+        languageId: languageMap.de,
+        categoryId: categoryMap.weather,
+        meaning: "Himmelskörper",
+      },
+      {
+        text: "Regen",
+        languageId: languageMap.de,
+        categoryId: categoryMap.weather,
+        meaning: "Niederschlag",
+      },
+      {
+        text: "Hemd",
+        languageId: languageMap.de,
+        categoryId: categoryMap.clothing,
+        meaning: "Oberkörperkleidung",
+      },
+      {
+        text: "Hose",
+        languageId: languageMap.de,
+        categoryId: categoryMap.clothing,
+        meaning: "Unterkörperkleidung",
+      },
+      {
+        text: "Lesen",
+        languageId: languageMap.de,
+        categoryId: categoryMap.hobbies,
+        meaning: "Freizeit mit Büchern",
+      },
+      {
+        text: "Arzt",
+        languageId: languageMap.de,
+        categoryId: categoryMap.jobs,
+        meaning: "Medizinischer Fachmann",
+      },
+      // Spanish (20 words)
       {
         text: "hola",
         languageId: languageMap.es,
@@ -377,6 +625,66 @@ const initData = async () => {
         categoryId: categoryMap.colors,
         meaning: "color",
       },
+      {
+        text: "dormir",
+        languageId: languageMap.es,
+        categoryId: categoryMap["daily activities"],
+        meaning: "descanso por sueño",
+      },
+      {
+        text: "comer",
+        languageId: languageMap.es,
+        categoryId: categoryMap["daily activities"],
+        meaning: "consumir comida",
+      },
+      {
+        text: "gato",
+        languageId: languageMap.es,
+        categoryId: categoryMap.animals,
+        meaning: "animal doméstico",
+      },
+      {
+        text: "perro",
+        languageId: languageMap.es,
+        categoryId: categoryMap.animals,
+        meaning: "animal doméstico",
+      },
+      {
+        text: "sol",
+        languageId: languageMap.es,
+        categoryId: categoryMap.weather,
+        meaning: "cuerpo celeste",
+      },
+      {
+        text: "lluvia",
+        languageId: languageMap.es,
+        categoryId: categoryMap.weather,
+        meaning: "precipitación",
+      },
+      {
+        text: "camisa",
+        languageId: languageMap.es,
+        categoryId: categoryMap.clothing,
+        meaning: "ropa del torso",
+      },
+      {
+        text: "pantalones",
+        languageId: languageMap.es,
+        categoryId: categoryMap.clothing,
+        meaning: "ropa de las piernas",
+      },
+      {
+        text: "lectura",
+        languageId: languageMap.es,
+        categoryId: categoryMap.hobbies,
+        meaning: "ocio con libros",
+      },
+      {
+        text: "médico",
+        languageId: languageMap.es,
+        categoryId: categoryMap.jobs,
+        meaning: "profesional médico",
+      },
     ];
     const wordDocs = await Word.insertMany(words);
     const wordMap = wordDocs.reduce((map, word) => {
@@ -385,9 +693,9 @@ const initData = async () => {
     }, {});
     console.log("Words created:", wordDocs.length);
 
-    // Создание карточек (wordId: украинский, translationId: en/fr/de/es)
+    // Create cards (60 cards, Ukrainian as base language, translations to en/fr/de/es)
     const cards = [
-      // Ukrainian -> English
+      // Ukrainian -> English (15 cards)
       {
         wordId: wordMap["привіт_" + languageMap.uk],
         translationId: wordMap["hello_" + languageMap.en],
@@ -428,7 +736,27 @@ const initData = async () => {
         wordId: wordMap["червоний_" + languageMap.uk],
         translationId: wordMap["red_" + languageMap.en],
       },
-      // Ukrainian -> French
+      {
+        wordId: wordMap["спати_" + languageMap.uk],
+        translationId: wordMap["sleep_" + languageMap.en],
+      },
+      {
+        wordId: wordMap["їсти_" + languageMap.uk],
+        translationId: wordMap["eat_" + languageMap.en],
+      },
+      {
+        wordId: wordMap["кіт_" + languageMap.uk],
+        translationId: wordMap["cat_" + languageMap.en],
+      },
+      {
+        wordId: wordMap["собака_" + languageMap.uk],
+        translationId: wordMap["dog_" + languageMap.en],
+      },
+      {
+        wordId: wordMap["сонце_" + languageMap.uk],
+        translationId: wordMap["sun_" + languageMap.en],
+      },
+      // Ukrainian -> French (15 cards)
       {
         wordId: wordMap["привіт_" + languageMap.uk],
         translationId: wordMap["bonjour_" + languageMap.fr],
@@ -469,7 +797,27 @@ const initData = async () => {
         wordId: wordMap["червоний_" + languageMap.uk],
         translationId: wordMap["rouge_" + languageMap.fr],
       },
-      // Ukrainian -> German
+      {
+        wordId: wordMap["спати_" + languageMap.uk],
+        translationId: wordMap["dormir_" + languageMap.fr],
+      },
+      {
+        wordId: wordMap["їсти_" + languageMap.uk],
+        translationId: wordMap["manger_" + languageMap.fr],
+      },
+      {
+        wordId: wordMap["кіт_" + languageMap.uk],
+        translationId: wordMap["chat_" + languageMap.fr],
+      },
+      {
+        wordId: wordMap["собака_" + languageMap.uk],
+        translationId: wordMap["chien_" + languageMap.fr],
+      },
+      {
+        wordId: wordMap["сонце_" + languageMap.uk],
+        translationId: wordMap["soleil_" + languageMap.fr],
+      },
+      // Ukrainian -> German (15 cards)
       {
         wordId: wordMap["привіт_" + languageMap.uk],
         translationId: wordMap["hallo_" + languageMap.de],
@@ -490,7 +838,47 @@ const initData = async () => {
         wordId: wordMap["подорож_" + languageMap.uk],
         translationId: wordMap["Reise_" + languageMap.de],
       },
-      // Ukrainian -> Spanish
+      {
+        wordId: wordMap["літак_" + languageMap.uk],
+        translationId: wordMap["Flugzeug_" + languageMap.de],
+      },
+      {
+        wordId: wordMap["мама_" + languageMap.uk],
+        translationId: wordMap["Mutter_" + languageMap.de],
+      },
+      {
+        wordId: wordMap["брат_" + languageMap.uk],
+        translationId: wordMap["Bruder_" + languageMap.de],
+      },
+      {
+        wordId: wordMap["один_" + languageMap.uk],
+        translationId: wordMap["eins_" + languageMap.de],
+      },
+      {
+        wordId: wordMap["червоний_" + languageMap.uk],
+        translationId: wordMap["rot_" + languageMap.de],
+      },
+      {
+        wordId: wordMap["спати_" + languageMap.uk],
+        translationId: wordMap["schlafen_" + languageMap.de],
+      },
+      {
+        wordId: wordMap["їсти_" + languageMap.uk],
+        translationId: wordMap["essen_" + languageMap.de],
+      },
+      {
+        wordId: wordMap["кіт_" + languageMap.uk],
+        translationId: wordMap["Katze_" + languageMap.de],
+      },
+      {
+        wordId: wordMap["собака_" + languageMap.uk],
+        translationId: wordMap["Hund_" + languageMap.de],
+      },
+      {
+        wordId: wordMap["сонце_" + languageMap.uk],
+        translationId: wordMap["Sonne_" + languageMap.de],
+      },
+      // Ukrainian -> Spanish (15 cards)
       {
         wordId: wordMap["привіт_" + languageMap.uk],
         translationId: wordMap["hola_" + languageMap.es],
@@ -511,11 +899,51 @@ const initData = async () => {
         wordId: wordMap["подорож_" + languageMap.uk],
         translationId: wordMap["viaje_" + languageMap.es],
       },
+      {
+        wordId: wordMap["літак_" + languageMap.uk],
+        translationId: wordMap["avión_" + languageMap.es],
+      },
+      {
+        wordId: wordMap["мама_" + languageMap.uk],
+        translationId: wordMap["madre_" + languageMap.es],
+      },
+      {
+        wordId: wordMap["брат_" + languageMap.uk],
+        translationId: wordMap["hermano_" + languageMap.es],
+      },
+      {
+        wordId: wordMap["один_" + languageMap.uk],
+        translationId: wordMap["uno_" + languageMap.es],
+      },
+      {
+        wordId: wordMap["червоний_" + languageMap.uk],
+        translationId: wordMap["rojo_" + languageMap.es],
+      },
+      {
+        wordId: wordMap["спати_" + languageMap.uk],
+        translationId: wordMap["dormir_" + languageMap.es],
+      },
+      {
+        wordId: wordMap["їсти_" + languageMap.uk],
+        translationId: wordMap["comer_" + languageMap.es],
+      },
+      {
+        wordId: wordMap["кіт_" + languageMap.uk],
+        translationId: wordMap["gato_" + languageMap.es],
+      },
+      {
+        wordId: wordMap["собака_" + languageMap.uk],
+        translationId: wordMap["perro_" + languageMap.es],
+      },
+      {
+        wordId: wordMap["сонце_" + languageMap.uk],
+        translationId: wordMap["sol_" + languageMap.es],
+      },
     ];
     const cardDocs = await Card.insertMany(cards);
     console.log("Cards created:", cardDocs.length);
 
-    // Создание пользователей
+    // Create users
     const hashedPassword = await bcrypt.hash("password123", 10);
     const users = [
       {
@@ -523,35 +951,26 @@ const initData = async () => {
         password: hashedPassword,
         role: "admin",
         nativeLanguageId: languageMap.uk,
-        learningLanguagesIds: [languageMap.en, languageMap.fr],
+        learningLanguagesIds: [
+          languageMap.en,
+          languageMap.fr,
+          languageMap.de,
+          languageMap.es,
+        ],
+        isVerified: true,
       },
       {
-        email: "user1@example.com",
+        email: "test@example.com",
         password: hashedPassword,
         role: "user",
         nativeLanguageId: languageMap.uk,
-        learningLanguagesIds: [languageMap.en],
-      },
-      {
-        email: "user2@example.com",
-        password: hashedPassword,
-        role: "user",
-        nativeLanguageId: languageMap.uk,
-        learningLanguagesIds: [languageMap.fr, languageMap.de],
-      },
-      {
-        email: "user3@example.com",
-        password: hashedPassword,
-        role: "user",
-        nativeLanguageId: languageMap.en,
-        learningLanguagesIds: [languageMap.fr],
-      },
-      {
-        email: "user4@example.com",
-        password: hashedPassword,
-        role: "user",
-        nativeLanguageId: languageMap.fr,
-        learningLanguagesIds: [languageMap.es, languageMap.de],
+        learningLanguagesIds: [
+          languageMap.en,
+          languageMap.fr,
+          languageMap.de,
+          languageMap.es,
+        ],
+        isVerified: true,
       },
     ];
     const userDocs = await User.insertMany(users);
