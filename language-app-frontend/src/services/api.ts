@@ -62,9 +62,7 @@ export const resetPassword = async (
   token: string,
   data: { password: string }
 ) => {
-  const response = await api.post(`/auth/reset-password/${token}`, {
-    password: data.password,
-  });
+  const response = await api.post(`/auth/reset-password/${token}`, data);
   return response.data;
 };
 
@@ -78,8 +76,54 @@ export const getLanguages = async (): Promise<Language[]> => {
   return response.data;
 };
 
+export const createLanguage = async (data: {
+  code: string;
+  name: string;
+}): Promise<Language> => {
+  const response = await api.post("/languages", data);
+  return response.data;
+};
+
+export const updateLanguage = async (
+  languageId: string,
+  data: { code?: string; name?: string }
+): Promise<Language> => {
+  const response = await api.put(`/languages/${languageId}`, data);
+  return response.data;
+};
+
+export const deleteLanguage = async (
+  languageId: string
+): Promise<{ message: string }> => {
+  const response = await api.delete(`/languages/${languageId}`);
+  return response.data;
+};
+
 export const getCategories = async (): Promise<Category[]> => {
   const response = await api.get("/categories");
+  return response.data;
+};
+
+export const createCategory = async (data: {
+  name: string;
+  description?: string;
+}): Promise<Category> => {
+  const response = await api.post("/categories", data);
+  return response.data;
+};
+
+export const updateCategory = async (
+  categoryId: string,
+  data: { name?: string; description?: string }
+): Promise<Category> => {
+  const response = await api.put(`/categories/${categoryId}`, data);
+  return response.data;
+};
+
+export const deleteCategory = async (
+  categoryId: string
+): Promise<{ message: string }> => {
+  const response = await api.delete(`/categories/${categoryId}`);
   return response.data;
 };
 
@@ -94,11 +138,8 @@ export const getReviewCards = async (filters: {
 export const reviewCard = async (
   cardId: string,
   data: { languageId: string; quality: number }
-): Promise<Card[]> => {
-  const response = await api.put(`/cards/${cardId}/review`, {
-    languageId: data.languageId,
-    quality: data.quality,
-  });
+): Promise<Card> => {
+  const response = await api.put(`/cards/${cardId}/review`, data);
   return response.data;
 };
 

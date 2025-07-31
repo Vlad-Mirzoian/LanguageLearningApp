@@ -9,7 +9,7 @@ import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ReviewCardsPage from "./pages/ReviewCardsPage";
 import ProgressPage from "./pages/ProgressPage";
-// import AdminPanelPage from "./pages/AdminPanelPage";
+import AdminPanelPage from "./pages/AdminPanelPage";
 
 function App() {
   return (
@@ -46,6 +46,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <ProgressPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <AdminPanelPage />
               </ProtectedRoute>
             }
           />

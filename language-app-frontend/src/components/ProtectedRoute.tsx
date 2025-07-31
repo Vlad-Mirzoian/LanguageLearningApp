@@ -9,14 +9,20 @@ interface ProtectedRouteProps {
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const navigate = useNavigate();
   const isAuthenticated = !!localStorage.getItem("token");
+  const user = JSON.parse(localStorage.getItem("user") || "null");
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!isAuthenticated || !user) {
       navigate("/login");
+    } else if (window.location.pathname === "/admin" && user.role !== "admin") {
+      navigate("/dashboard");
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, user, navigate]);
 
-  return isAuthenticated ? <>{children}</> : null;
+  return isAuthenticated &&
+    (window.location.pathname !== "/admin" || user?.role === "admin") ? (
+    <>{children}</>
+  ) : null;
 };
 
 export default ProtectedRoute;

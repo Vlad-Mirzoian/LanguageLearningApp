@@ -27,11 +27,7 @@ router.post(
   authorizeRoles(["admin"]),
   [
     body("name").notEmpty().withMessage("Name are required").trim(),
-    body("description")
-      .optional()
-      .notEmpty()
-      .withMessage("Description cannot be empty if provided")
-      .trim(),
+    body("description").optional().trim(),
   ],
   validate,
   async (req, res) => {
