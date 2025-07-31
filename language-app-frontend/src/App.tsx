@@ -9,7 +9,8 @@ import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ReviewCardsPage from "./pages/ReviewCardsPage";
 import ProgressPage from "./pages/ProgressPage";
-import AdminPanelPage from "./pages/AdminPanelPage";
+import AdminLanguagesPage from "./pages/AdminLanguagesPage";
+import AdminCategoriesPage from "./pages/AdminCategoriesPage";
 
 function App() {
   return (
@@ -50,10 +51,18 @@ function App() {
             }
           />
           <Route
-            path="/admin"
+            path="/admin/languages"
             element={
               <ProtectedRoute>
-                <AdminPanelPage />
+                <AdminLanguagesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/categories"
+            element={
+              <ProtectedRoute>
+                <AdminCategoriesPage />
               </ProtectedRoute>
             }
           />

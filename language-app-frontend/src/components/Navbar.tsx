@@ -26,10 +26,17 @@ const Navbar: React.FC = () => {
 
   const navigation = [
     { name: "Dashboard", href: "/dashboard", current: false },
-    { name: "Review", href: "/review", current: false },
-    { name: "Progress", href: "/progress", current: false },
+    ...(user?.role === "user"
+      ? [
+          { name: "Review", href: "/review", current: false },
+          { name: "Progress", href: "/progress", current: false },
+        ]
+      : []),
     ...(user?.role === "admin"
-      ? [{ name: "Admin", href: "/admin", current: false }]
+      ? [
+          { name: "Languages", href: "/admin/languages", current: false },
+          { name: "Categories", href: "/admin/categories", current: false },
+        ]
       : []),
   ];
 
