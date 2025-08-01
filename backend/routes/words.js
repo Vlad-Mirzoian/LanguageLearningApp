@@ -34,21 +34,11 @@ router.get(
         }
         return true;
       }),
-    query("categoryId")
-      .optional()
-      .isMongoId()
-      .withMessage("Invalid category ID")
-      .custom(async (value) => {
-        if (!value) return true;
-        const category = await Category.findById(value);
-        if (!category) throw new Error("Category not found");
-        return true;
-      }),
   ],
   validate,
   async (req, res) => {
     try {
-      const { languageId, categoryId } = req.query;
+      const { languageId } = req.query;
       const user = await User.findById(req.userId).populate(
         "nativeLanguageId learningLanguagesIds"
       );
@@ -62,10 +52,7 @@ router.get(
         query.languageId = { $in: allowedLanguagesIds };
       }
       if (languageId) query.languageId = languageId;
-      if (categoryId) query.categoryId = categoryId;
-      const words = await Word.find(query)
-        .populate("languageId", "code name")
-        .populate("categoryId", "name");
+      const words = await Word.find(query).populate("languageId", "code name");
       res.json(words);
     } catch (error) {
       console.error("Error fetching words", error);
@@ -93,32 +80,14 @@ router.post(
         if (!language) throw new Error("Language not found");
         return true;
       }),
-    body("categoryId")
-      .optional()
-      .notEmpty()
-      .withMessage("Category cannot be empty if provided")
-      .isMongoId()
-      .withMessage("Invalid category ID")
-      .custom(async (value) => {
-        const category = await Category.findById(value);
-        if (!category) throw new Error("Category not found");
-        return true;
-      }),
-    body("meaning")
-      .optional()
-      .notEmpty()
-      .withMessage("Meaning cannot be empty if provided")
-      .trim(),
   ],
   validate,
   async (req, res) => {
     try {
-      const { text, languageId, categoryId, meaning } = req.body;
+      const { text, languageId } = req.body;
       const word = new Word({
         text,
         languageId,
-        categoryId,
-        meaning,
       });
       await word.save();
       res.status(201).json(word);
@@ -154,25 +123,12 @@ router.put(
         if (!language) throw new Error("Language not found");
         return true;
       }),
-    body("categoryId")
-      .optional()
-      .isMongoId()
-      .withMessage("Invalid category ID")
-      .custom(async (value) => {
-        if (!value) return true;
-        const category = await Category.findById(value);
-        if (!category) throw new Error("Category not found");
-        return true;
-      }),
-    body("meaning").optional().trim(),
   ],
   validate,
   async (req, res) => {
     try {
-      const { text, languageId, categoryId, meaning } = req.body;
+      const { text, languageId } = req.body;
       const updateData = { text, languageId };
-      if (categoryId !== undefined) updateData.categoryId = categoryId;
-      if (meaning !== undefined) updateData.meaning = meaning;
       const word = await Word.findOneAndUpdate(
         { _id: req.params.id },
         updateData,

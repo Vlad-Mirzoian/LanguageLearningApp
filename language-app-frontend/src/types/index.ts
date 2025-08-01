@@ -21,14 +21,14 @@ export interface Word {
   _id: string;
   text: string;
   languageId: Language;
-  categoryId?: Category;
-  meaning?: string;
 }
 
 export interface Card {
   _id: string;
   wordId: Word;
   translationId: Word;
+  categoryId: Category;
+  meaning?: string;
   interval: number;
   nextReview: string;
   easiness: number;

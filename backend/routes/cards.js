@@ -43,8 +43,9 @@ router.get("/", authenticate, async (req, res) => {
             ],
           };
     const cards = await Card.find(query)
-      .populate("wordId", "text languageId categoryId meaning")
-      .populate("translationId", "text languageId categoryId meaning");
+      .populate("wordId", "text languageId")
+      .populate("translationId", "text languageId")
+      .populate("categoryId", "name");
     res.json(cards);
   } catch (error) {
     console.error("Error fetching cards:", error);
@@ -106,7 +107,6 @@ router.get(
             wordId: {
               $in: await Word.find({
                 languageId: user.nativeLanguageId._id,
-                ...(categoryId && { categoryId }),
               }).distinct("_id"),
             },
           },
@@ -114,28 +114,24 @@ router.get(
             translationId: {
               $in: await Word.find({
                 languageId: languageId || user.learningLanguagesIds[0]._id,
-                ...(categoryId && { categoryId }),
               }).distinct("_id"),
             },
           },
+          ...(categoryId ? [{ categoryId }] : []),
         ],
       };
       const cards = await Card.find(query)
         .populate({
           path: "wordId",
-          select: "text languageId meaning categoryId",
-          populate: {
-            path: "categoryId",
-            select: "name",
-          },
+          select: "text languageId",
         })
         .populate({
           path: "translationId",
-          select: "text languageId meaning categoryId",
-          populate: {
-            path: "categoryId",
-            select: "name",
-          },
+          select: "text languageId",
+        })
+        .populate({
+          path: "categoryId",
+          select: "name",
         });
       res.json(cards);
     } catch (error) {
@@ -173,12 +169,27 @@ router.post(
         if (!translation) throw new Error("Translation word not found");
         return true;
       }),
+    body("categoryId")
+      .notEmpty()
+      .withMessage("Category is required")
+      .isMongoId()
+      .withMessage("Invalid category ID")
+      .custom(async (value) => {
+        const category = await Category.findById(value);
+        if (!category) throw new Error("Category not found");
+        return true;
+      }),
+    body("meaning")
+      .optional()
+      .notEmpty()
+      .withMessage("Meaning cannot be empty if provided")
+      .trim(),
   ],
   validate,
   async (req, res) => {
     try {
-      const { wordId, translationId } = req.body;
-      const card = new Card({ wordId, translationId });
+      const { wordId, translationId, categoryId, meaning } = req.body;
+      const card = new Card({ wordId, translationId, categoryId, meaning });
       await card.save();
       res.status(201).json(card);
     } catch (error) {
@@ -310,12 +321,29 @@ router.put(
         if (!translation) throw new Error("Translation word not found");
         return true;
       }),
+    body("categoryId")
+      .optional()
+      .notEmpty()
+      .withMessage("Category cannot be empty if provided")
+      .isMongoId()
+      .withMessage("Invalid category ID")
+      .custom(async (value) => {
+        const category = await Category.findById(value);
+        if (!category) throw new Error("Category not found");
+        return true;
+      }),
+    body("meaning")
+      .optional()
+      .notEmpty()
+      .withMessage("Meaning cannot be empty if provided")
+      .trim(),
   ],
   validate,
   async (req, res) => {
     try {
-      const { wordId, translationId } = req.body;
-      const updateData = { wordId, translationId };
+      const { wordId, translationId, categoryId, meaning } = req.body;
+      const updateData = { wordId, translationId, categoryId };
+      if (meaning !== undefined) updateData.meaning = meaning;
       const card = await Card.findOneAndUpdate(
         { _id: req.params.id },
         updateData,

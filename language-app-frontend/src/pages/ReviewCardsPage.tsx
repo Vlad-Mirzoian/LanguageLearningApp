@@ -91,8 +91,6 @@ const ReviewCardsPage: React.FC = () => {
 
   const currentCard = cards[currentCardIndex];
 
-  console.log(user?.learningLanguagesIds);
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex flex-col items-center p-4">
       <div className="w-full max-w-2xl">
@@ -178,14 +176,14 @@ const ReviewCardsPage: React.FC = () => {
                 <h3 className="text-lg font-semibold text-gray-800">
                   {currentCard.wordId.text}
                 </h3>
-                {currentCard.wordId.meaning && (
+                {currentCard.meaning && (
                   <p className="mt-2 text-gray-500">
-                    Meaning: {currentCard.wordId.meaning}
+                    Meaning: {currentCard.meaning}
                   </p>
                 )}
-                {currentCard.wordId.categoryId && (
+                {currentCard.categoryId && (
                   <p className="mt-1 text-gray-400 text-sm">
-                    Category: {currentCard.wordId.categoryId.name}
+                    Category: {currentCard.categoryId.name}
                   </p>
                 )}
                 <button
@@ -205,14 +203,14 @@ const ReviewCardsPage: React.FC = () => {
                 <h3 className="text-lg font-semibold text-gray-800">
                   {currentCard.translationId.text}
                 </h3>
-                {currentCard.translationId.meaning && (
+                {currentCard.meaning && (
                   <p className="mt-2 text-gray-500">
-                    Meaning: {currentCard.translationId.meaning}
+                    Meaning: {currentCard.meaning}
                   </p>
                 )}
-                {currentCard.translationId.categoryId && (
+                {currentCard.categoryId && (
                   <p className="mt-1 text-gray-400 text-sm">
-                    Category: {currentCard.translationId.categoryId.name}
+                    Category: {currentCard.categoryId.name}
                   </p>
                 )}
               </div>

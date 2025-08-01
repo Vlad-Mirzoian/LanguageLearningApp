@@ -1,7 +1,7 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const router = express.Router();
-const Word = require("../models/Word");
+const Card = require("../models/Card");
 const Category = require("../models/Category");
 const { authenticate, authorizeRoles } = require("../middleware/auth");
 const { validate } = require("../middleware/validation");
@@ -97,10 +97,7 @@ router.delete(
       });
       if (!category)
         return res.status(404).json({ error: "Category not found" });
-      await Word.updateMany(
-        { categoryId: req.params.id },
-        { $set: { categoryId: null } }
-      );
+      await Card.deleteMany({ categoryId: req.params.id });
       res.json({
         message: "Category deleted, related cards and words updated",
       });

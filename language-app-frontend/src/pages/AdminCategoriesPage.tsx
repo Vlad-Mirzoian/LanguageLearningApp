@@ -9,7 +9,7 @@ import {
 import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
 import FormInput from "../components/FormInput";
 
-const AdminLanguagesPage: React.FC = () => {
+const AdminCategoriesPage: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -418,4 +418,4 @@ const AdminLanguagesPage: React.FC = () => {
   );
 };
 
-export default AdminLanguagesPage;
+export default AdminCategoriesPage;
