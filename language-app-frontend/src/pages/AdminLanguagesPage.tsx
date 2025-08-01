@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { Language } from "../types";
 import {
   createLanguage,
@@ -7,6 +7,7 @@ import {
   updateLanguage,
 } from "../services/api";
 import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
+import FormInput from "../components/FormInput";
 
 const AdminLanguagesPage: React.FC = () => {
   const [languages, setLanguages] = useState<Language[]>([]);
@@ -20,7 +21,8 @@ const AdminLanguagesPage: React.FC = () => {
     code: "",
     name: "",
   });
-  const [formError, setFormError] = useState("");
+  const [serverError, setServerError] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const fetchLanguages = async () => {
@@ -37,27 +39,68 @@ const AdminLanguagesPage: React.FC = () => {
     fetchLanguages();
   }, []);
 
-  const handleAddLanguage = async () => {
-    if (!formData.code || !formData.name) {
-      setFormError("Code and name are required");
+  const validateForm = useCallback(() => {
+    const newErrors: Record<string, string> = {};
+    if (!formData.code.trim()) {
+      newErrors.code = "Code is required";
+    }
+    if (!formData.name.trim()) {
+      newErrors.name = "Name is required";
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }, [formData]);
+
+  const handleChange = (field: string, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+
+    setErrors((prev) => {
+      const newErrors = { ...prev };
+      if (!value.trim()) {
+        newErrors[field] = `${
+          field.charAt(0).toUpperCase() + field.slice(1)
+        } is required`;
+      } else {
+        delete newErrors[field];
+      }
+      return newErrors;
+    });
+  };
+
+  const handleAddLanguage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setServerError("");
+    if (!validateForm()) {
       return;
     }
+
     try {
       const newLanguage = await createLanguage(formData);
       setLanguages([...languages, newLanguage]);
       setIsAddModalOpen(false);
       setFormData({ code: "", name: "" });
-      setFormError("");
-    } catch (err: any) {
-      setFormError(err.response?.data?.error || "Failed to create language");
+      setErrors({});
+      setServerError("");
+    } catch (error: any) {
+      const errorMessage =
+        error.response?.data?.error || "Failed to create language";
+      const details = error.response?.data?.details
+        ? error.response.data.details.map((err: any) => err.message).join(", ")
+        : "";
+      setServerError(details ? `${errorMessage}: ${details}` : errorMessage);
     }
   };
 
-  const handleEditLanguage = async () => {
-    if (!currentLanguage || !formData.code.trim() || !formData.name.trim()) {
-      setFormError("Both code and name are required");
+  const handleEditLanguage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setServerError("");
+    if (!currentLanguage || !validateForm()) {
       return;
     }
+
     try {
       const updatedLanguage = await updateLanguage(
         currentLanguage._id,
@@ -71,14 +114,23 @@ const AdminLanguagesPage: React.FC = () => {
       setIsEditModalOpen(false);
       setCurrentLanguage(null);
       setFormData({ code: "", name: "" });
-      setFormError("");
-    } catch (err: any) {
-      setFormError(err.response?.data?.error || "Failed to update language");
+      setErrors({});
+      setServerError("");
+    } catch (error: any) {
+      const errorMessage =
+        error.response?.data?.error || "Failed to update language";
+      const details = error.response?.data?.details
+        ? error.response.data.details.map((err: any) => err.message).join(", ")
+        : "";
+      setServerError(details ? `${errorMessage}: ${details}` : errorMessage);
     }
   };
 
-  const handleDeleteLanguage = async () => {
+  const handleDeleteLanguage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setServerError("");
     if (!currentLanguage) return;
+
     try {
       await deleteLanguage(currentLanguage._id);
       setLanguages(
@@ -86,22 +138,25 @@ const AdminLanguagesPage: React.FC = () => {
       );
       setIsDeleteModalOpen(false);
       setCurrentLanguage(null);
-    } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to delete language");
+    } catch (error: any) {
+      setServerError(
+        error.response?.data?.error || "Failed to delete language"
+      );
     }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex justify-center p-4">
       <div className="w-full max-w-4xl">
-        <h2 className="text-3xl font-bold text-center text-indigo-700 mb-6">
+        <h2 className="text-3xl font-bold text-center text-indigo-700">
           Admin Panel
         </h2>
-        <div className="flex justify-center mb-4">
+        <div className="flex justify-center mt-4 mb-6">
           <button
             onClick={() => {
               setFormData({ code: "", name: "" });
-              setFormError("");
+              setErrors({});
+              setServerError("");
               setIsAddModalOpen(true);
             }}
             className="bg-indigo-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-indigo-700 transition-colors duration-200 cursor-pointer"
@@ -163,11 +218,9 @@ const AdminLanguagesPage: React.FC = () => {
                       <button
                         onClick={() => {
                           setCurrentLanguage(lang);
-                          setFormData({
-                            code: lang.code,
-                            name: lang.name,
-                          });
-                          setFormError("");
+                          setFormData({ code: lang.code, name: lang.name });
+                          setErrors({});
+                          setServerError("");
                           setIsEditModalOpen(true);
                         }}
                         className="text-indigo-600 hover:text-indigo-800 mr-4 cursor-pointer"
@@ -191,127 +244,137 @@ const AdminLanguagesPage: React.FC = () => {
           </div>
         )}
       </div>
-      <Dialog open={isAddModalOpen} onClose={() => setIsAddModalOpen(false)}>
+      <Dialog
+        open={isAddModalOpen}
+        onClose={() => {
+          setIsAddModalOpen(false);
+          setFormData({ code: "", name: "" });
+          setErrors({});
+          setServerError("");
+        }}
+      >
         <div className="fixed inset-0 bg-black/30" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <DialogPanel className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md">
             <DialogTitle className="text-lg font-bold text-indigo-700">
               Add Language
             </DialogTitle>
-            {formError && (
-              <div className="mt-2 p-2 bg-red-100 text-red-700 text-sm rounded-lg">
-                {formError}
+            {serverError && (
+              <div className="mb-3 mt-3 p-3 bg-red-100 text-red-700 text-sm rounded-lg text-center animate-fade-in">
+                {serverError}
               </div>
             )}
-            <div className="mt-4 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Code
-                </label>
-                <input
-                  type="text"
+            <form onSubmit={handleAddLanguage} className="space-y-2">
+              <div className="mt-2 space-y-4">
+                <FormInput
+                  label="Code"
                   value={formData.code}
-                  onChange={(e) =>
-                    setFormData({ ...formData, code: e.target.value })
-                  }
+                  onChange={(e) => handleChange("code", e.target.value)}
+                  error={errors.code}
                   placeholder="e.g., en"
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300"
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Name
-                </label>
-                <input
-                  type="text"
+                <FormInput
+                  label="Name"
                   value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
+                  onChange={(e) => handleChange("name", e.target.value)}
+                  error={errors.name}
                   placeholder="e.g., English"
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300"
                 />
               </div>
-            </div>
-            <div className="mt-6 flex justify-center space-x-2">
-              <button
-                onClick={() => setIsAddModalOpen(false)}
-                className="px-4 py-2 text-gray-600 rounded-lg hover:bg-gray-100 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAddLanguage}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 cursor-pointer"
-              >
-                Add
-              </button>
-            </div>
+              <div className="mt-6 flex justify-center space-x-2">
+                <button
+                  onClick={() => {
+                    setIsAddModalOpen(false);
+                    setFormData({ code: "", name: "" });
+                    setErrors({});
+                    setServerError("");
+                  }}
+                  className="px-4 py-2 text-gray-600 rounded-lg hover:bg-gray-100 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={Object.keys(errors).length > 0}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 cursor-pointer transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                  Add
+                </button>
+              </div>
+            </form>
           </DialogPanel>
         </div>
       </Dialog>
-      <Dialog open={isEditModalOpen} onClose={() => setIsEditModalOpen(false)}>
+      <Dialog
+        open={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setCurrentLanguage(null);
+          setFormData({ code: "", name: "" });
+          setErrors({});
+          setServerError("");
+        }}
+      >
         <div className="fixed inset-0 bg-black/30" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <DialogPanel className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md">
             <DialogTitle className="text-lg font-bold text-indigo-700">
               Edit Language
             </DialogTitle>
-            {formError && (
-              <div className="mt-2 p-2 bg-red-100 text-red-700 text-sm rounded-lg">
-                {formError}
+            {serverError && (
+              <div className="mb-3 mt-3 p-3 bg-red-100 text-red-700 text-sm rounded-lg text-center animate-fade-in">
+                {serverError}
               </div>
             )}
-            <div className="mt-4 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Code
-                </label>
-                <input
-                  type="text"
+            <form onSubmit={handleEditLanguage} className="space-y-2">
+              <div className="mt-2 space-y-4">
+                <FormInput
+                  label="Code"
                   value={formData.code}
-                  onChange={(e) =>
-                    setFormData({ ...formData, code: e.target.value })
-                  }
+                  onChange={(e) => handleChange("code", e.target.value)}
+                  error={errors.code}
                   placeholder="e.g., en"
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300"
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Name
-                </label>
-                <input
-                  type="text"
+                <FormInput
+                  label="Name"
                   value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
+                  onChange={(e) => handleChange("name", e.target.value)}
+                  error={errors.name}
                   placeholder="e.g., English"
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300"
                 />
               </div>
-            </div>
-            <div className="mt-6 flex justify-center space-x-2">
-              <button
-                onClick={() => setIsEditModalOpen(false)}
-                className="px-4 py-2 text-gray-600 rounded-lg hover:bg-gray-100 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleEditLanguage}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 cursor-pointer"
-              >
-                Save
-              </button>
-            </div>
+              <div className="mt-6 flex justify-center space-x-2">
+                <button
+                  onClick={() => {
+                    setIsEditModalOpen(false);
+                    setCurrentLanguage(null);
+                    setFormData({ code: "", name: "" });
+                    setErrors({});
+                    setServerError("");
+                  }}
+                  className="px-4 py-2 text-gray-600 rounded-lg hover:bg-gray-100 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={Object.keys(errors).length > 0}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 cursor-pointer transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                  Save
+                </button>
+              </div>
+            </form>
           </DialogPanel>
         </div>
       </Dialog>
       <Dialog
         open={isDeleteModalOpen}
-        onClose={() => setIsDeleteModalOpen(false)}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setCurrentLanguage(null);
+          setServerError("");
+        }}
       >
         <div className="fixed inset-0 bg-black/30" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
@@ -319,21 +382,36 @@ const AdminLanguagesPage: React.FC = () => {
             <DialogTitle className="text-lg font-bold text-indigo-700">
               Confirm Deletion
             </DialogTitle>
-            <p></p>
-            <div className="mt-6 flex justify-center space-x-2">
-              <button
-                onClick={() => setIsDeleteModalOpen(false)}
-                className="px-4 py-2 text-gray-600 rounded-lg hover:bg-gray-100 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDeleteLanguage}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 cursor-pointer"
-              >
-                Delete
-              </button>
-            </div>
+            <p className="mt-2 text-gray-600">
+              Are you sure you want to delete the language "
+              {currentLanguage?.name}"? This will also remove related words,
+              cards, and user associations.
+            </p>
+            {serverError && (
+              <div className="mb-3 mt-3 p-3 bg-red-100 text-red-700 text-sm rounded-lg text-center animate-fade-in">
+                {serverError}
+              </div>
+            )}
+            <form onSubmit={handleDeleteLanguage} className="space-y-2">
+              <div className="mt-6 flex justify-center space-x-2">
+                <button
+                  onClick={() => {
+                    setIsDeleteModalOpen(false);
+                    setCurrentLanguage(null);
+                    setServerError("");
+                  }}
+                  className="px-4 py-2 text-gray-600 rounded-lg hover:bg-gray-100 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 cursor-pointer"
+                >
+                  Delete
+                </button>
+              </div>
+            </form>
           </DialogPanel>
         </div>
       </Dialog>

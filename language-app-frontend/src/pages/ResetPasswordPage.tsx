@@ -14,62 +14,70 @@ const ResetPasswordPage: React.FC = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-  const [touched, setTouched] = useState<Record<string, boolean>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    setFormData({ password: "", confirmPassword: "" });
+    setErrors({});
+    setServerError("");
+  }, []);
 
   const validateForm = useCallback(() => {
     const newErrors: Record<string, string> = {};
-
     const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
-    if (!formData.password) {
-      if (touched.password || isSubmitting)
-        newErrors.password = "Password is required";
+    if (!formData.password.trim()) {
+      newErrors.password = "Password is required";
     } else if (!passwordRegex.test(formData.password)) {
-      if (touched.password || isSubmitting) {
-        newErrors.password =
-          "Password must be at least 8 characters and contain a letter and a number";
-      }
+      newErrors.password =
+        "Password must be at least 8 characters and contain a letter and a number";
     }
-
-    if (!formData.confirmPassword) {
-      if (touched.confirmPassword || isSubmitting) {
-        newErrors.confirmPassword = "Confirm password is required";
-      }
+    if (!formData.confirmPassword.trim()) {
+      newErrors.confirmPassword = "Confirm password is required";
     } else if (formData.password !== formData.confirmPassword) {
-      if (touched.confirmPassword || isSubmitting) {
-        newErrors.confirmPassword = "Passwords do not match";
-      }
+      newErrors.confirmPassword = "Passwords do not match";
     }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [formData, touched, isSubmitting]);
+  }, [formData]);
 
-  const handleChange = (field: string, value: string | string[]) => {
+  const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
     }));
-    setTouched((prev) => ({
-      ...prev,
-      [field]: true,
-    }));
+    setErrors((prev) => {
+      const newErrors = { ...prev };
+      const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
+      if (field === "password") {
+        if (!value.trim()) {
+          newErrors.password = "Password is required";
+        } else if (!passwordRegex.test(value)) {
+          newErrors.password =
+            "Password must be at least 8 characters and contain a letter and a number";
+        } else {
+          delete newErrors.password;
+        }
+      } else if (field === "confirmPassword") {
+        const password =
+          field === "confirmPassword" ? formData.password : value;
+        if (!value.trim()) {
+          newErrors.confirmPassword = "Confirm password is required";
+        } else if (value !== password) {
+          newErrors.confirmPassword = "Passwords do not match";
+        } else {
+          delete newErrors.confirmPassword;
+        }
+      }
+      return newErrors;
+    });
   };
-
-  useEffect(() => {
-    validateForm();
-  }, [validateForm]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setServerError("");
-    setIsSubmitting(true);
-
     if (!token) {
       setServerError("Invalid verification token");
       return;
     }
-
     if (!validateForm()) {
       return;
     }
@@ -81,17 +89,12 @@ const ResetPasswordPage: React.FC = () => {
         navigate("/login");
       }, 3000);
     } catch (error: any) {
-      if (error.response?.status === 400 && error.response.data?.details) {
-        const validationErrors: any = {};
-        error.response.data.details.forEach((err: any) => {
-          validationErrors[err.field] = err.message;
-        });
-        setErrors((prev) => ({ ...prev, ...validationErrors }));
-      } else {
-        setServerError(
-          error.response?.data?.error || "Failed to reset password"
-        );
-      }
+      const errorMessage =
+        error.response?.data?.error || "Failed to reset password";
+      const details = error.response?.data?.details
+        ? error.response.data.details.map((err: any) => err.message).join(", ")
+        : "";
+      setServerError(details ? `${errorMessage}: ${details}` : errorMessage);
     }
   };
 
@@ -118,7 +121,6 @@ const ResetPasswordPage: React.FC = () => {
             value={formData.password}
             onChange={(e) => handleChange("password", e.target.value)}
             error={errors.password}
-            required
             autoComplete="new-password"
             placeholder="Enter new password"
           />
@@ -128,7 +130,6 @@ const ResetPasswordPage: React.FC = () => {
             value={formData.confirmPassword}
             onChange={(e) => handleChange("confirmPassword", e.target.value)}
             error={errors.confirmPassword}
-            required
             autoComplete="new-password"
             placeholder="Confirm new password"
           />

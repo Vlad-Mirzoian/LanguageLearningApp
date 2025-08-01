@@ -14,55 +14,70 @@ const LoginPage: React.FC = () => {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState("");
-  const [touched, setTouched] = useState<Record<string, boolean>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    setFormData({ email: "", password: "" });
+    setErrors({});
+    setServerError("");
+  }, []);
 
   const validateForm = useCallback(() => {
     const newErrors: Record<string, string> = {};
-
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!formData.email) {
-      if (touched.email || isSubmitting) newErrors.email = "Email is required";
+    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
+
+    if (!formData.email.trim()) {
+      newErrors.email = "Email is required";
     } else if (!emailRegex.test(formData.email)) {
-      if (touched.email || isSubmitting)
-        newErrors.email = "Invalid email format";
+      newErrors.email = "Invalid email format";
     }
 
-    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
-    if (!formData.password) {
-      if (touched.password || isSubmitting)
-        newErrors.password = "Password is required";
+    if (!formData.password.trim()) {
+      newErrors.password = "Password is required";
     } else if (!passwordRegex.test(formData.password)) {
-      if (touched.password || isSubmitting) {
-        newErrors.password =
-          "Password must be at least 8 characters and contain a letter and a number";
-      }
+      newErrors.password =
+        "Password must be at least 8 characters and contain a letter and a number";
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [formData, touched, isSubmitting]);
+  }, [formData]);
 
-  const handleChange = (field: string, value: string | string[]) => {
+  const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
     }));
-    setTouched((prev) => ({
-      ...prev,
-      [field]: true,
-    }));
-  };
+    setErrors((prev) => {
+      const newErrors = { ...prev };
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
 
-  useEffect(() => {
-    validateForm();
-  }, [validateForm]);
+      if (field === "email") {
+        if (!value.trim()) {
+          newErrors.email = "Email is required";
+        } else if (!emailRegex.test(value)) {
+          newErrors.email = "Invalid email format";
+        } else {
+          delete newErrors.email;
+        }
+      } else if (field === "password") {
+        if (!value.trim()) {
+          newErrors.password = "Password is required";
+        } else if (!passwordRegex.test(value)) {
+          newErrors.password =
+            "Password must be at least 8 characters and contain a letter and a number";
+        } else {
+          delete newErrors.password;
+        }
+      }
+      return newErrors;
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setServerError("");
-    setIsSubmitting(true);
-
     if (!validateForm()) {
       return;
     }
@@ -72,15 +87,11 @@ const LoginPage: React.FC = () => {
       setAuth(user, token);
       navigate("/dashboard");
     } catch (error: any) {
-      if (error.response?.status === 400 && error.response.data?.details) {
-        const validationErrors: any = {};
-        error.response.data.details.forEach((err: any) => {
-          validationErrors[err.field] = err.message;
-        });
-        setErrors((prev) => ({ ...prev, ...validationErrors }));
-      } else {
-        setServerError(error.response?.data?.error || "Logging in failed");
-      }
+      const errorMessage = error.response?.data?.error || "Logging in failed";
+      const details = error.response?.data?.details
+        ? error.response.data.details.map((err: any) => err.message).join(", ")
+        : "";
+      setServerError(details ? `${errorMessage}: ${details}` : errorMessage);
     }
   };
 
@@ -102,7 +113,6 @@ const LoginPage: React.FC = () => {
             value={formData.email}
             onChange={(e) => handleChange("email", e.target.value)}
             error={errors.email}
-            required
             autoComplete="email"
             placeholder="Enter your email"
           />
@@ -112,7 +122,6 @@ const LoginPage: React.FC = () => {
             value={formData.password}
             onChange={(e) => handleChange("password", e.target.value)}
             error={errors.password}
-            required
             autoComplete="current-password"
             placeholder="Enter your password"
           />

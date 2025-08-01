@@ -12,44 +12,49 @@ const ForgotPasswordPage: React.FC = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-  const [touched, setTouched] = useState<Record<string, boolean>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    setFormData({ email: "" });
+    setErrors({});
+    setServerError("");
+  }, []);
 
   const validateForm = useCallback(() => {
     const newErrors: Record<string, string> = {};
-
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!formData.email) {
-      if (touched.email || isSubmitting) newErrors.email = "Email is required";
+    if (!formData.email.trim()) {
+      newErrors.email = "Email is required";
     } else if (!emailRegex.test(formData.email)) {
-      if (touched.email || isSubmitting)
-        newErrors.email = "Invalid email format";
+      newErrors.email = "Invalid email format";
     }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [formData, touched, isSubmitting]);
+  }, [formData]);
 
-  const handleChange = (field: string, value: string | string[]) => {
+  const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
     }));
-    setTouched((prev) => ({
-      ...prev,
-      [field]: true,
-    }));
+    setErrors((prev) => {
+      const newErrors = { ...prev };
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (field === "email") {
+        if (!value.trim()) {
+          newErrors.email = "Email is required";
+        } else if (!emailRegex.test(value)) {
+          newErrors.email = "Invalid email format";
+        } else {
+          delete newErrors.email;
+        }
+      }
+      return newErrors;
+    });
   };
-
-  useEffect(() => {
-    validateForm();
-  }, [validateForm]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setServerError("");
-    setIsSubmitting(true);
-
     if (!validateForm()) {
       return;
     }
@@ -61,17 +66,11 @@ const ForgotPasswordPage: React.FC = () => {
         navigate("/login");
       }, 3000);
     } catch (error: any) {
-      if (error.response?.status === 400 && error.response.data?.details) {
-        const validationErrors: any = {};
-        error.response.data.details.forEach((err: any) => {
-          validationErrors[err.field] = err.message;
-        });
-        setErrors((prev) => ({ ...prev, ...validationErrors }));
-      } else {
-        setServerError(
-          error.response?.data?.error || "Failed to send reset email"
-        );
-      }
+      const errorMessage = error.response?.data?.error || "Logging in failed";
+      const details = error.response?.data?.details
+        ? error.response.data.details.map((err: any) => err.message).join(", ")
+        : "";
+      setServerError(details ? `${errorMessage}: ${details}` : errorMessage);
     }
   };
 
@@ -98,7 +97,6 @@ const ForgotPasswordPage: React.FC = () => {
             value={formData.email}
             onChange={(e) => handleChange("email", e.target.value)}
             error={errors.email}
-            required
             autoComplete="email"
             placeholder="Enter your email"
           />

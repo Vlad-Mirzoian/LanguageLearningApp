@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { AuthResponse, Card, Category, Language } from "../types";
+import type { AuthResponse, Card, Category, Language, Word } from "../types";
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
@@ -86,7 +86,7 @@ export const createLanguage = async (data: {
 
 export const updateLanguage = async (
   languageId: string,
-  data: { code?: string; name?: string }
+  data: { code: string; name: string }
 ): Promise<Language> => {
   const response = await api.put(`/languages/${languageId}`, data);
   return response.data;
@@ -114,7 +114,7 @@ export const createCategory = async (data: {
 
 export const updateCategory = async (
   categoryId: string,
-  data: { name?: string; description?: string }
+  data: { name: string; description?: string }
 ): Promise<Category> => {
   const response = await api.put(`/categories/${categoryId}`, data);
   return response.data;
@@ -124,6 +124,44 @@ export const deleteCategory = async (
   categoryId: string
 ): Promise<{ message: string }> => {
   const response = await api.delete(`/categories/${categoryId}`);
+  return response.data;
+};
+
+export const getWords = async (filters: {
+  languageId?: string;
+  categoryId?: string;
+}): Promise<Word[]> => {
+  const response = await api.get("/words", { params: filters });
+  return response.data;
+};
+
+export const createWord = async (data: {
+  text: string;
+  languageId: string;
+  categoryId?: string;
+  meaning?: string;
+}): Promise<Word> => {
+  const response = await api.post("/words", data);
+  return response.data;
+};
+
+export const updateWord = async (
+  wordId: string,
+  data: {
+    text: string;
+    languageId: string;
+    categoryId?: string;
+    meaning?: string;
+  }
+): Promise<Word> => {
+  const response = await api.put(`/words/${wordId}`, data);
+  return response.data;
+};
+
+export const deleteWord = async (
+  wordId: string
+): Promise<{ message: string }> => {
+  const response = await api.delete(`/words/${wordId}`);
   return response.data;
 };
 

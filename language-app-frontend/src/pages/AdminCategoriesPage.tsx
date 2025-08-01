@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { Category } from "../types";
 import {
   createCategory,
@@ -7,8 +7,9 @@ import {
   updateCategory,
 } from "../services/api";
 import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
+import FormInput from "../components/FormInput";
 
-const AdminCategoriesPage: React.FC = () => {
+const AdminLanguagesPage: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -20,7 +21,8 @@ const AdminCategoriesPage: React.FC = () => {
     name: "",
     description: "",
   });
-  const [formError, setFormError] = useState("");
+  const [serverError, setServerError] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -37,27 +39,63 @@ const AdminCategoriesPage: React.FC = () => {
     fetchCategories();
   }, []);
 
-  const handleAddCategory = async () => {
-    if (!formData.name) {
-      setFormError("Name is required");
+  const validateForm = useCallback(() => {
+    const newErrors: Record<string, string> = {};
+    if (!formData.name.trim()) {
+      newErrors.name = "Name is required";
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }, [formData]);
+
+  const handleChange = (field: string, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+
+    setErrors((prev) => {
+      const newErrors = { ...prev };
+      if (field === "name" && !value.trim()) {
+        newErrors[field] = "Name is required";
+      } else {
+        delete newErrors[field];
+      }
+      return newErrors;
+    });
+  };
+
+  const handleAddCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setServerError("");
+    if (!validateForm()) {
       return;
     }
+
     try {
       const newCategory = await createCategory(formData);
       setCategories([...categories, newCategory]);
       setIsAddModalOpen(false);
       setFormData({ name: "", description: "" });
-      setFormError("");
-    } catch (err: any) {
-      setFormError(err.response?.data?.error || "Failed to create category");
+      setErrors({});
+      setServerError("");
+    } catch (error: any) {
+      const errorMessage =
+        error.response?.data?.error || "Failed to create category";
+      const details = error.response?.data?.details
+        ? error.response.data.details.map((err: any) => err.message).join(", ")
+        : "";
+      setServerError(details ? `${errorMessage}: ${details}` : errorMessage);
     }
   };
 
-  const handleEditCategory = async () => {
-    if (!currentCategory || !formData.name.trim()) {
-      setFormError("Name is required");
+  const handleEditCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setServerError("");
+    if (!currentCategory || !validateForm()) {
       return;
     }
+
     try {
       const updatedCategory = await updateCategory(
         currentCategory._id,
@@ -71,14 +109,23 @@ const AdminCategoriesPage: React.FC = () => {
       setIsEditModalOpen(false);
       setCurrentCategory(null);
       setFormData({ name: "", description: "" });
-      setFormError("");
-    } catch (err: any) {
-      setFormError(err.response?.data?.error || "Failed to update category");
+      setErrors({});
+      setServerError("");
+    } catch (error: any) {
+      const errorMessage =
+        error.response?.data?.error || "Failed to update category";
+      const details = error.response?.data?.details
+        ? error.response.data.details.map((err: any) => err.message).join(", ")
+        : "";
+      setServerError(details ? `${errorMessage}: ${details}` : errorMessage);
     }
   };
 
-  const handleDeleteCategory = async () => {
+  const handleDeleteCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setServerError("");
     if (!currentCategory) return;
+
     try {
       await deleteCategory(currentCategory._id);
       setCategories(
@@ -86,22 +133,25 @@ const AdminCategoriesPage: React.FC = () => {
       );
       setIsDeleteModalOpen(false);
       setCurrentCategory(null);
-    } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to delete category");
+    } catch (error: any) {
+      setServerError(
+        error.response?.data?.error || "Failed to delete category"
+      );
     }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex justify-center p-4">
       <div className="w-full max-w-4xl">
-        <h2 className="text-3xl font-bold text-center text-indigo-700 mb-6">
+        <h2 className="text-3xl font-bold text-center text-indigo-700">
           Admin Panel
         </h2>
-        <div className="flex justify-center mb-4">
+        <div className="flex justify-center mt-4 mb-6">
           <button
             onClick={() => {
               setFormData({ name: "", description: "" });
-              setFormError("");
+              setErrors({});
+              setServerError("");
               setIsAddModalOpen(true);
             }}
             className="bg-indigo-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-indigo-700 transition-colors duration-200 cursor-pointer"
@@ -169,7 +219,8 @@ const AdminCategoriesPage: React.FC = () => {
                             name: cat.name,
                             description: cat.description,
                           });
-                          setFormError("");
+                          setErrors({});
+                          setServerError("");
                           setIsEditModalOpen(true);
                         }}
                         className="text-indigo-600 hover:text-indigo-800 mr-4 cursor-pointer"
@@ -193,133 +244,137 @@ const AdminCategoriesPage: React.FC = () => {
           </div>
         )}
       </div>
-      <Dialog open={isAddModalOpen} onClose={() => setIsAddModalOpen(false)}>
+      <Dialog
+        open={isAddModalOpen}
+        onClose={() => {
+          setIsAddModalOpen(false);
+          setFormData({ name: "", description: "" });
+          setErrors({});
+          setServerError("");
+        }}
+      >
         <div className="fixed inset-0 bg-black/30" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <DialogPanel className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md">
             <DialogTitle className="text-lg font-bold text-indigo-700">
               Add Category
             </DialogTitle>
-            {formError && (
-              <div className="mt-2 p-2 bg-red-100 text-red-700 text-sm rounded-lg">
-                {formError}
+            {serverError && (
+              <div className="mb-3 mt-3 p-3 bg-red-100 text-red-700 text-sm rounded-lg text-center animate-fade-in">
+                {serverError}
               </div>
             )}
-            <div className="mt-4 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Name
-                </label>
-                <input
-                  type="text"
+            <form onSubmit={handleAddCategory} className="space-y-2">
+              <div className="mt-2 space-y-4">
+                <FormInput
+                  label="Name"
                   value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
+                  onChange={(e) => handleChange("name", e.target.value)}
+                  error={errors.name}
                   placeholder="Greetings"
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300"
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Description
-                </label>
-                <input
-                  type="text"
+                <FormInput
+                  label="Description"
                   value={formData.description}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      description: e.target.value,
-                    })
-                  }
+                  onChange={(e) => handleChange("description", e.target.value)}
+                  error={errors.description}
                   placeholder="Words for greetings and introductions"
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300"
                 />
               </div>
-            </div>
-            <div className="mt-6 flex justify-center space-x-2">
-              <button
-                onClick={() => setIsAddModalOpen(false)}
-                className="px-4 py-2 text-gray-600 rounded-lg hover:bg-gray-100 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAddCategory}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 cursor-pointer"
-              >
-                Add
-              </button>
-            </div>
+              <div className="mt-6 flex justify-center space-x-2">
+                <button
+                  onClick={() => {
+                    setIsAddModalOpen(false);
+                    setFormData({ name: "", description: "" });
+                    setErrors({});
+                    setServerError("");
+                  }}
+                  className="px-4 py-2 text-gray-600 rounded-lg hover:bg-gray-100 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={Object.keys(errors).length > 0}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 cursor-pointer transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                  Add
+                </button>
+              </div>
+            </form>
           </DialogPanel>
         </div>
       </Dialog>
-      <Dialog open={isEditModalOpen} onClose={() => setIsEditModalOpen(false)}>
+      <Dialog
+        open={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setCurrentCategory(null);
+          setFormData({ name: "", description: "" });
+          setErrors({});
+          setServerError("");
+        }}
+      >
         <div className="fixed inset-0 bg-black/30" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <DialogPanel className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md">
             <DialogTitle className="text-lg font-bold text-indigo-700">
               Edit Category
             </DialogTitle>
-            {formError && (
-              <div className="mt-2 p-2 bg-red-100 text-red-700 text-sm rounded-lg">
-                {formError}
+            {serverError && (
+              <div className="mb-3 mt-3 p-3 bg-red-100 text-red-700 text-sm rounded-lg text-center animate-fade-in">
+                {serverError}
               </div>
             )}
-            <div className="mt-4 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Name
-                </label>
-                <input
-                  type="text"
+            <form onSubmit={handleEditCategory} className="space-y-2">
+              <div className="mt-2 space-y-4">
+                <FormInput
+                  label="Name"
                   value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
+                  onChange={(e) => handleChange("name", e.target.value)}
+                  error={errors.name}
                   placeholder="Greetings"
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300"
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Description
-                </label>
-                <input
-                  type="text"
+                <FormInput
+                  label="Description"
                   value={formData.description}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      description: e.target.value,
-                    })
-                  }
+                  onChange={(e) => handleChange("description", e.target.value)}
+                  error={errors.description}
                   placeholder="Words for greetings and introductions"
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300"
                 />
               </div>
-            </div>
-            <div className="mt-6 flex justify-center space-x-2">
-              <button
-                onClick={() => setIsEditModalOpen(false)}
-                className="px-4 py-2 text-gray-600 rounded-lg hover:bg-gray-100 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleEditCategory}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 cursor-pointer"
-              >
-                Save
-              </button>
-            </div>
+              <div className="mt-6 flex justify-center space-x-2">
+                <button
+                  onClick={() => {
+                    setIsEditModalOpen(false);
+                    setCurrentCategory(null);
+                    setFormData({ name: "", description: "" });
+                    setErrors({});
+                    setServerError("");
+                  }}
+                  className="px-4 py-2 text-gray-600 rounded-lg hover:bg-gray-100 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={Object.keys(errors).length > 0}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 cursor-pointer transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                  Save
+                </button>
+              </div>
+            </form>
           </DialogPanel>
         </div>
       </Dialog>
       <Dialog
         open={isDeleteModalOpen}
-        onClose={() => setIsDeleteModalOpen(false)}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setCurrentCategory(null);
+          setServerError("");
+        }}
       >
         <div className="fixed inset-0 bg-black/30" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
@@ -327,21 +382,35 @@ const AdminCategoriesPage: React.FC = () => {
             <DialogTitle className="text-lg font-bold text-indigo-700">
               Confirm Deletion
             </DialogTitle>
-            <p></p>
-            <div className="mt-6 flex justify-center space-x-2">
-              <button
-                onClick={() => setIsDeleteModalOpen(false)}
-                className="px-4 py-2 text-gray-600 rounded-lg hover:bg-gray-100 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDeleteCategory}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 cursor-pointer"
-              >
-                Delete
-              </button>
-            </div>
+            <p className="mt-2 text-gray-600">
+              Are you sure you want to delete the category "
+              {currentCategory?.name}"? This will also remove related cards.
+            </p>
+            {serverError && (
+              <div className="mb-3 mt-3 p-3 bg-red-100 text-red-700 text-sm rounded-lg text-center animate-fade-in">
+                {serverError}
+              </div>
+            )}
+            <form onSubmit={handleDeleteCategory} className="space-y-2">
+              <div className="mt-6 flex justify-center space-x-2">
+                <button
+                  onClick={() => {
+                    setIsDeleteModalOpen(false);
+                    setCurrentCategory(null);
+                    setServerError("");
+                  }}
+                  className="px-4 py-2 text-gray-600 rounded-lg hover:bg-gray-100 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 cursor-pointer"
+                >
+                  Delete
+                </button>
+              </div>
+            </form>
           </DialogPanel>
         </div>
       </Dialog>
@@ -349,4 +418,4 @@ const AdminCategoriesPage: React.FC = () => {
   );
 };
 
-export default AdminCategoriesPage;
+export default AdminLanguagesPage;
