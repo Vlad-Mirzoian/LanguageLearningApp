@@ -129,7 +129,6 @@ export const deleteCategory = async (
 
 export const getWords = async (filters: {
   languageId?: string;
-  categoryId?: string;
 }): Promise<Word[]> => {
   const response = await api.get("/words", { params: filters });
   return response.data;
@@ -138,8 +137,6 @@ export const getWords = async (filters: {
 export const createWord = async (data: {
   text: string;
   languageId: string;
-  categoryId?: string;
-  meaning?: string;
 }): Promise<Word> => {
   const response = await api.post("/words", data);
   return response.data;
@@ -150,8 +147,6 @@ export const updateWord = async (
   data: {
     text: string;
     languageId: string;
-    categoryId?: string;
-    meaning?: string;
   }
 ): Promise<Word> => {
   const response = await api.put(`/words/${wordId}`, data);

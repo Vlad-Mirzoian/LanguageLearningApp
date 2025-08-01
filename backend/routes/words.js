@@ -90,6 +90,7 @@ router.post(
         languageId,
       });
       await word.save();
+      await word.populate("languageId", "name");
       res.status(201).json(word);
     } catch (error) {
       console.error("Error creating word", error);

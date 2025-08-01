@@ -15,9 +15,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     if (!isAuthenticated || !user) {
       navigate("/login");
     } else if (
-      (window.location.pathname.startsWith("/admin/languages") ||
-        window.location.pathname.startsWith("/admin/categories")) &&
-      user.role !== "admin"
+      window.location.pathname.startsWith("/admin/languages") ||
+      window.location.pathname.startsWith("/admin/categories") ||
+      (window.location.pathname.startsWith("/admin/words") &&
+        user.role !== "admin")
     ) {
       navigate("/dashboard");
     }
@@ -26,7 +27,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   return isAuthenticated &&
     (!(
       window.location.pathname.startsWith("/admin/languages") ||
-      window.location.pathname.startsWith("/admin/categories")
+      window.location.pathname.startsWith("/admin/categories") ||
+      window.location.pathname.startsWith("/admin/words")
     ) ||
       user?.role === "admin") ? (
     <>{children}</>

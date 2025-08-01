@@ -36,6 +36,7 @@ const Navbar: React.FC = () => {
       ? [
           { name: "Languages", href: "/admin/languages", current: false },
           { name: "Categories", href: "/admin/categories", current: false },
+          { name: "Words", href: "/admin/words", current: false },
         ]
       : []),
   ];
