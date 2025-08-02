@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import type { ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -8,31 +8,34 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const navigate = useNavigate();
+  const location = useLocation();
+
   const isAuthenticated = !!localStorage.getItem("token");
   const user = JSON.parse(localStorage.getItem("user") || "null");
+
+  const adminRoutes = [
+    "/admin/languages",
+    "/admin/categories",
+    "/admin/words",
+    "/admin/cards",
+  ];
+
+  const isAdminRoute = adminRoutes.some((route) =>
+    location.pathname.startsWith(route)
+  );
 
   useEffect(() => {
     if (!isAuthenticated || !user) {
       navigate("/login");
-    } else if (
-      window.location.pathname.startsWith("/admin/languages") ||
-      window.location.pathname.startsWith("/admin/categories") ||
-      (window.location.pathname.startsWith("/admin/words") &&
-        user.role !== "admin")
-    ) {
+    } else if (isAdminRoute && user.role !== "admin") {
       navigate("/dashboard");
     }
-  }, [isAuthenticated, user, navigate]);
+  }, [isAuthenticated, user, isAdminRoute, navigate]);
 
-  return isAuthenticated &&
-    (!(
-      window.location.pathname.startsWith("/admin/languages") ||
-      window.location.pathname.startsWith("/admin/categories") ||
-      window.location.pathname.startsWith("/admin/words")
-    ) ||
-      user?.role === "admin") ? (
-    <>{children}</>
-  ) : null;
+  if (!isAuthenticated || !user) return null;
+  if (isAdminRoute && user.role !== "admin") return null;
+
+  return <>{children}</>;
 };
 
 export default ProtectedRoute;

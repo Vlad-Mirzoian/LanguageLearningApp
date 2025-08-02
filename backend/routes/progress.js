@@ -197,60 +197,20 @@ router.get("/", authenticate, authorizeRoles(["user"]), async (req, res) => {
       },
       {
         $lookup: {
-          from: "words",
-          localField: "wordId",
-          foreignField: "_id",
-          as: "word",
-        },
-      },
-      { $unwind: "$word" },
-      {
-        $lookup: {
-          from: "words",
-          localField: "translationId",
-          foreignField: "_id",
-          as: "translation",
-        },
-      },
-      { $unwind: "$translation" },
-      {
-        $lookup: {
           from: "categories",
-          localField: "word.categoryId",
+          localField: "categoryId",
           foreignField: "_id",
-          as: "wordCategory",
+          as: "category",
         },
       },
       {
-        $unwind: { path: "$wordCategory", preserveNullAndEmptyArrays: true },
-      },
-      {
-        $lookup: {
-          from: "categories",
-          localField: "translation.categoryId",
-          foreignField: "_id",
-          as: "translationCategory",
-        },
-      },
-      {
-        $unwind: {
-          path: "$translationCategory",
-          preserveNullAndEmptyArrays: true,
-        },
+        $unwind: { path: "$category", preserveNullAndEmptyArrays: true },
       },
       {
         $group: {
-          _id: {
-            wordCategoryId: "$word.categoryId",
-            translationCategoryId: "$translation.categoryId",
-          },
-          wordCategoryName: {
-            $first: { $ifNull: ["$wordCategory.name", "Uncategorized"] },
-          },
-          translationCategoryName: {
-            $first: {
-              $ifNull: ["$translationCategory.name", "Uncategorized"],
-            },
+          _id: "$categoryId",
+          categoryName: {
+            $first: { $ifNull: ["$category.name", "Uncategorized"] },
           },
           total: { $sum: 1 },
           learned: { $sum: { $cond: [{ $gte: ["$repetitions", 5] }, 1, 0] } },
@@ -259,13 +219,9 @@ router.get("/", authenticate, authorizeRoles(["user"]), async (req, res) => {
       {
         $project: {
           _id: 0,
-          wordCategory: {
-            id: "$_id.wordCategoryId",
-            name: "$wordCategoryName",
-          },
-          translationCategory: {
-            id: "$_id.translationCategoryId",
-            name: "$translationCategoryName",
+          category: {
+            id: "$_id",
+            name: "$categoryName",
           },
           total: 1,
           learned: 1,

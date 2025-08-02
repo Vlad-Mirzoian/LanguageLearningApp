@@ -101,6 +101,44 @@ router.post(
   }
 );
 
+// GET /api/words/check-unique
+router.get(
+  "/check-unique",
+  authenticate,
+  authorizeRoles(["admin"]),
+  [
+    query("text").notEmpty().withMessage("Text are required").trim(),
+    query("languageId")
+      .notEmpty()
+      .withMessage("Language are required")
+      .isMongoId()
+      .withMessage("Invalid language ID")
+      .custom(async (value) => {
+        const language = await Language.findById(value);
+        if (!language) throw new Error("Language not found");
+        return true;
+      }),
+  ],
+  validate,
+  async (req, res) => {
+    const { text, languageId } = req.query;
+    const existingWord = await Word.findOne({ text, languageId });
+    if (existingWord) {
+      return res
+        .status(400)
+        .json({ error: "Word already exists for this language" });
+    }
+    res.json({ isUnique: true });
+    try {
+    } catch (error) {
+      console.error("Error checking uniqueness", error);
+      res
+        .status(500)
+        .json({ error: `Failed to check word uniqueness: ${error.message}` });
+    }
+  }
+);
+
 // PUT /api/words/:id
 router.put(
   "/:id",
@@ -136,6 +174,7 @@ router.put(
         { new: true, runValidators: true }
       );
       if (!word) return res.status(404).json({ error: "Word not found" });
+      await word.populate("languageId", "name");
       res.json(word);
     } catch (error) {
       console.error("Error updating word", error);

@@ -11,47 +11,68 @@ const { validate } = require("../middleware/validation");
 const { body, param, query } = require("express-validator");
 
 // GET /api/cards
-router.get("/", authenticate, async (req, res) => {
-  try {
-    const user = await User.findById(req.userId).populate(
-      "nativeLanguageId learningLanguagesIds"
-    );
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
+router.get(
+  "/",
+  authenticate,
+  [
+    query("categoryId")
+      .optional()
+      .isMongoId()
+      .withMessage("Invalid category ID")
+      .custom(async (value) => {
+        const category = await Category.findById(value);
+        if (!category) throw new Error("Category not found");
+        return true;
+      }),
+  ],
+  validate,
+  async (req, res) => {
+    try {
+      const user = await User.findById(req.userId).populate(
+        "nativeLanguageId learningLanguagesIds"
+      );
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      const query =
+        req.userRole === "admin"
+          ? {}
+          : {
+              $and: [
+                {
+                  wordId: {
+                    $in: await Word.find({
+                      languageId: user.nativeLanguageId._id,
+                    }).distinct("_id"),
+                  },
+                },
+                {
+                  translationId: {
+                    $in: await Word.find({
+                      languageId: {
+                        $in: user.learningLanguagesIds.map((lang) => lang._id),
+                      },
+                    }).distinct("_id"),
+                  },
+                },
+              ],
+            };
+      if (req.query.categoryId) {
+        query.categoryId = req.query.categoryId;
+      }
+      const cards = await Card.find(query)
+        .populate("wordId", "text languageId")
+        .populate("translationId", "text languageId")
+        .populate("categoryId", "name");
+      res.json(cards);
+    } catch (error) {
+      console.error("Error fetching cards:", error);
+      res
+        .status(500)
+        .json({ error: `Failed to fetch cards: ${error.message}` });
     }
-    const query =
-      req.userRole === "admin"
-        ? {}
-        : {
-            $and: [
-              {
-                wordId: {
-                  $in: await Word.find({
-                    languageId: user.nativeLanguageId._id,
-                  }).distinct("_id"),
-                },
-              },
-              {
-                translationId: {
-                  $in: await Word.find({
-                    languageId: {
-                      $in: user.learningLanguagesIds.map((lang) => lang._id),
-                    },
-                  }).distinct("_id"),
-                },
-              },
-            ],
-          };
-    const cards = await Card.find(query)
-      .populate("wordId", "text languageId")
-      .populate("translationId", "text languageId")
-      .populate("categoryId", "name");
-    res.json(cards);
-  } catch (error) {
-    console.error("Error fetching cards:", error);
-    res.status(500).json({ error: `Failed to fetch cards: ${error.message}` });
   }
-});
+);
 
 // GET /api/cards/review
 router.get(
@@ -191,6 +212,11 @@ router.post(
       const { wordId, translationId, categoryId, meaning } = req.body;
       const card = new Card({ wordId, translationId, categoryId, meaning });
       await card.save();
+      await card.populate([
+        { path: "wordId", select: "text" },
+        { path: "translationId", select: "text" },
+        { path: "categoryId", select: "name" },
+      ]);
       res.status(201).json(card);
     } catch (error) {
       console.error("Error creating card:", error);
@@ -353,6 +379,11 @@ router.put(
         }
       );
       if (!card) return res.status(404).json({ error: "Card not found" });
+      await card.populate([
+        { path: "wordId", select: "text" },
+        { path: "translationId", select: "text" },
+        { path: "categoryId", select: "name" },
+      ]);
       res.json(card);
     } catch (error) {
       console.error("Error updating card:", error);

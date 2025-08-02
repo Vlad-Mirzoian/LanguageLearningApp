@@ -127,10 +127,18 @@ export const deleteCategory = async (
   return response.data;
 };
 
-export const getWords = async (filters: {
+export const getWords = async (filters?: {
   languageId?: string;
 }): Promise<Word[]> => {
   const response = await api.get("/words", { params: filters });
+  return response.data;
+};
+
+export const checkWordUnique = async (data: {
+  text: string;
+  languageId: string;
+}): Promise<{ isUnique: boolean }> => {
+  const response = await api.get("/words/check-unique", { params: data });
   return response.data;
 };
 
@@ -157,6 +165,43 @@ export const deleteWord = async (
   wordId: string
 ): Promise<{ message: string }> => {
   const response = await api.delete(`/words/${wordId}`);
+  return response.data;
+};
+
+export const getCards = async (filters?: {
+  categoryId?: string;
+}): Promise<Card[]> => {
+  const response = await api.get("/cards", { params: filters });
+  return response.data;
+};
+
+export const createCard = async (data: {
+  wordId: string;
+  translationId: string;
+  categoryId: string;
+  meaning?: string;
+}): Promise<Card> => {
+  const response = await api.post("/cards", data);
+  return response.data;
+};
+
+export const updateCard = async (
+  cardId: string,
+  data: {
+    wordId: string;
+    translationId: string;
+    categoryId: string;
+    meaning?: string;
+  }
+): Promise<Card> => {
+  const response = await api.put(`/cards/${cardId}`, data);
+  return response.data;
+};
+
+export const deleteCard = async (
+  cardId: string
+): Promise<{ message: string }> => {
+  const response = await api.delete(`/cards/${cardId}`);
   return response.data;
 };
 

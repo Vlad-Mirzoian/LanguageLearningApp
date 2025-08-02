@@ -12,6 +12,7 @@ import ProgressPage from "./pages/ProgressPage";
 import AdminLanguagesPage from "./pages/AdminLanguagesPage";
 import AdminCategoriesPage from "./pages/AdminCategoriesPage";
 import AdminWordsPage from "./pages/AdminWordsPage";
+import AdminCardsPage from "./pages/AdminCardsPage";
 
 function App() {
   return (
@@ -72,6 +73,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <AdminWordsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/cards"
+            element={
+              <ProtectedRoute>
+                <AdminCardsPage />
               </ProtectedRoute>
             }
           />

@@ -1,43 +1,49 @@
 import { useCallback, useEffect, useState } from "react";
-import type { Language, Word } from "../types";
+import type { Category, Card, Word } from "../types";
 import {
-  checkWordUnique,
-  createWord,
-  deleteWord,
-  getLanguages,
+  createCard,
+  deleteCard,
+  getCards,
+  updateCard,
+  getCategories,
   getWords,
-  updateWord,
 } from "../services/api";
 import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
 import FormInput from "../components/FormInput";
 
-const AdminWordsPage: React.FC = () => {
+const AdminCardsPage: React.FC = () => {
+  const [cards, setCards] = useState<Card[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [words, setWords] = useState<Word[]>([]);
-  const [languages, setLanguages] = useState<Language[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [currentWord, setCurrentWord] = useState<Word | null>(null);
+  const [currentCard, setCurrentCard] = useState<Card | null>(null);
   const [formData, setFormData] = useState({
-    text: "",
-    languageId: "",
+    wordId: "",
+    translationId: "",
+    categoryId: "",
+    meaning: "",
   });
   const [serverError, setServerError] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [filterLanguageId, setFilterLanguageId] = useState("");
+  const [filterCategoryId, setFilterCategoryId] = useState("");
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [langData, wordData] = await Promise.all([
-          getLanguages(),
-          getWords(filterLanguageId ? { languageId: filterLanguageId } : {}),
+
+        const [cardData, wordData, catData] = await Promise.all([
+          getCards(filterCategoryId ? { categoryId: filterCategoryId } : {}),
+          getWords(),
+          getCategories(),
         ]);
-        setLanguages(langData);
+        setCards(cardData);
         setWords(wordData);
+        setCategories(catData);
       } catch (err: any) {
         setError(err.response?.data?.error || "Failed to load data");
       } finally {
@@ -45,15 +51,18 @@ const AdminWordsPage: React.FC = () => {
       }
     };
     fetchData();
-  }, [filterLanguageId]);
+  }, [filterCategoryId]);
 
   const validateForm = useCallback(() => {
     const newErrors: Record<string, string> = {};
-    if (!formData.text.trim()) {
-      newErrors.text = "Text is required";
+    if (!formData.wordId) {
+      newErrors.languageId = "Original word is required";
     }
-    if (!formData.languageId) {
-      newErrors.languageId = "Language is required";
+    if (!formData.translationId) {
+      newErrors.languageId = "Translation word is required";
+    }
+    if (!formData.categoryId) {
+      newErrors.languageId = "Category is required";
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -66,10 +75,12 @@ const AdminWordsPage: React.FC = () => {
     }));
     setErrors((prev) => {
       const newErrors = { ...prev };
-      if (field === "text" && !value.trim()) {
-        newErrors[field] = "Text is required";
-      } else if (field === "languageId" && !value) {
-        newErrors[field] = "Language is required";
+      if (field === "wordId" && !value) {
+        newErrors[field] = "Original word is required";
+      } else if (field === "translationId" && !value) {
+        newErrors[field] = "Translation word is required";
+      } else if (field === "categoryId" && !value) {
+        newErrors[field] = "Category is required";
       } else {
         delete newErrors[field];
       }
@@ -77,7 +88,7 @@ const AdminWordsPage: React.FC = () => {
     });
   };
 
-  const handleAddWord = async (e: React.FormEvent) => {
+  const handleAddCard = async (e: React.FormEvent) => {
     e.preventDefault();
     setServerError("");
     if (!validateForm()) {
@@ -85,20 +96,20 @@ const AdminWordsPage: React.FC = () => {
     }
 
     try {
-      const uniquenessCheck = await checkWordUnique(formData);
-      if (!uniquenessCheck.isUnique) {
-        setServerError("Word already exists for this language");
-        return;
-      }
-      const newWord = await createWord(formData);
-      setWords([...words, newWord]);
+      const newCard = await createCard(formData);
+      setCards([...cards, newCard]);
       setIsAddModalOpen(false);
-      setFormData({ text: "", languageId: "" });
+      setFormData({
+        wordId: "",
+        translationId: "",
+        categoryId: "",
+        meaning: "",
+      });
       setErrors({});
       setServerError("");
     } catch (error: any) {
       const errorMessage =
-        error.response?.data?.error || "Failed to create word";
+        error.response?.data?.error || "Failed to create Card";
       const details = error.response?.data?.details
         ? error.response.data.details.map((err: any) => err.message).join(", ")
         : "";
@@ -106,31 +117,31 @@ const AdminWordsPage: React.FC = () => {
     }
   };
 
-  const handleEditWord = async (e: React.FormEvent) => {
+  const handleEditCard = async (e: React.FormEvent) => {
     e.preventDefault();
     setServerError("");
-    if (!currentWord || !validateForm()) {
+    if (!currentCard || !validateForm()) {
       return;
     }
 
     try {
-      const uniquenessCheck = await checkWordUnique(formData);
-      if (!uniquenessCheck.isUnique) {
-        setServerError("Word already exists for this language");
-        return;
-      }
-      const updatedWord = await updateWord(currentWord._id, formData);
-      setWords(
-        words.map((word) => (word._id === updatedWord._id ? updatedWord : word))
+      const updatedCard = await updateCard(currentCard._id, formData);
+      setCards(
+        cards.map((Card) => (Card._id === updatedCard._id ? updatedCard : Card))
       );
       setIsEditModalOpen(false);
-      setCurrentWord(null);
-      setFormData({ text: "", languageId: "" });
+      setCurrentCard(null);
+      setFormData({
+        wordId: "",
+        translationId: "",
+        categoryId: "",
+        meaning: "",
+      });
       setErrors({});
       setServerError("");
     } catch (error: any) {
       const errorMessage =
-        error.response?.data?.error || "Failed to update word";
+        error.response?.data?.error || "Failed to update Card";
       const details = error.response?.data?.details
         ? error.response.data.details.map((err: any) => err.message).join(", ")
         : "";
@@ -138,18 +149,18 @@ const AdminWordsPage: React.FC = () => {
     }
   };
 
-  const handleDeleteWord = async (e: React.FormEvent) => {
+  const handleDeleteCard = async (e: React.FormEvent) => {
     e.preventDefault();
     setServerError("");
-    if (!currentWord) return;
+    if (!currentCard) return;
 
     try {
-      await deleteWord(currentWord._id);
-      setWords(words.filter((word) => word._id !== currentWord._id));
+      await deleteCard(currentCard._id);
+      setCards(cards.filter((Card) => Card._id !== currentCard._id));
       setIsDeleteModalOpen(false);
-      setCurrentWord(null);
+      setCurrentCard(null);
     } catch (error: any) {
-      setServerError(error.response?.data?.error || "Failed to delete Word");
+      setServerError(error.response?.data?.error || "Failed to delete Card");
     }
   };
 
@@ -162,31 +173,36 @@ const AdminWordsPage: React.FC = () => {
         <div className="flex flex-col sm:flex-row justify-center items-end gap-8 mt-4 mb-6 space-y-4 sm:space-y-0 sm:space-x-4">
           <div className="flex flex-col items-center">
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Filter by Language
+              Filter by Category
             </label>
             <select
-              value={filterLanguageId}
-              onChange={(e) => setFilterLanguageId(e.target.value)}
+              value={filterCategoryId}
+              onChange={(e) => setFilterCategoryId(e.target.value)}
               className="w-full py-2.5 px-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300"
             >
-              <option value="">All Languages</option>
-              {languages.map((lang) => (
-                <option key={lang._id} value={lang._id}>
-                  {lang.name} ({lang.code})
+              <option value="">All Categories</option>
+              {categories.map((cat) => (
+                <option key={cat._id} value={cat._id}>
+                  {cat.name}
                 </option>
               ))}
             </select>
           </div>
           <button
             onClick={() => {
-              setFormData({ text: "", languageId: "" });
+              setFormData({
+                wordId: "",
+                translationId: "",
+                categoryId: "",
+                meaning: "",
+              });
               setErrors({});
               setServerError("");
               setIsAddModalOpen(true);
             }}
             className="bg-indigo-600 text-white py-2.5 px-8 rounded-lg font-semibold hover:bg-indigo-700 transition-colors duration-200 cursor-pointer"
           >
-            Add Word
+            Add Card
           </button>
         </div>
         {loading && (
@@ -211,7 +227,7 @@ const AdminWordsPage: React.FC = () => {
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
               />
             </svg>
-            <span className="ml-2 text-gray-600">Loading words...</span>
+            <span className="ml-2 text-gray-600">Loading cards...</span>
           </div>
         )}
         {error && (
@@ -219,35 +235,45 @@ const AdminWordsPage: React.FC = () => {
             {error}
           </div>
         )}
-        {!loading && !error && words.length === 0 && (
-          <div className="text-center text-gray-600">No words available.</div>
+        {!loading && !error && cards.length === 0 && (
+          <div className="text-center text-gray-600">No cards available.</div>
         )}
-        {!loading && !error && words.length > 0 && (
+        {!loading && !error && cards.length > 0 && (
           <div className="bg-white rounded-2xl shadow-xl overflow-x-auto">
             <table className="w-full text-left">
               <thead>
                 <tr className="bg-indigo-50">
-                  <th className="p-4 font-semibold text-indigo-700">Text</th>
+                  <th className="p-4 font-semibold text-indigo-700">Word</th>
                   <th className="p-4 font-semibold text-indigo-700">
-                    Language
+                    Translation
                   </th>
+                  <th className="p-4 font-semibold text-indigo-700">
+                    Category
+                  </th>
+                  <th className="p-4 font-semibold text-indigo-700">Meaning</th>
                   <th className="p-4 font-semibold text-indigo-700">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {words.map((word) => (
-                  <tr key={word._id} className="border-t hover:bg-gray-50">
-                    <td className="p-4 text-gray-800">{word.text}</td>
+                {cards.map((Card) => (
+                  <tr key={Card._id} className="border-t hover:bg-gray-50">
+                    <td className="p-4 text-gray-800">{Card.wordId.text}</td>
                     <td className="p-4 text-gray-800">
-                      {word.languageId.name}
+                      {Card.translationId.text}
                     </td>
+                    <td className="p-4 text-gray-800">
+                      {Card.categoryId.name}
+                    </td>
+                    <td className="p-4 text-gray-800">{Card.meaning}</td>
                     <td className="p-4">
                       <button
                         onClick={() => {
-                          setCurrentWord(word);
+                          setCurrentCard(Card);
                           setFormData({
-                            text: word.text,
-                            languageId: word.languageId._id,
+                            wordId: Card.wordId._id,
+                            translationId: Card.translationId._id,
+                            categoryId: Card.categoryId._id,
+                            meaning: Card.meaning ?? "",
                           });
                           setErrors({});
                           setServerError("");
@@ -259,7 +285,7 @@ const AdminWordsPage: React.FC = () => {
                       </button>
                       <button
                         onClick={() => {
-                          setCurrentWord(word);
+                          setCurrentCard(Card);
                           setIsDeleteModalOpen(true);
                         }}
                         className="text-red-600 hover:text-red-800 cursor-pointer"
@@ -278,7 +304,12 @@ const AdminWordsPage: React.FC = () => {
         open={isAddModalOpen}
         onClose={() => {
           setIsAddModalOpen(false);
-          setFormData({ text: "", languageId: "" });
+          setFormData({
+            wordId: "",
+            translationId: "",
+            categoryId: "",
+            meaning: "",
+          });
           setErrors({});
           setServerError("");
         }}
@@ -287,50 +318,101 @@ const AdminWordsPage: React.FC = () => {
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <DialogPanel className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md">
             <DialogTitle className="text-lg font-bold text-indigo-700">
-              Add Word
+              Add Card
             </DialogTitle>
             {serverError && (
               <div className="mb-3 mt-3 p-3 bg-red-100 text-red-700 text-sm rounded-lg text-center animate-fade-in">
                 {serverError}
               </div>
             )}
-            <form onSubmit={handleAddWord} className="space-y-2">
+            <form onSubmit={handleAddCard} className="space-y-2">
               <div className="mt-2 space-y-4">
-                <FormInput
-                  label="Text"
-                  value={formData.text}
-                  onChange={(e) => handleChange("text", e.target.value)}
-                  error={errors.text}
-                  placeholder="e.g., Hello"
-                />
                 <div>
                   <label className="block text-sm font-semibold text-gray-800 mb-1.5">
-                    Language
+                    Word
                   </label>
                   <select
-                    value={formData.languageId}
-                    onChange={(e) => handleChange("languageId", e.target.value)}
+                    value={formData.wordId}
+                    onChange={(e) => handleChange("wordId", e.target.value)}
                     className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
                   >
-                    <option value="">Select Language</option>
-                    {languages.map((lang) => (
-                      <option key={lang._id} value={lang._id}>
-                        {lang.name} ({lang.code})
+                    <option value="">Select Word</option>
+                    {words.map((word) => (
+                      <option key={word._id} value={word._id}>
+                        {word.text}
                       </option>
                     ))}
                   </select>
-                  {errors.languageId && (
+                  {errors.wordId && (
                     <p className="mt-1.5 text-xs text-red-500 animate-fade-in">
-                      {errors.languageId}
+                      {errors.wordId}
                     </p>
                   )}
                 </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-800 mb-1.5">
+                    Translation
+                  </label>
+                  <select
+                    value={formData.translationId}
+                    onChange={(e) =>
+                      handleChange("translationId", e.target.value)
+                    }
+                    className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
+                  >
+                    <option value="">Select Translation</option>
+                    {words.map((word) => (
+                      <option key={word._id} value={word._id}>
+                        {word.text}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.translationId && (
+                    <p className="mt-1.5 text-xs text-red-500 animate-fade-in">
+                      {errors.translationId}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-800 mb-1.5">
+                    Category
+                  </label>
+                  <select
+                    value={formData.categoryId}
+                    onChange={(e) => handleChange("categoryId", e.target.value)}
+                    className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
+                  >
+                    <option value="">Select Category</option>
+                    {categories.map((cat) => (
+                      <option key={cat._id} value={cat._id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.categoryId && (
+                    <p className="mt-1.5 text-xs text-red-500 animate-fade-in">
+                      {errors.categoryId}
+                    </p>
+                  )}
+                </div>
+                <FormInput
+                  label="Meaning"
+                  value={formData.meaning}
+                  onChange={(e) => handleChange("meaning", e.target.value)}
+                  error={errors.meaning}
+                  placeholder="e.g., A greeting"
+                />
               </div>
               <div className="mt-6 flex justify-center space-x-2">
                 <button
                   onClick={() => {
                     setIsAddModalOpen(false);
-                    setFormData({ text: "", languageId: "" });
+                    setFormData({
+                      wordId: "",
+                      translationId: "",
+                      categoryId: "",
+                      meaning: "",
+                    });
                     setErrors({});
                     setServerError("");
                   }}
@@ -354,8 +436,13 @@ const AdminWordsPage: React.FC = () => {
         open={isEditModalOpen}
         onClose={() => {
           setIsEditModalOpen(false);
-          setCurrentWord(null);
-          setFormData({ text: "", languageId: "" });
+          setCurrentCard(null);
+          setFormData({
+            wordId: "",
+            translationId: "",
+            categoryId: "",
+            meaning: "",
+          });
           setErrors({});
           setServerError("");
         }}
@@ -364,51 +451,102 @@ const AdminWordsPage: React.FC = () => {
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <DialogPanel className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md">
             <DialogTitle className="text-lg font-bold text-indigo-700">
-              Edit Word
+              Edit Card
             </DialogTitle>
             {serverError && (
               <div className="mb-3 mt-3 p-3 bg-red-100 text-red-700 text-sm rounded-lg text-center animate-fade-in">
                 {serverError}
               </div>
             )}
-            <form onSubmit={handleEditWord} className="space-y-2">
+            <form onSubmit={handleEditCard} className="space-y-2">
               <div className="mt-2 space-y-4">
-                <FormInput
-                  label="Text"
-                  value={formData.text}
-                  onChange={(e) => handleChange("text", e.target.value)}
-                  error={errors.text}
-                  placeholder="e.g., Hello"
-                />
                 <div>
                   <label className="block text-sm font-semibold text-gray-800 mb-1.5">
-                    Language
+                    Word
                   </label>
                   <select
-                    value={formData.languageId}
-                    onChange={(e) => handleChange("languageId", e.target.value)}
+                    value={formData.wordId}
+                    onChange={(e) => handleChange("wordId", e.target.value)}
                     className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
                   >
-                    <option value="">Select Language</option>
-                    {languages.map((lang) => (
-                      <option key={lang._id} value={lang._id}>
-                        {lang.name} ({lang.code})
+                    <option value="">Select Word</option>
+                    {words.map((word) => (
+                      <option key={word._id} value={word._id}>
+                        {word.text}
                       </option>
                     ))}
                   </select>
-                  {errors.languageId && (
+                  {errors.wordId && (
                     <p className="mt-1.5 text-xs text-red-500 animate-fade-in">
-                      {errors.languageId}
+                      {errors.wordId}
                     </p>
                   )}
                 </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-800 mb-1.5">
+                    Translation
+                  </label>
+                  <select
+                    value={formData.translationId}
+                    onChange={(e) =>
+                      handleChange("translationId", e.target.value)
+                    }
+                    className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
+                  >
+                    <option value="">Select Translation</option>
+                    {words.map((word) => (
+                      <option key={word._id} value={word._id}>
+                        {word.text}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.translationId && (
+                    <p className="mt-1.5 text-xs text-red-500 animate-fade-in">
+                      {errors.translationId}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-800 mb-1.5">
+                    Category
+                  </label>
+                  <select
+                    value={formData.categoryId}
+                    onChange={(e) => handleChange("categoryId", e.target.value)}
+                    className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
+                  >
+                    <option value="">Select Category</option>
+                    {categories.map((cat) => (
+                      <option key={cat._id} value={cat._id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.categoryId && (
+                    <p className="mt-1.5 text-xs text-red-500 animate-fade-in">
+                      {errors.categoryId}
+                    </p>
+                  )}
+                </div>
+                <FormInput
+                  label="Meaning"
+                  value={formData.meaning}
+                  onChange={(e) => handleChange("meaning", e.target.value)}
+                  error={errors.meaning}
+                  placeholder="e.g., A greeting"
+                />
               </div>
               <div className="mt-6 flex justify-center space-x-2">
                 <button
                   onClick={() => {
                     setIsEditModalOpen(false);
-                    setCurrentWord(null);
-                    setFormData({ text: "", languageId: "" });
+                    setCurrentCard(null);
+                    setFormData({
+                      wordId: "",
+                      translationId: "",
+                      categoryId: "",
+                      meaning: "",
+                    });
                     setErrors({});
                     setServerError("");
                   }}
@@ -432,7 +570,7 @@ const AdminWordsPage: React.FC = () => {
         open={isDeleteModalOpen}
         onClose={() => {
           setIsDeleteModalOpen(false);
-          setCurrentWord(null);
+          setCurrentCard(null);
           setServerError("");
         }}
       >
@@ -443,20 +581,20 @@ const AdminWordsPage: React.FC = () => {
               Confirm Deletion
             </DialogTitle>
             <p className="mt-2 text-gray-600">
-              Are you sure you want to delete the Word "{currentWord?.text}"?
-              This will also remove related cards.
+              Are you sure you want to delete the Card "
+              {currentCard?.wordId.text} | {currentCard?.translationId.text}"?
             </p>
             {serverError && (
               <div className="mb-3 mt-3 p-3 bg-red-100 text-red-700 text-sm rounded-lg text-center animate-fade-in">
                 {serverError}
               </div>
             )}
-            <form onSubmit={handleDeleteWord} className="space-y-2">
+            <form onSubmit={handleDeleteCard} className="space-y-2">
               <div className="mt-6 flex justify-center space-x-2">
                 <button
                   onClick={() => {
                     setIsDeleteModalOpen(false);
-                    setCurrentWord(null);
+                    setCurrentCard(null);
                     setServerError("");
                   }}
                   className="px-4 py-2 text-gray-600 rounded-lg hover:bg-gray-100 cursor-pointer"
@@ -478,4 +616,4 @@ const AdminWordsPage: React.FC = () => {
   );
 };
 
-export default AdminWordsPage;
+export default AdminCardsPage;

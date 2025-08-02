@@ -75,7 +75,7 @@ const ProgressPage: React.FC = () => {
         {!loading && !error && progress && (
           <div className="space-y-8">
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-              <div className="bg-white p-6 rounded-2xl shadow-xl transform transition-all duration-500 hover:scale-105 hover:sc">
+              <div className="bg-white p-6 rounded-2xl shadow-xl transform transition-all duration-500 hover:scale-105">
                 <h3 className="text-lg font-semibold text-indigo-700">
                   Total Cards
                 </h3>
@@ -101,7 +101,7 @@ const ProgressPage: React.FC = () => {
               </div>
             </div>
             {progress?.languagesStats?.length > 0 && (
-              <div className="bg-white p-6 rounded-2xl shadow-xl transform transition-all duration-500 hover:scale-105">
+              <div className="bg-white p-6 rounded-2xl shadow-xl transform transition-all duration-750 hover:scale-105">
                 <h3 className="text-lg font-semibold text-indigo-700">
                   Language Progress
                 </h3>
@@ -110,7 +110,7 @@ const ProgressPage: React.FC = () => {
                     <Pie
                       data={progress.languagesStats.map((stat) => ({
                         name: stat.learningLanguagesIds.name,
-                        value: stat.learned,
+                        value: stat.total,
                       }))}
                       dataKey="value"
                       nameKey="name"
@@ -134,17 +134,27 @@ const ProgressPage: React.FC = () => {
               </div>
             )}
             {progress?.categoriesStats?.length > 0 && (
-              <div className="bg-white p-6 rounded-2xl shadow-xl transform transition-all duration-500 hover:scale-105">
+              <div className="bg-white p-6 rounded-2xl shadow-xl transform transition-all duration-750 hover:scale-105">
                 <h3 className="text-lg font-semibold text-indigo-700">
                   Category Progress
                 </h3>
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={progress.categoriesStats}>
-                    <XAxis dataKey="wordCategory.name" />
+                  <BarChart
+                    data={progress.categoriesStats}
+                    margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
+                  >
+                    <XAxis dataKey="category.name" />
                     <YAxis />
                     <Tooltip />
                     <Legend />
-                    <Bar dataKey="learned" fill="#4F46E5" name="Learned" />
+                    <Bar dataKey="total" name="Total">
+                      {progress.categoriesStats.map((_, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={COLORS[index % COLORS.length]}
+                        />
+                      ))}
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>

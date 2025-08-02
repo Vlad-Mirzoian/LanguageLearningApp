@@ -44,8 +44,7 @@ export interface LanguageStat {
 }
 
 export interface CategoryStat {
-  wordCategory: { id: string; name: string };
-  translationCategory: { id: string; name: string };
+  category: { id: string; name: string };
   total: number;
   learned: number;
 }
