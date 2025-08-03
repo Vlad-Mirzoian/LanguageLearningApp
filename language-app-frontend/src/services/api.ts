@@ -33,15 +33,19 @@ api.interceptors.response.use(
 
 export const register = async (data: {
   email: string;
+  username: string;
   password: string;
   nativeLanguageId?: string;
   learningLanguagesIds?: string[];
-}) => {
-  const response = await api.post("/auth/register", data);
+}): Promise<AuthResponse> => {
+  const response = await api.post<AuthResponse>("/auth/register", data);
   return response.data;
 };
 
-export const login = async (data: { email: string; password: string }) => {
+export const login = async (data: {
+  identifier: string;
+  password: string;
+}): Promise<AuthResponse> => {
   const response = await api.post<AuthResponse>("/auth/login", data);
   localStorage.setItem("token", response.data.token);
   localStorage.setItem("user", JSON.stringify(response.data.user));
@@ -50,6 +54,36 @@ export const login = async (data: { email: string; password: string }) => {
 
 export const verifyEmail = async (token: string) => {
   const response = await api.get(`/auth/verify/${token}`);
+  return response.data;
+};
+
+export const updateUser = async (
+  data: Partial<{
+    email: string;
+    username: string;
+    password?: string;
+    nativeLanguageId?: string;
+    learningLanguagesIds?: string[];
+  }>
+): Promise<AuthResponse> => {
+  const response = await api.put<AuthResponse>("/auth/user", data);
+  localStorage.setItem("user", JSON.stringify(response.data.user));
+  return response.data;
+};
+
+export const uploadAvatar = async (file: File): Promise<AuthResponse> => {
+  const formData = new FormData();
+  formData.append("avatar", file);
+  const response = await api.post<AuthResponse>(
+    "/auth/upload-avatar",
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }
+  );
+  localStorage.setItem("user", JSON.stringify(response.data.user));
   return response.data;
 };
 
@@ -64,11 +98,6 @@ export const resetPassword = async (
 ) => {
   const response = await api.post(`/auth/reset-password/${token}`, data);
   return response.data;
-};
-
-export const logout = async () => {
-  localStorage.removeItem("token");
-  localStorage.removeItem("user");
 };
 
 export const getLanguages = async (): Promise<Language[]> => {

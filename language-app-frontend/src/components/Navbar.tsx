@@ -1,27 +1,22 @@
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import { logout } from "../services/api";
+import { Link, useLocation } from "react-router-dom";
 import {
   Disclosure,
   DisclosureButton,
   DisclosurePanel,
 } from "@headlessui/react";
-import { useEffect, useState } from "react";
+import { useAuth } from "../hooks/useAuth";
+
+const baseUrl = import.meta.env.VITE_BASE_URL || "";
 
 const Navbar: React.FC = () => {
-  const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const location = useLocation();
-  const [user, setUser] = useState<{ email: string; role?: string } | null>(
-    JSON.parse(localStorage.getItem("user") || "null")
-  );
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-      setUser(null);
-      navigate("/login");
-    } catch (error) {
-      console.error("Logout failed", error);
-    }
+  const getFullAvatarUrl = (
+    avatar: string | null | undefined
+  ): string | null => {
+    if (!avatar) return null;
+    return `${baseUrl}${avatar.startsWith("/") ? avatar : "/" + avatar}`;
   };
 
   const navigation = [
@@ -42,12 +37,7 @@ const Navbar: React.FC = () => {
       : []),
   ];
 
-  useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-  }, [navigate]);
+  const avatarUrl = getFullAvatarUrl(user?.avatar);
 
   return (
     <Disclosure as="nav" className="bg-indigo-600">
@@ -87,12 +77,29 @@ const Navbar: React.FC = () => {
               </div>
               <div className="hidden sm:ml-6 sm:flex sm:items-center">
                 {user ? (
-                  <button
-                    onClick={handleLogout}
-                    className="text-indigo-100 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
-                  >
-                    Logout
-                  </button>
+                  <div className="flex items-center space-x-4">
+                    <Link to="/profile" className="flex items-center">
+                      {avatarUrl ? (
+                        <img
+                          src={avatarUrl}
+                          alt="User avatar"
+                          className="h-8 w-8 rounded-full object-cover"
+                        />
+                      ) : (
+                        <img
+                          src="/images/default-avatar.png"
+                          alt="Default avatar"
+                          className="h-8 w-8 rounded-full object-cover"
+                        />
+                      )}
+                    </Link>
+                    <button
+                      onClick={logout}
+                      className="text-indigo-100 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+                    >
+                      Logout
+                    </button>
+                  </div>
                 ) : (
                   <Link
                     to="/login"
@@ -158,13 +165,29 @@ const Navbar: React.FC = () => {
                 );
               })}
               {user && (
-                <DisclosureButton
-                  as="button"
-                  onClick={handleLogout}
-                  className="block w-full text-left pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-indigo-100 hover:bg-indigo-700 hover:border-indigo-200 hover:text-white"
-                >
-                  Logout
-                </DisclosureButton>
+                <>
+                  <DisclosureButton
+                    as={Link}
+                    to="/profile"
+                    className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
+                      location.pathname === "/profile"
+                        ? "bg-indigo-700 border-indigo-300 text-white"
+                        : "border-transparent text-indigo-100 hover:bg-indigo-700 hover:border-indigo-200 hover:text-white"
+                    }`}
+                    aria-current={
+                      location.pathname === "/profile" ? "page" : undefined
+                    }
+                  >
+                    Profile
+                  </DisclosureButton>
+                  <DisclosureButton
+                    as="button"
+                    onClick={logout}
+                    className="block w-full text-left pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-indigo-100 hover:bg-indigo-700 hover:border-indigo-200 hover:text-white"
+                  >
+                    Logout
+                  </DisclosureButton>
+                </>
               )}
             </div>
           </DisclosurePanel>

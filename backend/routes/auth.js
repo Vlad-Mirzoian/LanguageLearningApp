@@ -11,6 +11,7 @@ const {
 } = require("../utils/email");
 const { authenticate } = require("../middleware/auth");
 const { validate } = require("../middleware/validation");
+const upload = require("../middleware/upload");
 const { param, body } = require("express-validator");
 
 // POST /api/auth/register
@@ -18,6 +19,11 @@ router.post(
   "/register",
   [
     body("email").isEmail().withMessage("Invalid email format"),
+    body("username")
+      .matches(/^[a-z0-9_]{6,}$/)
+      .withMessage(
+        "Username must be at least 6 characters and contain only lowercase letters, numbers, or underscores"
+      ),
     body("password")
       .isLength({ min: 8 })
       .withMessage("Password must be at least 8 characters"),
@@ -48,11 +54,23 @@ router.post(
   validate,
   async (req, res) => {
     try {
-      const { email, password, nativeLanguageId, learningLanguagesIds } =
-        req.body;
-      const existingUser = await User.findOne({ email });
+      const {
+        email,
+        username,
+        password,
+        nativeLanguageId,
+        learningLanguagesIds,
+      } = req.body;
+      const existingUser = await User.findOne({
+        $or: [{ email }, { username: username.toLowerCase() }],
+      });
       if (existingUser) {
-        return res.status(400).json({ error: "Email already exists" });
+        return res.status(400).json({
+          error:
+            existingUser.email === email
+              ? "Email already exists"
+              : "Username already exists",
+        });
       }
       if (learningLanguagesIds && !Array.isArray(learningLanguagesIds)) {
         return res
@@ -65,6 +83,7 @@ router.post(
       });
       const user = new User({
         email,
+        username: username.toLowerCase(),
         password: hashed_password,
         nativeLanguageId,
         learningLanguagesIds,
@@ -127,7 +146,7 @@ router.get(
 router.post(
   "/login",
   [
-    body("email").isEmail().withMessage("Invalid email format"),
+    body("identifier").isString().withMessage("Identifier must be a string"),
     body("password")
       .isLength({ min: 8 })
       .withMessage("Password must be at least 8 characters"),
@@ -135,8 +154,14 @@ router.post(
   validate,
   async (req, res) => {
     try {
-      const { email, password } = req.body;
-      const user = await User.findOne({ email });
+      const { identifier, password } = req.body;
+
+      const user = await User.findOne({
+        $or: [
+          { email: identifier.toLowerCase() },
+          { username: identifier.toLowerCase() },
+        ],
+      });
       if (!user || !(await bcrypt.compare(password, user.password))) {
         return res.status(401).json({ error: "Invalid credentials" });
       }
@@ -156,14 +181,55 @@ router.post(
         token,
         user: {
           email: user.email,
+          username: user.username,
           role: user.role,
           nativeLanguageId: user.nativeLanguageId,
           learningLanguagesIds: user.learningLanguagesIds,
+          avatar: user.avatar,
         },
       });
     } catch (error) {
       console.error("Error logging in:", error);
       res.status(500).json({ error: `Failed to login user: ${error.message}` });
+    }
+  }
+);
+
+// POST /api/auth/upload-avatar
+router.post(
+  "/upload-avatar",
+  authenticate,
+  upload.single("avatar"),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+      const avatarPath = `/uploads/avatars/${req.file.filename}`;
+      const user = await User.findOneAndUpdate(
+        { _id: req.userId },
+        { avatar: avatarPath },
+        { new: true }
+      );
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      res.json({
+        error: "Avatar uploaded successfully",
+        user: {
+          email: user.email,
+          username: user.username,
+          role: user.role,
+          nativeLanguageId: user.nativeLanguageId,
+          learningLanguagesIds: user.learningLanguagesIds,
+          avatar: user.avatar,
+        },
+      });
+    } catch (error) {
+      console.error("Error uploading avatar:", error);
+      res
+        .status(500)
+        .json({ error: `Failed to upload avatar: ${error.message}` });
     }
   }
 );
@@ -265,6 +331,12 @@ router.put(
   "/user",
   [
     body("email").optional().isEmail().withMessage("Invalid email format"),
+    body("username")
+      .optional()
+      .matches(/^[a-z0-9_]{6,}$/)
+      .withMessage(
+        "Username must be at least 6 characters and contain only lowercase letters, numbers, or underscores"
+      ),
     body("password")
       .optional()
       .isLength({ min: 8 })
@@ -297,8 +369,13 @@ router.put(
   authenticate,
   async (req, res) => {
     try {
-      const { email, password, nativeLanguageId, learningLanguagesIds } =
-        req.body;
+      const {
+        email,
+        username,
+        password,
+        nativeLanguageId,
+        learningLanguagesIds,
+      } = req.body;
       const updateData = {};
       if (email) {
         const existingUser = await User.findOne({
@@ -308,6 +385,15 @@ router.put(
         if (existingUser)
           return res.status(400).json({ error: "Email already exists" });
         updateData.email = email;
+      }
+      if (username) {
+        const existingUsername = await User.findOne({
+          username,
+          _id: { $ne: req.userId },
+        });
+        if (existingUsername)
+          return res.status(400).json({ error: "Username already exists" });
+        updateData.username = username;
       }
       if (password) updateData.password = await bcrypt.hash(password, 10);
       if (nativeLanguageId) updateData.nativeLanguageId = nativeLanguageId;
@@ -327,9 +413,11 @@ router.put(
         message: "User updated",
         user: {
           email: user.email,
+          username: user.username,
           role: user.role,
           nativeLanguageId: user.nativeLanguageId,
           learningLanguagesIds: user.learningLanguagesIds,
+          avatar: user.avatar,
         },
       });
     } catch (error) {

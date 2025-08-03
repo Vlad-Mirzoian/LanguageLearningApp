@@ -1,8 +1,10 @@
 export interface User {
   email: string;
+  username: string;
   role: "user" | "admin";
-  nativeLanguageId: Language;
-  learningLanguagesIds: Language[];
+  nativeLanguageId?: string;
+  learningLanguagesIds?: string[];
+  avatar?: string | null;
 }
 
 export interface Language {

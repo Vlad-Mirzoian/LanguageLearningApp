@@ -2,6 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
+const path = require("path");
 const apiRoutes = require("./routes/api");
 
 const app = express();
@@ -17,6 +18,11 @@ mongoose
 app.get("/", (req, res) => {
   res.json({ message: "Language Learning API is running" });
 });
+
+app.use(
+  "/uploads/avatars",
+  express.static(path.join(__dirname, "uploads/avatars"))
+);
 
 app.use("/api", apiRoutes);
 

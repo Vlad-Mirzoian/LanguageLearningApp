@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import FormInput from "../components/FormInput";
 import { login } from "../services/api";
@@ -9,67 +9,59 @@ const LoginPage: React.FC = () => {
   const { setAuth } = useAuth();
 
   const [formData, setFormData] = useState({
-    email: "",
+    identifier: "",
     password: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState("");
 
-  useEffect(() => {
-    setFormData({ email: "", password: "" });
-    setErrors({});
-    setServerError("");
-  }, []);
+  const validateField = useCallback(
+    (field: keyof typeof formData, value: string): string | null => {
+      if (field === "identifier" && typeof value === "string") {
+        if (!value.trim()) return "Email or username is required";
+        if (
+          !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) &&
+          !/^[a-z0-9_]{6,}$/.test(value)
+        )
+          return "Invalid email or username format";
+      }
+      if (field === "password" && typeof value === "string") {
+        if (!value.trim()) return "Password is required";
+        if (!/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(value)) {
+          return "Password must be at least 8 characters and contain a letter and a number";
+        }
+      }
+      return null;
+    },
+    []
+  );
 
   const validateForm = useCallback(() => {
     const newErrors: Record<string, string> = {};
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
 
-    if (!formData.email.trim()) {
-      newErrors.email = "Email is required";
-    } else if (!emailRegex.test(formData.email)) {
-      newErrors.email = "Invalid email format";
-    }
-
-    if (!formData.password.trim()) {
-      newErrors.password = "Password is required";
-    } else if (!passwordRegex.test(formData.password)) {
-      newErrors.password =
-        "Password must be at least 8 characters and contain a letter and a number";
-    }
+    (["identifier", "password"] as const).forEach((field) => {
+      const error = validateField(field, formData[field]);
+      if (error) {
+        newErrors[field] = error;
+      }
+    });
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [formData]);
+  }, [formData, validateField]);
 
-  const handleChange = (field: string, value: string) => {
+  const handleChange = (field: keyof typeof formData, value: string) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
     }));
     setErrors((prev) => {
       const newErrors = { ...prev };
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
-
-      if (field === "email") {
-        if (!value.trim()) {
-          newErrors.email = "Email is required";
-        } else if (!emailRegex.test(value)) {
-          newErrors.email = "Invalid email format";
-        } else {
-          delete newErrors.email;
-        }
-      } else if (field === "password") {
-        if (!value.trim()) {
-          newErrors.password = "Password is required";
-        } else if (!passwordRegex.test(value)) {
-          newErrors.password =
-            "Password must be at least 8 characters and contain a letter and a number";
-        } else {
-          delete newErrors.password;
-        }
+      const error = validateField(field, value);
+      if (error) {
+        newErrors[field] = error;
+      } else {
+        delete newErrors[field];
       }
       return newErrors;
     });
@@ -108,13 +100,12 @@ const LoginPage: React.FC = () => {
         )}
         <form onSubmit={handleSubmit} className="space-y-2">
           <FormInput
-            label="Email"
-            type="email"
-            value={formData.email}
-            onChange={(e) => handleChange("email", e.target.value)}
-            error={errors.email}
-            autoComplete="email"
-            placeholder="Enter your email"
+            label="Email or username"
+            type="text"
+            value={formData.identifier}
+            onChange={(e) => handleChange("identifier", e.target.value)}
+            error={errors.identifier}
+            placeholder="Enter your email or username"
           />
           <FormInput
             label="Password"

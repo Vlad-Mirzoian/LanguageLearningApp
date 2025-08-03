@@ -20,10 +20,10 @@ const cardSchema = new mongoose.Schema({
   lastReviewed: { type: Date, default: Date.now },
 });
 
+cardSchema.index({ wordId: 1, translationId: 1 }, { unique: true });
 cardSchema.index({ nextReview: 1 });
 cardSchema.index({ wordId: 1 });
 cardSchema.index({ translationId: 1 });
-cardSchema.index({ wordId: 1, translationId: 1 });
 cardSchema.index({ lastReviewed: 1 });
 cardSchema.index({ repetitions: 1 });
 cardSchema.index({ categoryId: 1 });

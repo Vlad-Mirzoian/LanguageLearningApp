@@ -9,6 +9,13 @@ const userSchema = new mongoose.Schema(
       trim: true,
       lowercase: true,
     },
+    username: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+      lowercase: true,
+    },
     password: { type: String, required: true },
     role: { type: String, enum: ["user", "admin"], default: "user" },
     nativeLanguageId: {
@@ -23,6 +30,10 @@ const userSchema = new mongoose.Schema(
         default: [],
       },
     ],
+    avatar: {
+      type: String,
+      default: "",
+    },
     isVerified: { type: Boolean, default: false },
     verificationToken: { type: String, default: null },
     resetPasswordToken: { type: String, default: null },

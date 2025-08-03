@@ -9,6 +9,7 @@ import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ReviewCardsPage from "./pages/ReviewCardsPage";
 import ProgressPage from "./pages/ProgressPage";
+import ProfilePage from "./pages/ProfilePage";
 import AdminLanguagesPage from "./pages/AdminLanguagesPage";
 import AdminCategoriesPage from "./pages/AdminCategoriesPage";
 import AdminWordsPage from "./pages/AdminWordsPage";
@@ -49,6 +50,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <ProgressPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <ProfilePage />
               </ProtectedRoute>
             }
           />

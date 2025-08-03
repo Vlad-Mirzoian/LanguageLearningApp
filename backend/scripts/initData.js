@@ -80,7 +80,6 @@ const initData = async () => {
 
     // Create words (100 words, 20 per language)
     const words = [
-      // Ukrainian (20 words)
       { text: "привіт", languageId: languageMap.uk },
       { text: "дякую", languageId: languageMap.uk },
       { text: "хліб", languageId: languageMap.uk },
@@ -101,7 +100,6 @@ const initData = async () => {
       { text: "штани", languageId: languageMap.uk },
       { text: "читання", languageId: languageMap.uk },
       { text: "лікар", languageId: languageMap.uk },
-      // English (20 words)
       { text: "hello", languageId: languageMap.en },
       { text: "thank you", languageId: languageMap.en },
       { text: "bread", languageId: languageMap.en },
@@ -122,7 +120,6 @@ const initData = async () => {
       { text: "pants", languageId: languageMap.en },
       { text: "reading", languageId: languageMap.en },
       { text: "doctor", languageId: languageMap.en },
-      // French (20 words)
       { text: "bonjour", languageId: languageMap.fr },
       { text: "merci", languageId: languageMap.fr },
       { text: "pain", languageId: languageMap.fr },
@@ -143,7 +140,6 @@ const initData = async () => {
       { text: "pantalon", languageId: languageMap.fr },
       { text: "lecture", languageId: languageMap.fr },
       { text: "médecin", languageId: languageMap.fr },
-      // German (20 words)
       { text: "hallo", languageId: languageMap.de },
       { text: "danke", languageId: languageMap.de },
       { text: "Brot", languageId: languageMap.de },
@@ -164,7 +160,6 @@ const initData = async () => {
       { text: "Hose", languageId: languageMap.de },
       { text: "Lesen", languageId: languageMap.de },
       { text: "Arzt", languageId: languageMap.de },
-      // Spanish (20 words)
       { text: "hola", languageId: languageMap.es },
       { text: "gracias", languageId: languageMap.es },
       { text: "pan", languageId: languageMap.es },
@@ -195,7 +190,6 @@ const initData = async () => {
 
     // Create cards (60 cards, Ukrainian as base language, translations to en/fr/de/es)
     const cards = [
-      // Ukrainian -> English (15 cards)
       {
         wordId: wordMap["привіт_" + languageMap.uk],
         translationId: wordMap["hello_" + languageMap.en],
@@ -286,7 +280,6 @@ const initData = async () => {
         categoryId: categoryMap.weather,
         meaning: "небесне тіло",
       },
-      // Ukrainian -> French (15 cards)
       {
         wordId: wordMap["привіт_" + languageMap.uk],
         translationId: wordMap["bonjour_" + languageMap.fr],
@@ -377,7 +370,6 @@ const initData = async () => {
         categoryId: categoryMap.weather,
         meaning: "небесне тіло",
       },
-      // Ukrainian -> German (15 cards)
       {
         wordId: wordMap["привіт_" + languageMap.uk],
         translationId: wordMap["hallo_" + languageMap.de],
@@ -468,7 +460,6 @@ const initData = async () => {
         categoryId: categoryMap.weather,
         meaning: "небесне тіло",
       },
-      // Ukrainian -> Spanish (15 cards)
       {
         wordId: wordMap["привіт_" + languageMap.uk],
         translationId: wordMap["hola_" + languageMap.es],
@@ -568,6 +559,7 @@ const initData = async () => {
     const users = [
       {
         email: "admin@example.com",
+        username: "admin_user",
         password: hashedPassword,
         role: "admin",
         nativeLanguageId: languageMap.uk,
@@ -581,6 +573,7 @@ const initData = async () => {
       },
       {
         email: "test@example.com",
+        username: "test_user",
         password: hashedPassword,
         role: "user",
         nativeLanguageId: languageMap.uk,
