@@ -13,19 +13,11 @@ const cardSchema = new mongoose.Schema({
     required: true,
   },
   meaning: { type: String, default: "" },
-  interval: { type: Number, default: 1 },
-  nextReview: { type: Date, default: Date.now },
-  easiness: { type: Number, default: 2.5 },
-  repetitions: { type: Number, default: 0 },
-  lastReviewed: { type: Date, default: Date.now },
 });
 
 cardSchema.index({ wordId: 1, translationId: 1 }, { unique: true });
-cardSchema.index({ nextReview: 1 });
 cardSchema.index({ wordId: 1 });
 cardSchema.index({ translationId: 1 });
-cardSchema.index({ lastReviewed: 1 });
-cardSchema.index({ repetitions: 1 });
 cardSchema.index({ categoryId: 1 });
 
 module.exports = mongoose.model("Card", cardSchema);

@@ -6,6 +6,7 @@ const Card = require("../models/Card");
 const User = require("../models/User");
 const Language = require("../models/Language");
 const Category = require("../models/Category");
+const UserProgress = require("../models/UserProgress");
 const { authenticate, authorizeRoles } = require("../middleware/auth");
 const { validate } = require("../middleware/validation");
 const { body, param, query } = require("express-validator");
@@ -28,35 +29,21 @@ router.get(
   validate,
   async (req, res) => {
     try {
-      const user = await User.findById(req.userId).populate(
-        "nativeLanguageId learningLanguagesIds"
-      );
+      const user = await User.findById(req.userId);
       if (!user) {
         return res.status(404).json({ error: "User not found" });
       }
-      const query =
-        req.userRole === "admin"
-          ? {}
-          : {
-              $and: [
-                {
-                  wordId: {
-                    $in: await Word.find({
-                      languageId: user.nativeLanguageId._id,
-                    }).distinct("_id"),
-                  },
-                },
-                {
-                  translationId: {
-                    $in: await Word.find({
-                      languageId: {
-                        $in: user.learningLanguagesIds.map((lang) => lang._id),
-                      },
-                    }).distinct("_id"),
-                  },
-                },
-              ],
-            };
+      const query = {};
+      if (req.userRole !== "admin") {
+        const nativeWordIds = await Word.find({
+          languageId: user.nativeLanguageId,
+        }).distinct("_id");
+        const translationWordIds = await Word.find({
+          languageId: { $in: user.learningLanguagesIds },
+        }).distinct("_id");
+        query.wordId = { $in: nativeWordIds };
+        query.translationId = { $in: translationWordIds };
+      }
       if (req.query.categoryId) {
         query.categoryId = req.query.categoryId;
       }
@@ -80,11 +67,11 @@ router.get(
   authenticate,
   [
     query("languageId")
-      .optional()
+      .exists({ checkFalsy: true })
+      .withMessage("Language is required")
       .isMongoId()
       .withMessage("Invalid language ID")
       .custom(async (value, { req }) => {
-        if (!value) return true;
         const language = await Language.findById(value);
         if (!language) throw new Error("Language not found");
         const user = await User.findById(req.userId);
@@ -100,10 +87,19 @@ router.get(
       .optional()
       .isMongoId()
       .withMessage("Invalid category ID")
-      .custom(async (value) => {
-        if (!value) return true;
-        const category = await Category.findById(value);
-        if (!category) throw new Error("Category not found");
+      .custom(async (value, { req }) => {
+        if (value) {
+          const category = await Category.findById(value);
+          if (!category) throw new Error("Category not found");
+          const progress = await UserProgress.findOne({
+            userId: req.userId,
+            languageId: req.query.languageId,
+            categoryId: value,
+          });
+          if (!progress?.unlocked) {
+            throw new Error("Category is locked");
+          }
+        }
         return true;
       }),
   ],
@@ -111,36 +107,38 @@ router.get(
   authorizeRoles(["user"]),
   async (req, res) => {
     try {
-      const user = await User.findById(req.userId).populate(
-        "nativeLanguageId learningLanguagesIds"
-      );
-      if (!user) return res.status(404).json({ error: "User not found" });
-      if (!user.learningLanguagesIds?.length) {
-        return res
-          .status(400)
-          .json({ error: "User must have at least one learning language" });
-      }
       const { languageId, categoryId } = req.query;
-      const query = {
-        $and: [
-          { nextReview: { $lte: new Date() } },
-          {
-            wordId: {
-              $in: await Word.find({
-                languageId: user.nativeLanguageId._id,
-              }).distinct("_id"),
-            },
-          },
-          {
-            translationId: {
-              $in: await Word.find({
-                languageId: languageId || user.learningLanguagesIds[0]._id,
-              }).distinct("_id"),
-            },
-          },
-          ...(categoryId ? [{ categoryId }] : []),
-        ],
+      const user = await User.findById(req.userId);
+      if (!user) return res.status(404).json({ error: "User not found" });
+      const learningLanguages = user.learningLanguagesIds;
+      if (!Array.isArray(learningLanguages) || learningLanguages.length === 0) {
+        return res.status(400).json({
+          error: "User must have at least one learning language",
+        });
+      }
+      const nativeLanguageId = user.nativeLanguageId;
+      const targetLanguageId = languageId;
+      const progressQuery = {
+        userId: req.userId,
+        languageId: targetLanguageId,
+        unlocked: true,
       };
+      if (categoryId) progressQuery.categoryId = categoryId;
+      const unlockedCategories = await UserProgress.find(
+        progressQuery
+      ).distinct("categoryId");
+      const nativeWordIds = await Word.find({
+        languageId: nativeLanguageId,
+      }).distinct("_id");
+      const translatedWordIds = await Word.find({
+        languageId: targetLanguageId,
+      }).distinct("_id");
+      const query = {
+        wordId: { $in: nativeWordIds },
+        translationId: { $in: translatedWordIds },
+        categoryId: { $in: unlockedCategories },
+      };
+      if (categoryId) query.categoryId = categoryId;
       const cards = await Card.find(query)
         .populate({
           path: "wordId",
@@ -152,9 +150,25 @@ router.get(
         })
         .populate({
           path: "categoryId",
-          select: "name",
+          select: "name order requiredScore",
         });
-      res.json(cards);
+      let attemptId = null;
+      if (categoryId) {
+        attemptId = new mongoose.Types.ObjectId().toString();
+        await UserProgress.findOneAndUpdate(
+          {
+            userId: req.userId,
+            languageId,
+            categoryId,
+          },
+          {
+            $set: { score: 0, attemptId },
+          },
+          { new: true }
+        );
+      }
+
+      res.json({ cards, attemptId });
     } catch (error) {
       console.error("Error fetching review cards:", error);
       res
@@ -212,6 +226,24 @@ router.post(
       const { wordId, translationId, categoryId, meaning } = req.body;
       const card = new Card({ wordId, translationId, categoryId, meaning });
       await card.save();
+      const translation = await Word.findById(translationId);
+      const users = await User.find({
+        learningLanguagesIds: translation.languageId,
+      });
+      for (const user of users) {
+        await UserProgress.findOneAndUpdate(
+          {
+            userId: user._id,
+            languageId: translation.languageId,
+            categoryId,
+          },
+          {
+            $inc: { totalCards: 1 },
+            $setOnInsert: { score: 0, maxScore: 0, unlocked: false },
+          },
+          { upsert: true }
+        );
+      }
       await card.populate([
         { path: "wordId", select: "text" },
         { path: "translationId", select: "text" },
@@ -236,7 +268,7 @@ router.put(
     param("id").isMongoId().withMessage("Invalid card ID"),
     body("languageId")
       .notEmpty()
-      .withMessage("Language are required")
+      .withMessage("Language is required")
       .isMongoId()
       .withMessage("Invalid language ID")
       .custom(async (value, { req }) => {
@@ -253,62 +285,116 @@ router.put(
       }),
     body("quality")
       .isInt({ min: 1, max: 5 })
-      .withMessage("Quality must be an integer between 0 and 5"),
+      .withMessage("Quality must be an integer between 1 and 5"),
+    body("attemptId").optional().isString().withMessage("Invalid attempt ID"),
   ],
   validate,
   async (req, res) => {
     try {
-      const { languageId, quality } = req.body;
-      const user = await User.findById(req.userId).populate(
-        "nativeLanguageId learningLanguagesIds"
-      );
+      const { languageId, quality, attemptId } = req.body;
+      const user = await User.findById(req.userId);
       if (!user) return res.status(404).json({ error: "User not found" });
       if (!user.learningLanguagesIds?.length) {
         return res
           .status(400)
           .json({ error: "User must have at least one learning language" });
       }
+      const nativeWordIds = await Word.find({
+        languageId: user.nativeLanguageId,
+      }).distinct("_id");
+      const translationWordIds = await Word.find({
+        languageId,
+      }).distinct("_id");
       const card = await Card.findOne({
         _id: req.params.id,
-        $and: [
-          {
-            wordId: {
-              $in: await Word.find({
-                languageId: user.nativeLanguageId._id,
-              }).distinct("_id"),
-            },
-          },
-          {
-            translationId: {
-              $in: await Word.find({
-                languageId: languageId,
-              }).distinct("_id"),
-            },
-          },
-        ],
-      });
+        wordId: { $in: nativeWordIds },
+        translationId: { $in: translationWordIds },
+      }).populate("categoryId");
       if (!card) return res.status(404).json({ error: "Card not found" });
-      let { easiness, interval, repetitions } = card;
-      repetitions += 1;
-      easiness = Math.max(
-        1.3,
-        easiness + 0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02)
-      );
-      if (quality < 3) {
-        interval = 1;
+      let progress = await UserProgress.findOne({
+        userId: req.userId,
+        languageId,
+        categoryId: card.categoryId._id,
+      });
+      const totalCards = await Card.countDocuments({
+        categoryId: card.categoryId._id,
+        translationId: { $in: translationWordIds },
+      });
+      const scorePerCard = totalCards > 0 ? 100 / totalCards : 0;
+      if (!progress) {
+        progress = await UserProgress.create({
+          userId: req.userId,
+          languageId,
+          categoryId: card.categoryId._id,
+          totalCards,
+          score: (quality / 5) * scorePerCard,
+          maxScore: (quality / 5) * scorePerCard,
+          unlocked: card.categoryId.order === 1,
+          attemptId: attemptId || new mongoose.Types.ObjectId().toString(),
+        });
       } else {
-        if (repetitions === 1) interval = 1;
-        else if (repetitions === 2) interval = 6;
-        else interval = Math.round(interval * easiness);
+        if (attemptId && progress.attemptId !== attemptId) {
+          progress.score = (quality / 5) * scorePerCard;
+          progress.attemptId = attemptId;
+        } else {
+          progress.score += (quality / 5) * scorePerCard;
+        }
+        if (progress.score > progress.maxScore) {
+          progress.maxScore = progress.score;
+        }
+        await progress.save();
       }
-      const lastReviewed = new Date();
-      const nextReview = new Date(Date.now() + interval * 24 * 60 * 60 * 1000);
-      const updateCard = await Card.findOneAndUpdate(
-        { _id: req.params.id },
-        { interval, nextReview, easiness, repetitions, lastReviewed },
-        { new: true }
-      );
-      res.json(updateCard);
+      const nextCategory = await Category.findOne({
+        order: card.categoryId.order + 1,
+        languageId: card.categoryId.languageId,
+      });
+      if (nextCategory && progress.maxScore >= card.categoryId.requiredScore) {
+        const nextProgress = await UserProgress.findOne({
+          userId: req.userId,
+          languageId,
+          categoryId: nextCategory._id,
+        });
+        if (!nextProgress) {
+          await UserProgress.create({
+            userId: req.userId,
+            languageId,
+            categoryId: nextCategory._id,
+            totalCards: await Card.countDocuments({
+              categoryId: nextCategory._id,
+              translationId: { $in: translationWordIds },
+            }),
+            score: 0,
+            maxScore: 0,
+            unlocked: true,
+            attemptId: null,
+          });
+        } else if (!nextProgress.unlocked) {
+          await UserProgress.findOneAndUpdate(
+            {
+              userId: req.userId,
+              languageId,
+              categoryId: nextCategory._id,
+            },
+            {
+              $set: { unlocked: true },
+            },
+            { new: true }
+          );
+        }
+      }
+      res.json({
+        progress: {
+          _id: progress._id.toString(),
+          userId: progress.userId.toString(),
+          languageId: progress.languageId.toString(),
+          categoryId: progress.categoryId.toString(),
+          totalCards: progress.totalCards,
+          score: progress.score,
+          maxScore: progress.maxScore,
+          unlocked: progress.unlocked,
+          attemptId: progress.attemptId,
+        },
+      });
     } catch (error) {
       console.error("Error reviewing card:", error);
       res
@@ -368,17 +454,51 @@ router.put(
   async (req, res) => {
     try {
       const { wordId, translationId, categoryId, meaning } = req.body;
-      const updateData = { wordId, translationId, categoryId };
+      const updateData = {};
+      if (wordId) updateData.wordId = wordId;
+      if (translationId) updateData.translationId = translationId;
+      if (categoryId) updateData.categoryId = categoryId;
       if (meaning !== undefined) updateData.meaning = meaning;
-      const card = await Card.findOneAndUpdate(
-        { _id: req.params.id },
-        updateData,
-        {
-          new: true,
-          runValidators: true,
-        }
-      );
+      const card = await Card.findById(req.params.id);
       if (!card) return res.status(404).json({ error: "Card not found" });
+      const oldCategoryId = card.categoryId;
+      const oldTranslation = await Word.findById(card.translationId);
+      Object.assign(card, updateData);
+      await card.save();
+      if (categoryId && !oldCategoryId.equals(categoryId)) {
+        const translation = translationId
+          ? await Word.findById(translationId)
+          : oldTranslation;
+        const users = await User.find({
+          learningLanguagesIds: translation.languageId,
+        });
+        for (const user of users) {
+          await UserProgress.findOneAndUpdate(
+            {
+              userId: user._id,
+              languageId: translation.languageId,
+              categoryId: oldCategoryId,
+            },
+            {
+              $inc: { totalCards: -1 },
+            }
+          );
+          await UserProgress.findOneAndUpdate(
+            {
+              userId: user._id,
+              languageId: translation.languageId,
+              categoryId,
+            },
+            {
+              $inc: { totalCards: 1 },
+              $setOnInsert: { score: 0, maxScore: 0, unlocked: false },
+            },
+            {
+              $upsert: true,
+            }
+          );
+        }
+      }
       await card.populate([
         { path: "wordId", select: "text" },
         { path: "translationId", select: "text" },
@@ -403,8 +523,25 @@ router.delete(
   validate,
   async (req, res) => {
     try {
-      const card = await Card.findOneAndDelete({ _id: req.params.id });
+      const card = await Card.findById(req.params.id);
       if (!card) return res.status(404).json({ error: "Card not found" });
+      const translation = await Word.findById(card.translationId);
+      const users = await User.find({
+        learningLanguagesIds: translation.languageId,
+      });
+      for (const user of users) {
+        await UserProgress.findOneAndUpdate(
+          {
+            userId: user._id,
+            languageId: translation.languageId,
+            categoryId: card.categoryId,
+          },
+          {
+            $inc: { totalCards: -1 },
+          }
+        );
+      }
+      await card.deleteOne();
       res.json({ message: "Card deleted" });
     } catch (error) {
       console.error("Error deleting card:", error);

@@ -20,7 +20,6 @@ router.get(
       .isMongoId()
       .withMessage("Invalid language ID")
       .custom(async (value, { req }) => {
-        if (!value) return true;
         const language = await Language.findById(value);
         if (!language) throw new Error("Language not found");
         if (req.userRole !== "admin") {

@@ -1,600 +1,339 @@
 const mongoose = require("mongoose");
+const bcrypt = require("bcrypt");
 require("dotenv").config({
   path: require("path").resolve(__dirname, "../.env"),
 });
-const bcrypt = require("bcrypt");
-const User = require("../models/User");
-const Word = require("../models/Word");
-const Card = require("../models/Card");
-const Language = require("../models/Language");
-const Category = require("../models/Category");
 
 mongoose
   .connect(process.env.MONGODB_URI)
   .then(() => console.log("Connected to MongoDB"))
   .catch((err) => console.error("MongoDB connection error:", err));
 
-const initData = async () => {
+const User = require("../models/User");
+const Language = require("../models/Language");
+const Category = require("../models/Category");
+const Word = require("../models/Word");
+const Card = require("../models/Card");
+const UserProgress = require("../models/UserProgress");
+
+async function initDB() {
   try {
-    // Clear existing collections
+    // Clear existing data
     await Promise.all([
       User.deleteMany({}),
-      Word.deleteMany({}),
-      Card.deleteMany({}),
       Language.deleteMany({}),
       Category.deleteMany({}),
+      Word.deleteMany({}),
+      Card.deleteMany({}),
+      UserProgress.deleteMany({}),
     ]);
-    console.log("Collections cleared");
 
-    // Create languages
+    // Create Languages
     const languages = [
       { code: "uk", name: "Ukrainian" },
       { code: "en", name: "English" },
+      { code: "es", name: "Spanish" },
       { code: "fr", name: "French" },
       { code: "de", name: "German" },
-      { code: "es", name: "Spanish" },
     ];
-    const languageDocs = await Language.insertMany(languages);
-    const languageMap = languageDocs.reduce((map, lang) => {
-      map[lang.code] = lang._id;
-      return map;
-    }, {});
-    console.log("Languages created:", languageDocs.length);
+    const createdLanguages = await Language.insertMany(languages);
+    const ukrainianLang = createdLanguages.find((lang) => lang.code === "uk");
+    const otherLangIds = createdLanguages
+      .filter((lang) => lang.code !== "uk")
+      .map((lang) => lang._id);
 
-    // Create categories
-    const categories = [
-      {
-        name: "Greetings",
-        description: "Words for greetings and introductions",
-      },
-      { name: "Food", description: "Vocabulary related to food and dining" },
-      { name: "Travel", description: "Words for travel and transportation" },
-      {
-        name: "Family",
-        description: "Terms related to family and relationships",
-      },
-      { name: "Numbers", description: "Numbers and counting vocabulary" },
-      { name: "Colors", description: "Words for colors and descriptions" },
-      {
-        name: "Daily Activities",
-        description: "Phrases for everyday activities",
-      },
-      { name: "Animals", description: "Vocabulary related to animals" },
-      { name: "Weather", description: "Terms for weather and climate" },
-      { name: "Clothing", description: "Words for clothing and fashion" },
-      { name: "Hobbies", description: "Vocabulary for hobbies and leisure" },
-      { name: "Jobs", description: "Terms related to professions and work" },
-      { name: "Health", description: "Words for health and medical terms" },
-      { name: "Nature", description: "Vocabulary for natural phenomena" },
-      {
-        name: "Technology",
-        description: "Terms related to technology and devices",
-      },
-    ];
-    const categoryDocs = await Category.insertMany(categories);
-    const categoryMap = categoryDocs.reduce((map, cat, index) => {
-      map[categories[index].name.toLowerCase()] = cat._id;
-      return map;
-    }, {});
-    console.log("Categories created:", categoryDocs.length);
-
-    // Create words (100 words, 20 per language)
-    const words = [
-      { text: "привіт", languageId: languageMap.uk },
-      { text: "дякую", languageId: languageMap.uk },
-      { text: "хліб", languageId: languageMap.uk },
-      { text: "яблуко", languageId: languageMap.uk },
-      { text: "подорож", languageId: languageMap.uk },
-      { text: "літак", languageId: languageMap.uk },
-      { text: "мама", languageId: languageMap.uk },
-      { text: "брат", languageId: languageMap.uk },
-      { text: "один", languageId: languageMap.uk },
-      { text: "червоний", languageId: languageMap.uk },
-      { text: "спати", languageId: languageMap.uk },
-      { text: "їсти", languageId: languageMap.uk },
-      { text: "кіт", languageId: languageMap.uk },
-      { text: "собака", languageId: languageMap.uk },
-      { text: "сонце", languageId: languageMap.uk },
-      { text: "дощ", languageId: languageMap.uk },
-      { text: "сорочка", languageId: languageMap.uk },
-      { text: "штани", languageId: languageMap.uk },
-      { text: "читання", languageId: languageMap.uk },
-      { text: "лікар", languageId: languageMap.uk },
-      { text: "hello", languageId: languageMap.en },
-      { text: "thank you", languageId: languageMap.en },
-      { text: "bread", languageId: languageMap.en },
-      { text: "apple", languageId: languageMap.en },
-      { text: "travel", languageId: languageMap.en },
-      { text: "airplane", languageId: languageMap.en },
-      { text: "mother", languageId: languageMap.en },
-      { text: "brother", languageId: languageMap.en },
-      { text: "one", languageId: languageMap.en },
-      { text: "red", languageId: languageMap.en },
-      { text: "sleep", languageId: languageMap.en },
-      { text: "eat", languageId: languageMap.en },
-      { text: "cat", languageId: languageMap.en },
-      { text: "dog", languageId: languageMap.en },
-      { text: "sun", languageId: languageMap.en },
-      { text: "rain", languageId: languageMap.en },
-      { text: "shirt", languageId: languageMap.en },
-      { text: "pants", languageId: languageMap.en },
-      { text: "reading", languageId: languageMap.en },
-      { text: "doctor", languageId: languageMap.en },
-      { text: "bonjour", languageId: languageMap.fr },
-      { text: "merci", languageId: languageMap.fr },
-      { text: "pain", languageId: languageMap.fr },
-      { text: "pomme", languageId: languageMap.fr },
-      { text: "voyage", languageId: languageMap.fr },
-      { text: "avion", languageId: languageMap.fr },
-      { text: "mère", languageId: languageMap.fr },
-      { text: "frère", languageId: languageMap.fr },
-      { text: "un", languageId: languageMap.fr },
-      { text: "rouge", languageId: languageMap.fr },
-      { text: "dormir", languageId: languageMap.fr },
-      { text: "manger", languageId: languageMap.fr },
-      { text: "chat", languageId: languageMap.fr },
-      { text: "chien", languageId: languageMap.fr },
-      { text: "soleil", languageId: languageMap.fr },
-      { text: "pluie", languageId: languageMap.fr },
-      { text: "chemise", languageId: languageMap.fr },
-      { text: "pantalon", languageId: languageMap.fr },
-      { text: "lecture", languageId: languageMap.fr },
-      { text: "médecin", languageId: languageMap.fr },
-      { text: "hallo", languageId: languageMap.de },
-      { text: "danke", languageId: languageMap.de },
-      { text: "Brot", languageId: languageMap.de },
-      { text: "Apfel", languageId: languageMap.de },
-      { text: "Reise", languageId: languageMap.de },
-      { text: "Flugzeug", languageId: languageMap.de },
-      { text: "Mutter", languageId: languageMap.de },
-      { text: "Bruder", languageId: languageMap.de },
-      { text: "eins", languageId: languageMap.de },
-      { text: "rot", languageId: languageMap.de },
-      { text: "schlafen", languageId: languageMap.de },
-      { text: "essen", languageId: languageMap.de },
-      { text: "Katze", languageId: languageMap.de },
-      { text: "Hund", languageId: languageMap.de },
-      { text: "Sonne", languageId: languageMap.de },
-      { text: "Regen", languageId: languageMap.de },
-      { text: "Hemd", languageId: languageMap.de },
-      { text: "Hose", languageId: languageMap.de },
-      { text: "Lesen", languageId: languageMap.de },
-      { text: "Arzt", languageId: languageMap.de },
-      { text: "hola", languageId: languageMap.es },
-      { text: "gracias", languageId: languageMap.es },
-      { text: "pan", languageId: languageMap.es },
-      { text: "manzana", languageId: languageMap.es },
-      { text: "viaje", languageId: languageMap.es },
-      { text: "avión", languageId: languageMap.es },
-      { text: "madre", languageId: languageMap.es },
-      { text: "hermano", languageId: languageMap.es },
-      { text: "uno", languageId: languageMap.es },
-      { text: "rojo", languageId: languageMap.es },
-      { text: "dormir", languageId: languageMap.es },
-      { text: "comer", languageId: languageMap.es },
-      { text: "gato", languageId: languageMap.es },
-      { text: "perro", languageId: languageMap.es },
-      { text: "sol", languageId: languageMap.es },
-      { text: "lluvia", languageId: languageMap.es },
-      { text: "camisa", languageId: languageMap.es },
-      { text: "pantalones", languageId: languageMap.es },
-      { text: "lectura", languageId: languageMap.es },
-      { text: "médico", languageId: languageMap.es },
-    ];
-    const wordDocs = await Word.insertMany(words);
-    const wordMap = wordDocs.reduce((map, word) => {
-      map[`${word.text}_${word.languageId}`] = word._id;
-      return map;
-    }, {});
-    console.log("Words created:", wordDocs.length);
-
-    // Create cards (60 cards, Ukrainian as base language, translations to en/fr/de/es)
-    const cards = [
-      {
-        wordId: wordMap["привіт_" + languageMap.uk],
-        translationId: wordMap["hello_" + languageMap.en],
-        categoryId: categoryMap.greetings,
-        meaning: "вітання",
-      },
-      {
-        wordId: wordMap["дякую_" + languageMap.uk],
-        translationId: wordMap["thank you_" + languageMap.en],
-        categoryId: categoryMap.greetings,
-        meaning: "вираження вдячності",
-      },
-      {
-        wordId: wordMap["хліб_" + languageMap.uk],
-        translationId: wordMap["bread_" + languageMap.en],
-        categoryId: categoryMap.food,
-        meaning: "їжа з борошна",
-      },
-      {
-        wordId: wordMap["яблуко_" + languageMap.uk],
-        translationId: wordMap["apple_" + languageMap.en],
-        categoryId: categoryMap.food,
-        meaning: "фрукт",
-      },
-      {
-        wordId: wordMap["подорож_" + languageMap.uk],
-        translationId: wordMap["travel_" + languageMap.en],
-        categoryId: categoryMap.travel,
-        meaning: "переміщення між місцями",
-      },
-      {
-        wordId: wordMap["літак_" + languageMap.uk],
-        translationId: wordMap["airplane_" + languageMap.en],
-        categoryId: categoryMap.travel,
-        meaning: "транспорт у повітрі",
-      },
-      {
-        wordId: wordMap["мама_" + languageMap.uk],
-        translationId: wordMap["mother_" + languageMap.en],
-        categoryId: categoryMap.family,
-        meaning: "мати",
-      },
-      {
-        wordId: wordMap["брат_" + languageMap.uk],
-        translationId: wordMap["brother_" + languageMap.en],
-        categoryId: categoryMap.family,
-        meaning: "чоловічий родич",
-      },
-      {
-        wordId: wordMap["один_" + languageMap.uk],
-        translationId: wordMap["one_" + languageMap.en],
-        categoryId: categoryMap.numbers,
-        meaning: "перше число",
-      },
-      {
-        wordId: wordMap["червоний_" + languageMap.uk],
-        translationId: wordMap["red_" + languageMap.en],
-        categoryId: categoryMap.colors,
-        meaning: "колір",
-      },
-      {
-        wordId: wordMap["спати_" + languageMap.uk],
-        translationId: wordMap["sleep_" + languageMap.en],
-        categoryId: categoryMap["daily activities"],
-        meaning: "відпочинок уві сні",
-      },
-      {
-        wordId: wordMap["їсти_" + languageMap.uk],
-        translationId: wordMap["eat_" + languageMap.en],
-        categoryId: categoryMap["daily activities"],
-        meaning: "споживання їжі",
-      },
-      {
-        wordId: wordMap["кіт_" + languageMap.uk],
-        translationId: wordMap["cat_" + languageMap.en],
-        categoryId: categoryMap.animals,
-        meaning: "домашня тварина",
-      },
-      {
-        wordId: wordMap["собака_" + languageMap.uk],
-        translationId: wordMap["dog_" + languageMap.en],
-        categoryId: categoryMap.animals,
-        meaning: "домашня тварина",
-      },
-      {
-        wordId: wordMap["сонце_" + languageMap.uk],
-        translationId: wordMap["sun_" + languageMap.en],
-        categoryId: categoryMap.weather,
-        meaning: "небесне тіло",
-      },
-      {
-        wordId: wordMap["привіт_" + languageMap.uk],
-        translationId: wordMap["bonjour_" + languageMap.fr],
-        categoryId: categoryMap.greetings,
-        meaning: "вітання",
-      },
-      {
-        wordId: wordMap["дякую_" + languageMap.uk],
-        translationId: wordMap["merci_" + languageMap.fr],
-        categoryId: categoryMap.greetings,
-        meaning: "вираження вдячності",
-      },
-      {
-        wordId: wordMap["хліб_" + languageMap.uk],
-        translationId: wordMap["pain_" + languageMap.fr],
-        categoryId: categoryMap.food,
-        meaning: "їжа з борошна",
-      },
-      {
-        wordId: wordMap["яблуко_" + languageMap.uk],
-        translationId: wordMap["pomme_" + languageMap.fr],
-        categoryId: categoryMap.food,
-        meaning: "фрукт",
-      },
-      {
-        wordId: wordMap["подорож_" + languageMap.uk],
-        translationId: wordMap["voyage_" + languageMap.fr],
-        categoryId: categoryMap.travel,
-        meaning: "переміщення між місцями",
-      },
-      {
-        wordId: wordMap["літак_" + languageMap.uk],
-        translationId: wordMap["avion_" + languageMap.fr],
-        categoryId: categoryMap.travel,
-        meaning: "транспорт у повітрі",
-      },
-      {
-        wordId: wordMap["мама_" + languageMap.uk],
-        translationId: wordMap["mère_" + languageMap.fr],
-        categoryId: categoryMap.family,
-        meaning: "мати",
-      },
-      {
-        wordId: wordMap["брат_" + languageMap.uk],
-        translationId: wordMap["frère_" + languageMap.fr],
-        categoryId: categoryMap.family,
-        meaning: "чоловічий родич",
-      },
-      {
-        wordId: wordMap["один_" + languageMap.uk],
-        translationId: wordMap["un_" + languageMap.fr],
-        categoryId: categoryMap.numbers,
-        meaning: "перше число",
-      },
-      {
-        wordId: wordMap["червоний_" + languageMap.uk],
-        translationId: wordMap["rouge_" + languageMap.fr],
-        categoryId: categoryMap.colors,
-        meaning: "колір",
-      },
-      {
-        wordId: wordMap["спати_" + languageMap.uk],
-        translationId: wordMap["dormir_" + languageMap.fr],
-        categoryId: categoryMap["daily activities"],
-        meaning: "відпочинок уві сні",
-      },
-      {
-        wordId: wordMap["їсти_" + languageMap.uk],
-        translationId: wordMap["manger_" + languageMap.fr],
-        categoryId: categoryMap["daily activities"],
-        meaning: "споживання їжі",
-      },
-      {
-        wordId: wordMap["кіт_" + languageMap.uk],
-        translationId: wordMap["chat_" + languageMap.fr],
-        categoryId: categoryMap.animals,
-        meaning: "домашня тварина",
-      },
-      {
-        wordId: wordMap["собака_" + languageMap.uk],
-        translationId: wordMap["chien_" + languageMap.fr],
-        categoryId: categoryMap.animals,
-        meaning: "домашня тварина",
-      },
-      {
-        wordId: wordMap["сонце_" + languageMap.uk],
-        translationId: wordMap["soleil_" + languageMap.fr],
-        categoryId: categoryMap.weather,
-        meaning: "небесне тіло",
-      },
-      {
-        wordId: wordMap["привіт_" + languageMap.uk],
-        translationId: wordMap["hallo_" + languageMap.de],
-        categoryId: categoryMap.greetings,
-        meaning: "вітання",
-      },
-      {
-        wordId: wordMap["дякую_" + languageMap.uk],
-        translationId: wordMap["danke_" + languageMap.de],
-        categoryId: categoryMap.greetings,
-        meaning: "вираження вдячності",
-      },
-      {
-        wordId: wordMap["хліб_" + languageMap.uk],
-        translationId: wordMap["Brot_" + languageMap.de],
-        categoryId: categoryMap.food,
-        meaning: "їжа з борошна",
-      },
-      {
-        wordId: wordMap["яблуко_" + languageMap.uk],
-        translationId: wordMap["Apfel_" + languageMap.de],
-        categoryId: categoryMap.food,
-        meaning: "фрукт",
-      },
-      {
-        wordId: wordMap["подорож_" + languageMap.uk],
-        translationId: wordMap["Reise_" + languageMap.de],
-        categoryId: categoryMap.travel,
-        meaning: "переміщення між місцями",
-      },
-      {
-        wordId: wordMap["літак_" + languageMap.uk],
-        translationId: wordMap["Flugzeug_" + languageMap.de],
-        categoryId: categoryMap.travel,
-        meaning: "транспорт у повітрі",
-      },
-      {
-        wordId: wordMap["мама_" + languageMap.uk],
-        translationId: wordMap["Mutter_" + languageMap.de],
-        categoryId: categoryMap.family,
-        meaning: "мати",
-      },
-      {
-        wordId: wordMap["брат_" + languageMap.uk],
-        translationId: wordMap["Bruder_" + languageMap.de],
-        categoryId: categoryMap.family,
-        meaning: "чоловічий родич",
-      },
-      {
-        wordId: wordMap["один_" + languageMap.uk],
-        translationId: wordMap["eins_" + languageMap.de],
-        categoryId: categoryMap.numbers,
-        meaning: "перше число",
-      },
-      {
-        wordId: wordMap["червоний_" + languageMap.uk],
-        translationId: wordMap["rot_" + languageMap.de],
-        categoryId: categoryMap.colors,
-        meaning: "колір",
-      },
-      {
-        wordId: wordMap["спати_" + languageMap.uk],
-        translationId: wordMap["schlafen_" + languageMap.de],
-        categoryId: categoryMap["daily activities"],
-        meaning: "відпочинок уві сні",
-      },
-      {
-        wordId: wordMap["їсти_" + languageMap.uk],
-        translationId: wordMap["essen_" + languageMap.de],
-        categoryId: categoryMap["daily activities"],
-        meaning: "споживання їжі",
-      },
-      {
-        wordId: wordMap["кіт_" + languageMap.uk],
-        translationId: wordMap["Katze_" + languageMap.de],
-        categoryId: categoryMap.animals,
-        meaning: "домашня тварина",
-      },
-      {
-        wordId: wordMap["собака_" + languageMap.uk],
-        translationId: wordMap["Hund_" + languageMap.de],
-        categoryId: categoryMap.animals,
-        meaning: "домашня тварина",
-      },
-      {
-        wordId: wordMap["сонце_" + languageMap.uk],
-        translationId: wordMap["Sonne_" + languageMap.de],
-        categoryId: categoryMap.weather,
-        meaning: "небесне тіло",
-      },
-      {
-        wordId: wordMap["привіт_" + languageMap.uk],
-        translationId: wordMap["hola_" + languageMap.es],
-        categoryId: categoryMap.greetings,
-        meaning: "вітання",
-      },
-      {
-        wordId: wordMap["дякую_" + languageMap.uk],
-        translationId: wordMap["gracias_" + languageMap.es],
-        categoryId: categoryMap.greetings,
-        meaning: "вираження вдячності",
-      },
-      {
-        wordId: wordMap["хліб_" + languageMap.uk],
-        translationId: wordMap["pan_" + languageMap.es],
-        categoryId: categoryMap.food,
-        meaning: "їжа з борошна",
-      },
-      {
-        wordId: wordMap["яблуко_" + languageMap.uk],
-        translationId: wordMap["manzana_" + languageMap.es],
-        categoryId: categoryMap.food,
-        meaning: "фрукт",
-      },
-      {
-        wordId: wordMap["подорож_" + languageMap.uk],
-        translationId: wordMap["viaje_" + languageMap.es],
-        categoryId: categoryMap.travel,
-        meaning: "переміщення між місцями",
-      },
-      {
-        wordId: wordMap["літак_" + languageMap.uk],
-        translationId: wordMap["avión_" + languageMap.es],
-        categoryId: categoryMap.travel,
-        meaning: "транспорт у повітрі",
-      },
-      {
-        wordId: wordMap["мама_" + languageMap.uk],
-        translationId: wordMap["madre_" + languageMap.es],
-        categoryId: categoryMap.family,
-        meaning: "мати",
-      },
-      {
-        wordId: wordMap["брат_" + languageMap.uk],
-        translationId: wordMap["hermano_" + languageMap.es],
-        categoryId: categoryMap.family,
-        meaning: "чоловічий родич",
-      },
-      {
-        wordId: wordMap["один_" + languageMap.uk],
-        translationId: wordMap["uno_" + languageMap.es],
-        categoryId: categoryMap.numbers,
-        meaning: "перше число",
-      },
-      {
-        wordId: wordMap["червоний_" + languageMap.uk],
-        translationId: wordMap["rojo_" + languageMap.es],
-        categoryId: categoryMap.colors,
-        meaning: "колір",
-      },
-      {
-        wordId: wordMap["спати_" + languageMap.uk],
-        translationId: wordMap["dormir_" + languageMap.es],
-        categoryId: categoryMap["daily activities"],
-        meaning: "відпочинок уві сні",
-      },
-      {
-        wordId: wordMap["їсти_" + languageMap.uk],
-        translationId: wordMap["comer_" + languageMap.es],
-        categoryId: categoryMap["daily activities"],
-        meaning: "споживання їжі",
-      },
-      {
-        wordId: wordMap["кіт_" + languageMap.uk],
-        translationId: wordMap["gato_" + languageMap.es],
-        categoryId: categoryMap.animals,
-        meaning: "домашня тварина",
-      },
-      {
-        wordId: wordMap["собака_" + languageMap.uk],
-        translationId: wordMap["perro_" + languageMap.es],
-        categoryId: categoryMap.animals,
-        meaning: "домашня тварина",
-      },
-      {
-        wordId: wordMap["сонце_" + languageMap.uk],
-        translationId: wordMap["sol_" + languageMap.es],
-        categoryId: categoryMap.weather,
-        meaning: "небесне тіло",
-      },
-    ];
-    const cardDocs = await Card.insertMany(cards);
-    console.log("Cards created:", cardDocs.length);
-
-    // Create users
-    const hashedPassword = await bcrypt.hash("password123", 10);
+    // Create Users with hashed passwords
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash("password123", saltRounds);
     const users = [
       {
-        email: "admin@example.com",
-        username: "admin_user",
-        password: hashedPassword,
-        role: "admin",
-        nativeLanguageId: languageMap.uk,
-        learningLanguagesIds: [
-          languageMap.en,
-          languageMap.fr,
-          languageMap.de,
-          languageMap.es,
-        ],
-        isVerified: true,
-      },
-      {
-        email: "test@example.com",
+        email: "user@example.com",
         username: "test_user",
         password: hashedPassword,
         role: "user",
-        nativeLanguageId: languageMap.uk,
-        learningLanguagesIds: [
-          languageMap.en,
-          languageMap.fr,
-          languageMap.de,
-          languageMap.es,
-        ],
         isVerified: true,
+        nativeLanguageId: ukrainianLang._id,
+        learningLanguagesIds: otherLangIds,
+      },
+      {
+        email: "admin@example.com",
+        username: "test_admin",
+        password: hashedPassword,
+        role: "admin",
+        isVerified: true,
+        nativeLanguageId: ukrainianLang._id,
+        learningLanguagesIds: otherLangIds,
       },
     ];
-    const userDocs = await User.insertMany(users);
-    console.log("Users created:", userDocs.length);
+    const createdUsers = await User.insertMany(users);
 
-    console.log("Initialization completed successfully");
-    process.exit(0);
+    // Create Categories (10 general categories, shared across all languages)
+    const categories = [
+      { name: "Vocabulary", order: 1, description: "Basic everyday words" },
+      {
+        name: "Food",
+        order: 2,
+        description: "Words related to food and cooking",
+      },
+      {
+        name: "Travel",
+        order: 3,
+        description: "Travel and tourism vocabulary",
+      },
+      { name: "Family", order: 4, description: "Family and relationships" },
+      {
+        name: "Nature",
+        order: 5,
+        description: "Words about nature and environment",
+      },
+      {
+        name: "Work",
+        order: 6,
+        description: "Work and profession-related words",
+      },
+      { name: "Clothing", order: 7, description: "Clothing and fashion terms" },
+      {
+        name: "Weather",
+        order: 8,
+        description: "Weather and climate vocabulary",
+      },
+      { name: "Emotions", order: 9, description: "Words describing feelings" },
+      { name: "Technology", order: 10, description: "Tech-related vocabulary" },
+    ];
+    const createdCategories = await Category.insertMany(categories);
+
+    // Create Words (125 words, ~25 per language)
+    const words = [];
+    const wordSets = {
+      uk: [
+        "дім",
+        "книга",
+        "дерево",
+        "сонце",
+        "місяць",
+        "вода",
+        "небо",
+        "вітер",
+        "квітка",
+        "птах",
+        "друг",
+        "любов",
+        "час",
+        "шлях",
+        "світ",
+        "рука",
+        "око",
+        "серце",
+        "голова",
+        "ніч",
+        "день",
+        "життя",
+        "мрія",
+        "земля",
+        "зірка",
+      ],
+      en: [
+        "house",
+        "book",
+        "tree",
+        "sun",
+        "moon",
+        "water",
+        "sky",
+        "wind",
+        "flower",
+        "bird",
+        "friend",
+        "love",
+        "time",
+        "path",
+        "world",
+        "hand",
+        "eye",
+        "heart",
+        "head",
+        "night",
+        "day",
+        "life",
+        "dream",
+        "earth",
+        "star",
+      ],
+      es: [
+        "casa",
+        "libro",
+        "árbol",
+        "sol",
+        "luna",
+        "agua",
+        "cielo",
+        "viento",
+        "flor",
+        "pájaro",
+        "amigo",
+        "amor",
+        "tiempo",
+        "camino",
+        "mundo",
+        "mano",
+        "ojo",
+        "corazón",
+        "cabeza",
+        "noche",
+        "día",
+        "vida",
+        "sueño",
+        "tierra",
+        "estrella",
+      ],
+      fr: [
+        "maison",
+        "livre",
+        "arbre",
+        "soleil",
+        "lune",
+        "eau",
+        "ciel",
+        "vent",
+        "fleur",
+        "oiseau",
+        "ami",
+        "amour",
+        "temps",
+        "chemin",
+        "monde",
+        "main",
+        "œil",
+        "cœur",
+        "tête",
+        "nuit",
+        "jour",
+        "vie",
+        "rêve",
+        "terre",
+        "étoile",
+      ],
+      de: [
+        "Haus",
+        "Buch",
+        "Baum",
+        "Sonne",
+        "Mond",
+        "Wasser",
+        "Himmel",
+        "Wind",
+        "Blume",
+        "Vogel",
+        "Freund",
+        "Liebe",
+        "Zeit",
+        "Weg",
+        "Welt",
+        "Hand",
+        "Auge",
+        "Herz",
+        "Kopf",
+        "Nacht",
+        "Tag",
+        "Leben",
+        "Traum",
+        "Erde",
+        "Stern",
+      ],
+    };
+
+    for (const lang of createdLanguages) {
+      const langWords = wordSets[lang.code].map((text) => ({
+        text,
+        languageId: lang._id,
+      }));
+      words.push(...langWords);
+    }
+    const createdWords = await Word.insertMany(words);
+
+    // Create Cards (100 cards, Ukrainian to each learning language)
+    const cards = [];
+    const meanings = [
+      "A place where people live",
+      "A collection of written pages",
+      "A tall plant with branches",
+      "The star that provides light and heat",
+      "Earth's natural satellite",
+      "A clear liquid essential for life",
+      "The atmosphere above the earth",
+      "Moving air",
+      "A colorful plant part",
+      "A feathered animal",
+      "A close companion",
+      "Deep affection",
+      "A measure of duration",
+      "A route or track",
+      "The planet we live on",
+      "The part of the body used for grasping",
+      "The organ of sight",
+      "The organ of emotion",
+      "The part containing the brain",
+      "The time after sunset",
+      "The time when the sun is up",
+      "The state of being alive",
+      "A vision during sleep",
+      "The ground we walk on",
+      "A celestial body",
+    ];
+
+    const ukWords = createdWords.filter(
+      (w) => w.languageId.toString() === ukrainianLang._id.toString()
+    );
+    let cardCount = 0;
+    for (const lang of createdLanguages.filter((l) => l.code !== "uk")) {
+      const targetWords = createdWords.filter(
+        (w) => w.languageId.toString() === lang._id.toString()
+      );
+      for (let i = 0; i < 25 && cardCount < 100; i++) {
+        const category = createdCategories[i % createdCategories.length]; // Distribute across all categories
+        cards.push({
+          wordId: ukWords[i]._id,
+          translationId: targetWords[i]._id,
+          categoryId: category._id,
+          meaning: meanings[i % meanings.length],
+        });
+        cardCount++;
+      }
+    }
+    await Card.insertMany(cards);
+
+    // Create UserProgress
+    const userProgress = [];
+    for (const user of createdUsers) {
+      for (const lang of createdLanguages.filter((l) => l.code !== "uk")) {
+        for (const category of createdCategories) {
+          const totalCards = await Card.countDocuments({
+            categoryId: category._id,
+            translationId: {
+              $in: createdWords
+                .filter((w) => w.languageId.toString() === lang._id.toString())
+                .map((w) => w._id),
+            },
+          });
+          userProgress.push({
+            userId: user._id,
+            languageId: lang._id,
+            categoryId: category._id,
+            totalCards,
+            unlocked: category.order === 1,
+          });
+        }
+      }
+    }
+    await UserProgress.insertMany(userProgress);
+
+    console.log("Database initialized successfully");
   } catch (error) {
-    console.error("Initialization error:", error);
-    process.exit(1);
+    console.error("Error initializing database:", error);
+  } finally {
+    await mongoose.connection.close();
+    console.log("MongoDB connection closed");
   }
-};
+}
 
-initData();
+initDB();
