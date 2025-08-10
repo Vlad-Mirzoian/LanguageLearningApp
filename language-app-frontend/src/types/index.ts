@@ -17,6 +17,8 @@ export interface Category {
   _id: string;
   name: string;
   description: string;
+  order: number;
+  requiredScore: number;
 }
 
 export interface Word {
@@ -38,25 +40,16 @@ export interface Card {
   lastReviewed: string;
 }
 
-export interface LanguageStat {
-  nativeLanguageId: { id: string; name: string };
-  learningLanguagesIds: { id: string; name: string };
-  total: number;
-  learned: number;
-}
-
-export interface CategoryStat {
-  category: { id: string; name: string };
-  total: number;
-  learned: number;
-}
-
-export interface ProgressData {
+export interface UserProgress {
+  _id: string;
+  userId: string;
+  languageId: string;
+  categoryId: string;
   totalCards: number;
-  reviewedToday: number;
-  learnedCards: number;
-  languagesStats: LanguageStat[];
-  categoriesStats: CategoryStat[];
+  score: number;
+  maxScore: number;
+  unlocked: boolean;
+  attemptId: string | null;
 }
 
 export interface AuthResponse {

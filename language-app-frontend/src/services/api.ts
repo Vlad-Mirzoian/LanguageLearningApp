@@ -1,5 +1,14 @@
 import axios from "axios";
-import type { AuthResponse, Card, Category, Language, Word } from "../types";
+import type {
+  AuthResponse,
+  Card,
+  Category,
+  Language,
+  ProgressResponse,
+  UserProgress,
+  Word,
+} from "../types";
+import { useAuthStore } from "../store/authStore";
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
@@ -9,7 +18,7 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
+  const token = useAuthStore.getState().token;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -23,9 +32,7 @@ api.interceptors.response.use(
       error.response?.status === 401 &&
       window.location.pathname !== "/login"
     ) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      window.location.href = "/login";
+      useAuthStore.getState().clearAuth();
     }
     return Promise.reject(error);
   }
@@ -47,8 +54,8 @@ export const login = async (data: {
   password: string;
 }): Promise<AuthResponse> => {
   const response = await api.post<AuthResponse>("/auth/login", data);
-  localStorage.setItem("token", response.data.token);
-  localStorage.setItem("user", JSON.stringify(response.data.user));
+  const { setAuth } = useAuthStore.getState();
+  setAuth(response.data.user, response.data.token);
   return response.data;
 };
 
@@ -67,7 +74,8 @@ export const updateUser = async (
   }>
 ): Promise<AuthResponse> => {
   const response = await api.put<AuthResponse>("/auth/user", data);
-  localStorage.setItem("user", JSON.stringify(response.data.user));
+  const { setAuth, token } = useAuthStore.getState();
+  setAuth(response.data.user, token);
   return response.data;
 };
 
@@ -83,7 +91,8 @@ export const uploadAvatar = async (file: File): Promise<AuthResponse> => {
       },
     }
   );
-  localStorage.setItem("user", JSON.stringify(response.data.user));
+  const { token, setAuth } = useAuthStore.getState();
+  setAuth(response.data.user, token);
   return response.data;
 };
 
@@ -136,6 +145,8 @@ export const getCategories = async (): Promise<Category[]> => {
 export const createCategory = async (data: {
   name: string;
   description?: string;
+  order: number;
+  requiredScore: number;
 }): Promise<Category> => {
   const response = await api.post("/categories", data);
   return response.data;
@@ -143,7 +154,12 @@ export const createCategory = async (data: {
 
 export const updateCategory = async (
   categoryId: string,
-  data: { name: string; description?: string }
+  data: {
+    name: string;
+    description?: string;
+    order: number;
+    requiredScore: number;
+  }
 ): Promise<Category> => {
   const response = await api.put(`/categories/${categoryId}`, data);
   return response.data;
@@ -156,9 +172,18 @@ export const deleteCategory = async (
   return response.data;
 };
 
-export const getWords = async (filters?: {
-  languageId?: string;
-}): Promise<Word[]> => {
+export const updateCategoryOrders = async (
+  orders: { id: string; order: number }[]
+): Promise<{ message: string }> => {
+  const response = await api.put("/categories/order", { orders });
+  return response.data;
+};
+
+export const getWords = async (
+  filters: {
+    languageId?: string;
+  } = {}
+): Promise<Word[]> => {
   const response = await api.get("/words", { params: filters });
   return response.data;
 };
@@ -197,9 +222,11 @@ export const deleteWord = async (
   return response.data;
 };
 
-export const getCards = async (filters?: {
-  categoryId?: string;
-}): Promise<Card[]> => {
+export const getCards = async (
+  filters: {
+    categoryId?: string;
+  } = {}
+): Promise<Card[]> => {
   const response = await api.get("/cards", { params: filters });
   return response.data;
 };
@@ -235,23 +262,25 @@ export const deleteCard = async (
 };
 
 export const getReviewCards = async (filters: {
-  languageId?: string;
+  languageId: string;
   categoryId?: string;
-}): Promise<Card[]> => {
+}): Promise<{ cards: Card[]; attemptId: string | null }> => {
   const response = await api.get("/cards/review", { params: filters });
   return response.data;
 };
 
 export const reviewCard = async (
   cardId: string,
-  data: { languageId: string; quality: number }
-): Promise<Card> => {
+  data: { languageId: string; quality: number; attemptId?: string | null }
+): Promise<UserProgress> => {
   const response = await api.put(`/cards/${cardId}/review`, data);
-  return response.data;
+  return response.data.progress;
 };
 
-export const getProgress = async () => {
-  const response = await api.get("/progress");
+export const getUserProgress = async (
+  filters: { languageId?: string; categoryId?: string } = {}
+): Promise<UserProgress[]> => {
+  const response = await api.get("/user-progress", { params: filters });
   return response.data;
 };
 
