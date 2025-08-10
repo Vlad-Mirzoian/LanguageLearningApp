@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import FormInput from "../components/FormInput";
+import FormInput from "../components/ui/FormInput";
 import { resetPassword } from "../services/api";
 
 const ResetPasswordPage: React.FC = () => {

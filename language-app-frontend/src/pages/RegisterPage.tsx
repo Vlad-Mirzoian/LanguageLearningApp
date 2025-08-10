@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import FormInput from "../components/FormInput";
-import FormSelect from "../components/FormSelect";
+import FormInput from "../components/ui/FormInput";
+import FormSelect from "../components/ui/FormSelect";
 import { register } from "../services/api";
 import { useQuery } from "@tanstack/react-query";
 import api from "../services/api";

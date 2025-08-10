@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import FormInput from "../components/FormInput";
+import FormInput from "../components/ui/FormInput";
 import { forgotPassword } from "../services/api";
 
 const ForgotPasswordPage: React.FC = () => {

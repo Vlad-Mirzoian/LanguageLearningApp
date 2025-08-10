@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import FormInput from "../components/FormInput";
-import FormSelect from "../components/FormSelect";
+import FormInput from "../components/ui/FormInput";
+import FormSelect from "../components/ui/FormSelect";
 import { updateUser, uploadAvatar } from "../services/api";
 import { useQuery } from "@tanstack/react-query";
 import api from "../services/api";
@@ -20,7 +20,7 @@ interface FormData {
 const baseUrl = import.meta.env.VITE_BASE_URL || "";
 
 const ProfilePage: React.FC = () => {
-  const { user, setAuth } = useAuth();
+  const { user, setUser } = useAuth();
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState<FormData>({
@@ -74,14 +74,12 @@ const ProfilePage: React.FC = () => {
 
   const validateForm = useCallback(() => {
     const newErrors: Record<string, string> = {};
-
     (["email", "username", "password"] as const).forEach((field) => {
       const error = validateField(field, formData[field]);
       if (error) {
         newErrors[field] = error;
       }
     });
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }, [formData, validateField]);
@@ -122,9 +120,7 @@ const ProfilePage: React.FC = () => {
     e.preventDefault();
     setServerError("");
     setSuccessMessage("");
-
     if (!validateForm()) return;
-
     try {
       const updateData: Partial<FormData> = {};
       if (formData.email !== user?.email) updateData.email = formData.email;
@@ -140,7 +136,6 @@ const ProfilePage: React.FC = () => {
         updateData.learningLanguagesIds = formData.learningLanguagesIds.length
           ? formData.learningLanguagesIds
           : undefined;
-
       let avatarChanged = false;
       if (avatarFile) {
         if (avatarFile.size > 5 * 1024 * 1024) {
@@ -154,16 +149,14 @@ const ProfilePage: React.FC = () => {
         await uploadAvatar(avatarFile);
         avatarChanged = true;
       }
-
       if (Object.keys(updateData).length > 0) {
         const response = await updateUser(updateData);
-        setAuth(response.user, localStorage.getItem("token")!);
+        setUser(response.user);
       }
       if (!avatarChanged && Object.keys(updateData).length === 0) {
         setServerError("No changes to save");
         return;
       }
-
       setSuccessMessage("Profile updated successfully");
       setTimeout(() => {
         setSuccessMessage("");
@@ -217,12 +210,6 @@ const ProfilePage: React.FC = () => {
 
   const filteredLearningOptions = languageOptions.filter(
     (option) => option.value !== formData.nativeLanguageId
-  );
-
-  console.log("user.avatar =", user?.avatar);
-  console.log(
-    "avatarPreview =",
-    user?.avatar ? `${baseUrl}${user.avatar}` : null
   );
 
   return (
