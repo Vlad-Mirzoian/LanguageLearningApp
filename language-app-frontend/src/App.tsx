@@ -5,46 +5,43 @@ import VerifyEmailPage from "./pages/VerifyEmailPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import DashboardPage from "./pages/DashboardPage";
-import Navbar from "./components/Navbar";
-import ProtectedRoute from "./components/ProtectedRoute";
+import ProtectedRoute from "./components/routing/ProtectedRoute";
 import ReviewCardsPage from "./pages/ReviewCardsPage";
-import ProgressPage from "./pages/ProgressPage";
+// import ProgressPage from "./pages/ProgressPage";
 import ProfilePage from "./pages/ProfilePage";
 import AdminLanguagesPage from "./pages/AdminLanguagesPage";
 import AdminCategoriesPage from "./pages/AdminCategoriesPage";
 import AdminWordsPage from "./pages/AdminWordsPage";
 import AdminCardsPage from "./pages/AdminCardsPage";
+import Layout from "./components/layout/Layout";
 
 function App() {
   return (
-    <div className="flex flex-col min-h-screen">
-      <Navbar />
-      <div className="flex-grow">
-        <Routes>
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/verify/:token" element={<VerifyEmailPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route
-            path="/reset-password/:token"
-            element={<ResetPasswordPage />}
-          />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <DashboardPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/review"
-            element={
-              <ProtectedRoute>
-                <ReviewCardsPage />
-              </ProtectedRoute>
-            }
-          />
+    <Routes>
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/verify/:token" element={<VerifyEmailPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+      <Route path="/" element={<LoginPage />} />
+      <Route element={<Layout />}>
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/review"
+          element={
+            <ProtectedRoute>
+              <ReviewCardsPage />
+            </ProtectedRoute>
+          }
+        />
+        {/*
           <Route
             path="/progress"
             element={
@@ -53,50 +50,49 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute>
-                <ProfilePage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/languages"
-            element={
-              <ProtectedRoute>
-                <AdminLanguagesPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/categories"
-            element={
-              <ProtectedRoute>
-                <AdminCategoriesPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/words"
-            element={
-              <ProtectedRoute>
-                <AdminWordsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/cards"
-            element={
-              <ProtectedRoute>
-                <AdminCardsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route path="/" element={<LoginPage />} />
-        </Routes>
-      </div>
-    </div>
+        */}
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/languages"
+          element={
+            <ProtectedRoute>
+              <AdminLanguagesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/categories"
+          element={
+            <ProtectedRoute>
+              <AdminCategoriesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/words"
+          element={
+            <ProtectedRoute>
+              <AdminWordsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/cards"
+          element={
+            <ProtectedRoute>
+              <AdminCardsPage />
+            </ProtectedRoute>
+          }
+        />
+      </Route>
+    </Routes>
   );
 }
 

@@ -4,7 +4,9 @@ import {
   DisclosureButton,
   DisclosurePanel,
 } from "@headlessui/react";
-import { useAuth } from "../hooks/useAuth";
+import { useAuth } from "../../hooks/useAuth";
+import { XMarkIcon } from "@heroicons/react/24/solid";
+import { Bars3Icon } from "@heroicons/react/24/solid";
 
 const baseUrl = import.meta.env.VITE_BASE_URL || "";
 
@@ -24,7 +26,7 @@ const Navbar: React.FC = () => {
     ...(user?.role === "user"
       ? [
           { name: "Review", href: "/review", current: false },
-          { name: "Progress", href: "/progress", current: false },
+          // { name: "Progress", href: "/progress", current: false },
         ]
       : []),
     ...(user?.role === "admin"
@@ -40,7 +42,10 @@ const Navbar: React.FC = () => {
   const avatarUrl = getFullAvatarUrl(user?.avatar);
 
   return (
-    <Disclosure as="nav" className="bg-indigo-600">
+    <Disclosure
+      as="nav"
+      className="fixed top-0 left-0 right-0 z-50 bg-indigo-700 shadow-md"
+    >
       {({ open }) => (
         <>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -112,33 +117,9 @@ const Navbar: React.FC = () => {
               <div className="-mr-2 flex items-center sm:hidden">
                 <DisclosureButton className="inline-flex items-center justify-center p-2 rounded-md text-indigo-200 hover:text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-300">
                   {open ? (
-                    <svg
-                      className="h-6 w-6"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M6 18L18 6M6 6l12 12"
-                      />
-                    </svg>
+                    <XMarkIcon className="h-6 w-6" />
                   ) : (
-                    <svg
-                      className="h-6 w-6"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M4 6h16M4 12h16M4 18h16"
-                      />
-                    </svg>
+                    <Bars3Icon className="h-6 w-6" />
                   )}
                 </DisclosureButton>
               </div>

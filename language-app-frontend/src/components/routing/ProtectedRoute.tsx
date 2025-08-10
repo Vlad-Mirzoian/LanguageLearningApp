@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import type { ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -10,8 +11,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const isAuthenticated = !!localStorage.getItem("token");
-  const user = JSON.parse(localStorage.getItem("user") || "null");
+  const { isAuthenticated, user } = useAuth();
 
   const adminRoutes = [
     "/admin/languages",
@@ -25,12 +25,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   );
 
   useEffect(() => {
-    if (!isAuthenticated || !user) {
+    if (!isAuthenticated) {
       navigate("/login");
-    } else if (isAdminRoute && user.role !== "admin") {
+    } else if (isAdminRoute && user?.role !== "admin") {
       navigate("/dashboard");
     }
-  }, [isAuthenticated, user, isAdminRoute, navigate]);
+  }, [isAuthenticated, isAdminRoute, user?.role, navigate]);
 
   if (!isAuthenticated || !user) return null;
   if (isAdminRoute && user.role !== "admin") return null;
