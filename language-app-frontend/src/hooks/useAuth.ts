@@ -8,22 +8,17 @@ interface AuthHook {
   isAuthenticated: boolean;
   isAdmin: boolean;
   setAuth: (user: User | null, token: string | null) => void;
+  setUser: (user: User | null) => void;
   logout: () => Promise<void>;
 }
 
-export const useAuth = () => {
-  const { user, token, setAuth, clearAuth } = useAuthStore();
+export const useAuth = (): AuthHook => {
+  const { user, token, setAuth, setUser, clearAuth } = useAuthStore();
   const navigate = useNavigate();
 
   const logout = async () => {
-    try {
-      clearAuth();
-      navigate("/login");
-    } catch (error) {
-      console.error("Logout error:", error);
-      clearAuth();
-      navigate("/login");
-    }
+    clearAuth();
+    navigate("/login");
   };
 
   return {
@@ -32,6 +27,7 @@ export const useAuth = () => {
     isAuthenticated: !!user && !!token,
     isAdmin: user?.role === "admin",
     setAuth,
+    setUser,
     logout,
   };
 };
