@@ -4,7 +4,6 @@ import type {
   Card,
   Category,
   Language,
-  ProgressResponse,
   UserProgress,
   Word,
 } from "../types";
@@ -124,7 +123,7 @@ export const createLanguage = async (data: {
 
 export const updateLanguage = async (
   languageId: string,
-  data: { code: string; name: string }
+  data: Partial<{ code: string; name: string }>
 ): Promise<Language> => {
   const response = await api.put(`/languages/${languageId}`, data);
   return response.data;
@@ -154,12 +153,12 @@ export const createCategory = async (data: {
 
 export const updateCategory = async (
   categoryId: string,
-  data: {
+  data: Partial<{
     name: string;
     description?: string;
     order: number;
     requiredScore: number;
-  }
+  }>
 ): Promise<Category> => {
   const response = await api.put(`/categories/${categoryId}`, data);
   return response.data;
@@ -206,10 +205,10 @@ export const createWord = async (data: {
 
 export const updateWord = async (
   wordId: string,
-  data: {
+  data: Partial<{
     text: string;
     languageId: string;
-  }
+  }>
 ): Promise<Word> => {
   const response = await api.put(`/words/${wordId}`, data);
   return response.data;
@@ -243,12 +242,12 @@ export const createCard = async (data: {
 
 export const updateCard = async (
   cardId: string,
-  data: {
+  data: Partial<{
     wordId: string;
     translationId: string;
     categoryId: string;
     meaning?: string;
-  }
+  }>
 ): Promise<Card> => {
   const response = await api.put(`/cards/${cardId}`, data);
   return response.data;

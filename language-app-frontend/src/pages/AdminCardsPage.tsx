@@ -36,7 +36,6 @@ const AdminCardsPage: React.FC = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-
         const [cardData, wordData, catData] = await Promise.all([
           getCards(filterCategoryId ? { categoryId: filterCategoryId } : {}),
           getWords(),
@@ -54,39 +53,49 @@ const AdminCardsPage: React.FC = () => {
     fetchData();
   }, [filterCategoryId]);
 
+  const validateField = useCallback(
+    (field: keyof typeof formData, value: string): string | null => {
+      if (!value.trim()) {
+        switch (field) {
+          case "wordId":
+            return "Original word is required";
+          case "translationId":
+            return "Translation word is required";
+          case "categoryId":
+            return "Category is required";
+          default:
+            return null;
+        }
+      }
+      return null;
+    },
+    []
+  );
+
   const validateForm = useCallback(() => {
     const newErrors: Record<string, string> = {};
-    if (!formData.wordId) {
-      newErrors.languageId = "Original word is required";
-    }
-    if (!formData.translationId) {
-      newErrors.languageId = "Translation word is required";
-    }
-    if (!formData.categoryId) {
-      newErrors.languageId = "Category is required";
-    }
+    (["wordId", "translationId", "categoryId"] as const).forEach((field) => {
+      const error = validateField(field, formData[field]);
+      if (error) newErrors[field] = error;
+    });
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [formData]);
+  }, [formData, validateField]);
 
-  const handleChange = (field: string, value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-    setErrors((prev) => {
-      const newErrors = { ...prev };
-      if (field === "wordId" && !value) {
-        newErrors[field] = "Original word is required";
-      } else if (field === "translationId" && !value) {
-        newErrors[field] = "Translation word is required";
-      } else if (field === "categoryId" && !value) {
-        newErrors[field] = "Category is required";
-      } else {
-        delete newErrors[field];
-      }
-      return newErrors;
-    });
+  const handleChange = (field: keyof typeof formData, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    if (["wordId", "translationId", "categoryId"].includes(field)) {
+      const error = validateField(field, value);
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        if (error) {
+          newErrors[field] = error;
+        } else {
+          delete newErrors[field];
+        }
+        return newErrors;
+      });
+    }
   };
 
   const handleAddCard = async (e: React.FormEvent) => {
@@ -97,7 +106,10 @@ const AdminCardsPage: React.FC = () => {
     }
 
     try {
-      const newCard = await createCard(formData);
+      const newCard = await createCard({
+        ...formData,
+        meaning: formData.meaning || undefined,
+      });
       setCards([...cards, newCard]);
       setIsAddModalOpen(false);
       setFormData({
@@ -126,10 +138,24 @@ const AdminCardsPage: React.FC = () => {
     }
 
     try {
-      const updatedCard = await updateCard(currentCard._id, formData);
-      setCards(
-        cards.map((Card) => (Card._id === updatedCard._id ? updatedCard : Card))
-      );
+      const updateData: Partial<typeof formData> = {};
+      if (formData.wordId !== currentCard.wordId._id)
+        updateData.wordId = formData.wordId;
+      if (formData.translationId !== currentCard.translationId._id)
+        updateData.translationId = formData.translationId;
+      if (formData.categoryId !== currentCard.categoryId._id)
+        updateData.categoryId = formData.categoryId;
+      if ((formData.meaning || "") !== (currentCard.meaning || ""))
+        updateData.meaning = formData.meaning || undefined;
+
+      if (Object.keys(updateData).length > 0) {
+        const updatedCard = await updateCard(currentCard._id, updateData);
+        setCards(
+          cards.map((card) =>
+            card._id === updatedCard._id ? updatedCard : card
+          )
+        );
+      }
       setIsEditModalOpen(false);
       setCurrentCard(null);
       setFormData({

@@ -1,11 +1,11 @@
 const express = require("express");
 const router = express.Router();
-const authRoutes = require("./auth");
-const languageRoutes = require("./languages");
-const categoryRoutes = require("./categories");
-const wordRoutes = require("./words");
-const cardRoutes = require("./cards");
-const userProgressRoutes = require("./user-progress");
+const authRoutes = require("./authRoutes");
+const cardRoutes = require("./cardRoutes");
+const categoryRoutes = require("./categoryRoutes");
+const languageRoutes = require("./languageRoutes");
+const userProgressRoutes = require("./userProgressRoutes");
+const wordRoutes = require("./wordController");
 
 router.use("/auth", authRoutes);
 router.use("/languages", languageRoutes);

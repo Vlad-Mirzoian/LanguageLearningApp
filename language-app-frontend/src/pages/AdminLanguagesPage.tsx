@@ -40,19 +40,30 @@ const AdminLanguagesPage: React.FC = () => {
     fetchLanguages();
   }, []);
 
+  const validateField = useCallback(
+    (field: keyof typeof formData, value: string): string | null => {
+      if (field === "code") {
+        if (!value.trim()) return "Code is required";
+      }
+      if (field === "name") {
+        if (!value.trim()) return "Name is required";
+      }
+      return null;
+    },
+    []
+  );
+
   const validateForm = useCallback(() => {
     const newErrors: Record<string, string> = {};
-    if (!formData.code.trim()) {
-      newErrors.code = "Code is required";
-    }
-    if (!formData.name.trim()) {
-      newErrors.name = "Name is required";
-    }
+    (["code", "name"] as const).forEach((field) => {
+      const error = validateField(field, formData[field]);
+      if (error) newErrors[field] = error;
+    });
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [formData]);
+  }, [formData, validateField]);
 
-  const handleChange = (field: string, value: string) => {
+  const handleChange = (field: keyof typeof formData, value: string) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
@@ -60,10 +71,9 @@ const AdminLanguagesPage: React.FC = () => {
 
     setErrors((prev) => {
       const newErrors = { ...prev };
-      if (!value.trim()) {
-        newErrors[field] = `${
-          field.charAt(0).toUpperCase() + field.slice(1)
-        } is required`;
+      const error = validateField(field, value);
+      if (error) {
+        newErrors[field] = error;
       } else {
         delete newErrors[field];
       }
@@ -103,15 +113,23 @@ const AdminLanguagesPage: React.FC = () => {
     }
 
     try {
-      const updatedLanguage = await updateLanguage(
-        currentLanguage._id,
-        formData
-      );
-      setLanguages(
-        languages.map((lang) =>
-          lang._id === updatedLanguage._id ? updatedLanguage : lang
-        )
-      );
+      const updateData: Partial<typeof formData> = {};
+      if (formData.code !== currentLanguage.code)
+        updateData.code = formData.code;
+      if (formData.name !== currentLanguage.name)
+        updateData.name = formData.name;
+
+      if (Object.keys(updateData).length > 0) {
+        const updatedLanguage = await updateLanguage(
+          currentLanguage._id,
+          updateData
+        );
+        setLanguages(
+          languages.map((lang) =>
+            lang._id === updatedLanguage._id ? updatedLanguage : lang
+          )
+        );
+      }
       setIsEditModalOpen(false);
       setCurrentLanguage(null);
       setFormData({ code: "", name: "" });

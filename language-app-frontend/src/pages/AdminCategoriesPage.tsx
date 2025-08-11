@@ -45,41 +45,45 @@ const AdminCategoriesPage: React.FC = () => {
     fetchCategories();
   }, []);
 
+  const validateField = useCallback(
+    (field: keyof typeof formData, value: string): string | null => {
+      if (field === "name") {
+        if (!value.trim()) return "Name is required";
+      }
+      if (field === "order") {
+        if (!value || isNaN(Number(value)) || Number(value) < 1) {
+          return "Order must be a positive integer";
+        }
+        if (
+          categories.some(
+            (cat) =>
+              cat.order === Number(value) && cat._id !== currentCategory?._id
+          )
+        ) {
+          return "Order is already taken";
+        }
+      }
+      if (field === "requiredScore") {
+        if (!value || isNaN(Number(value)) || Number(value) < 0) {
+          return "Required score must be a non-negative integer";
+        }
+      }
+      return null;
+    },
+    [categories, currentCategory]
+  );
+
   const validateForm = useCallback(() => {
     const newErrors: Record<string, string> = {};
-    if (!formData.name.trim()) {
-      newErrors.name = "Name is required";
-    }
-    if (
-      !formData.order ||
-      isNaN(Number(formData.order)) ||
-      Number(formData.order) < 1
-    ) {
-      newErrors.order = "Order must be a positive integer";
-    }
-    if (
-      !formData.requiredScore ||
-      isNaN(Number(formData.requiredScore)) ||
-      Number(formData.requiredScore) < 0
-    ) {
-      newErrors.requiredScore = "Required score must be a non-negative integer";
-    }
-    // Проверка уникальности order
-    if (
-      formData.order &&
-      categories.some(
-        (cat) =>
-          cat.order === Number(formData.order) &&
-          cat._id !== currentCategory?._id
-      )
-    ) {
-      newErrors.order = "Order is already taken";
-    }
+    (["name", "order", "requiredScore"] as const).forEach((field) => {
+      const error = validateField(field, formData[field]);
+      if (error) newErrors[field] = error;
+    });
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [formData, categories, currentCategory]);
+  }, [formData, validateField]);
 
-  const handleChange = (field: string, value: string) => {
+  const handleChange = (field: keyof typeof formData, value: string) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
@@ -87,32 +91,11 @@ const AdminCategoriesPage: React.FC = () => {
 
     setErrors((prev) => {
       const newErrors = { ...prev };
-      if (field === "name" && !value.trim()) {
-        newErrors.name = "Name is required";
-      } else if (field === "name") {
-        delete newErrors.name;
-      }
-      if (field === "order") {
-        if (!value || isNaN(Number(value)) || Number(value) < 1) {
-          newErrors.order = "Order must be a positive integer";
-        } else if (
-          categories.some(
-            (cat) =>
-              cat.order === Number(value) && cat._id !== currentCategory?._id
-          )
-        ) {
-          newErrors.order = "Order is already taken";
-        } else {
-          delete newErrors.order;
-        }
-      }
-      if (field === "requiredScore") {
-        if (!value || isNaN(Number(value)) || Number(value) < 0) {
-          newErrors.requiredScore =
-            "Required score must be a non-negative integer";
-        } else {
-          delete newErrors.requiredScore;
-        }
+      const error = validateField(field, value);
+      if (error) {
+        newErrors[field] = error;
+      } else {
+        delete newErrors[field];
       }
       return newErrors;
     });
@@ -128,6 +111,7 @@ const AdminCategoriesPage: React.FC = () => {
     try {
       const newCategory = await createCategory({
         ...formData,
+        description: formData.description || undefined,
         order: Number(formData.order),
         requiredScore: Number(formData.requiredScore),
       });
@@ -161,18 +145,26 @@ const AdminCategoriesPage: React.FC = () => {
     }
 
     try {
-      const updatedCategory = await updateCategory(currentCategory._id, {
-        ...formData,
-        order: Number(formData.order),
-        requiredScore: Number(formData.requiredScore),
-      });
-      setCategories(
-        categories
-          .map((cat) =>
-            cat._id === updatedCategory._id ? updatedCategory : cat
-          )
-          .sort((a, b) => a.order - b.order)
-      );
+      const updateData: Partial<typeof formData> = {};
+      if (formData.name !== currentCategory.name)
+        updateData.name = formData.name;
+      if ((formData.description || "") !== (currentCategory.description || ""))
+        updateData.description = formData.description || undefined;
+
+      if (Object.keys(updateData).length > 0) {
+        const updatedCategory = await updateCategory(currentCategory._id, {
+          ...updateData,
+          order: Number(formData.order),
+          requiredScore: Number(formData.requiredScore),
+        });
+        setCategories(
+          categories
+            .map((cat) =>
+              cat._id === updatedCategory._id ? updatedCategory : cat
+            )
+            .sort((a, b) => a.order - b.order)
+        );
+      }
       setIsEditModalOpen(false);
       setCurrentCategory(null);
       setFormData({

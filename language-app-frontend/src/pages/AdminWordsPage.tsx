@@ -48,34 +48,47 @@ const AdminWordsPage: React.FC = () => {
     fetchData();
   }, [filterLanguageId]);
 
+  const validateField = useCallback(
+    (field: keyof typeof formData, value: string): string | null => {
+      if (!value.trim()) {
+        switch (field) {
+          case "text":
+            return "Text is required";
+          case "languageId":
+            return "Language is required";
+          default:
+            return null;
+        }
+      }
+      return null;
+    },
+    []
+  );
+
   const validateForm = useCallback(() => {
     const newErrors: Record<string, string> = {};
-    if (!formData.text.trim()) {
-      newErrors.text = "Text is required";
-    }
-    if (!formData.languageId) {
-      newErrors.languageId = "Language is required";
-    }
+    (["text", "languageId"] as const).forEach((field) => {
+      const error = validateField(field, formData[field]);
+      if (error) newErrors[field] = error;
+    });
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [formData]);
+  }, [formData, validateField]);
 
-  const handleChange = (field: string, value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-    setErrors((prev) => {
-      const newErrors = { ...prev };
-      if (field === "text" && !value.trim()) {
-        newErrors[field] = "Text is required";
-      } else if (field === "languageId" && !value) {
-        newErrors[field] = "Language is required";
-      } else {
-        delete newErrors[field];
-      }
-      return newErrors;
-    });
+  const handleChange = (field: keyof typeof formData, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    if (["text", "languageId"].includes(field)) {
+      const error = validateField(field, value);
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        if (error) {
+          newErrors[field] = error;
+        } else {
+          delete newErrors[field];
+        }
+        return newErrors;
+      });
+    }
   };
 
   const handleAddWord = async (e: React.FormEvent) => {
@@ -120,10 +133,19 @@ const AdminWordsPage: React.FC = () => {
         setServerError("Word already exists for this language");
         return;
       }
-      const updatedWord = await updateWord(currentWord._id, formData);
-      setWords(
-        words.map((word) => (word._id === updatedWord._id ? updatedWord : word))
-      );
+      const updateData: Partial<typeof formData> = {};
+      if (formData.text !== currentWord.text) updateData.text = formData.text;
+      if (formData.languageId !== currentWord.languageId._id)
+        updateData.languageId = formData.languageId;
+
+      if (Object.keys(updateData).length > 0) {
+        const updatedWord = await updateWord(currentWord._id, updateData);
+        setWords(
+          words.map((word) =>
+            word._id === updatedWord._id ? updatedWord : word
+          )
+        );
+      }
       setIsEditModalOpen(false);
       setCurrentWord(null);
       setFormData({ text: "", languageId: "" });
