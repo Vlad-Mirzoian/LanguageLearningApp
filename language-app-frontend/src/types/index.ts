@@ -27,6 +27,11 @@ export interface Word {
   languageId: Language;
 }
 
+export interface WordResponse {
+  words: Word[];
+  total: number;
+}
+
 export interface Card {
   _id: string;
   wordId: Word;
@@ -38,6 +43,18 @@ export interface Card {
   easiness: number;
   repetitions: number;
   lastReviewed: string;
+}
+
+export interface CardResponse {
+  cards: Card[];
+  total: number;
+}
+
+export interface TestCard {
+  _id: string;
+  word: Word;
+  category: Category;
+  options: { text: string; isCorrect: boolean }[];
 }
 
 export interface UserProgress {

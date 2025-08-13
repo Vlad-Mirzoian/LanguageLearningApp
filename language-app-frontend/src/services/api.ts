@@ -2,10 +2,13 @@ import axios from "axios";
 import type {
   AuthResponse,
   Card,
+  CardResponse,
   Category,
   Language,
+  TestCard,
   UserProgress,
   Word,
+  WordResponse,
 } from "../types";
 import { useAuthStore } from "../store/authStore";
 
@@ -181,8 +184,11 @@ export const updateCategoryOrders = async (
 export const getWords = async (
   filters: {
     languageId?: string;
+    text?: string;
+    limit?: number;
+    skip?: number;
   } = {}
-): Promise<Word[]> => {
+): Promise<WordResponse> => {
   const response = await api.get("/words", { params: filters });
   return response.data;
 };
@@ -224,8 +230,11 @@ export const deleteWord = async (
 export const getCards = async (
   filters: {
     categoryId?: string;
+    meaning?: string;
+    limit?: number;
+    skip?: number;
   } = {}
-): Promise<Card[]> => {
+): Promise<CardResponse> => {
   const response = await api.get("/cards", { params: filters });
   return response.data;
 };
@@ -268,12 +277,33 @@ export const getReviewCards = async (filters: {
   return response.data;
 };
 
+export const getTestCards = async (filters: {
+  languageId: string;
+  categoryId?: string;
+}): Promise<{ cards: TestCard[]; attemptId: string | null; total: number }> => {
+  const response = await api.get("/cards/test", { params: filters });
+  return response.data;
+};
+
 export const reviewCard = async (
   cardId: string,
   data: { languageId: string; quality: number; attemptId?: string | null }
 ): Promise<UserProgress> => {
-  const response = await api.put(`/cards/${cardId}/review`, data);
+  const response = await api.post(`/cards/${cardId}/review`, data);
   return response.data.progress;
+};
+
+export const submitAnswer = async (
+  cardId: string,
+  data: { languageId: string; answer: string; attemptId?: string | null }
+): Promise<{
+  isCorrect: boolean;
+  correctTranslation: string;
+  quality: number;
+  progress: UserProgress;
+}> => {
+  const response = await api.post(`/cards/${cardId}/answer`, data);
+  return response.data;
 };
 
 export const getUserProgress = async (

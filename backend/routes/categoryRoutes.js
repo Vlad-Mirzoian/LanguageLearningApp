@@ -14,8 +14,13 @@ router.post(
   authenticate,
   authorizeRoles(["admin"]),
   [
-    body("name").notEmpty().withMessage("Name is required").trim(),
-    body("description").optional().trim(),
+    body("name").isString().trim().notEmpty().withMessage("Name is required"),
+    body("description")
+      .optional()
+      .isString()
+      .trim()
+      .notEmpty()
+      .withMessage("Description cannot be empty if provided"),
     body("order")
       .isInt({ min: 1 })
       .withMessage("Order must be a positive integer"),
@@ -56,10 +61,11 @@ router.put(
     param("id").isMongoId().withMessage("Invalid category ID"),
     body("name")
       .optional()
+      .isString()
+      .trim()
       .notEmpty()
-      .withMessage("Name cannot be empty if provided")
-      .trim(),
-    body("description").optional().trim(),
+      .withMessage("Name cannot be empty if provided"),
+    body("description").optional({ checkFalsy: false }).isString().trim(),
     body("order")
       .optional()
       .isInt({ min: 1 })

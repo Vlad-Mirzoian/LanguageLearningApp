@@ -11,9 +11,11 @@ import {
 import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
 import FormInput from "../components/ui/FormInput";
 import { ArrowPathIcon } from "@heroicons/react/24/solid";
+import { AxiosError } from "axios";
 
 const AdminWordsPage: React.FC = () => {
   const [words, setWords] = useState<Word[]>([]);
+  const [totalWords, setTotalWords] = useState(0);
   const [languages, setLanguages] = useState<Language[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -25,9 +27,16 @@ const AdminWordsPage: React.FC = () => {
     text: "",
     languageId: "",
   });
+  const [filters, setFilters] = useState({
+    languageId: "",
+    text: "",
+    page: 1,
+    limit: 20,
+  });
   const [serverError, setServerError] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [filterLanguageId, setFilterLanguageId] = useState("");
+
+  const totalPages = Math.ceil(totalWords / filters.limit);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -35,18 +44,28 @@ const AdminWordsPage: React.FC = () => {
         setLoading(true);
         const [langData, wordData] = await Promise.all([
           getLanguages(),
-          getWords(filterLanguageId ? { languageId: filterLanguageId } : {}),
+          getWords({
+            languageId: filters.languageId || undefined,
+            text: filters.text || undefined,
+            limit: filters.limit,
+            skip: (filters.page - 1) * filters.limit,
+          }),
         ]);
+        setWords(wordData.words);
+        setTotalWords(wordData.total);
         setLanguages(langData);
-        setWords(wordData);
-      } catch (err: any) {
-        setError(err.response?.data?.error || "Failed to load data");
+      } catch (error: unknown) {
+        if (error instanceof AxiosError) {
+          setError(error.response?.data?.error || "Failed to load data");
+        } else {
+          setError("Failed to load data");
+        }
       } finally {
         setLoading(false);
       }
     };
     fetchData();
-  }, [filterLanguageId]);
+  }, [filters]);
 
   const validateField = useCallback(
     (field: keyof typeof formData, value: string): string | null => {
@@ -91,6 +110,16 @@ const AdminWordsPage: React.FC = () => {
     }
   };
 
+  const handleFilterChange = (field: "languageId" | "text", value: string) => {
+    setFilters((prev) => ({ ...prev, [field]: value, page: 1 }));
+  };
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setFilters((prev) => ({ ...prev, page: newPage }));
+    }
+  };
+
   const handleAddWord = async (e: React.FormEvent) => {
     e.preventDefault();
     setServerError("");
@@ -106,17 +135,17 @@ const AdminWordsPage: React.FC = () => {
       }
       const newWord = await createWord(formData);
       setWords([...words, newWord]);
+      setTotalWords(totalWords + 1);
       setIsAddModalOpen(false);
       setFormData({ text: "", languageId: "" });
       setErrors({});
       setServerError("");
-    } catch (error: any) {
-      const errorMessage =
-        error.response?.data?.error || "Failed to create word";
-      const details = error.response?.data?.details
-        ? error.response.data.details.map((err: any) => err.message).join(", ")
-        : "";
-      setServerError(details ? `${errorMessage}: ${details}` : errorMessage);
+    } catch (error: unknown) {
+      if (error instanceof AxiosError) {
+        setServerError(error.response?.data?.error || "Failed to create Word");
+      } else {
+        setServerError("Something went wrong");
+      }
     }
   };
 
@@ -151,13 +180,12 @@ const AdminWordsPage: React.FC = () => {
       setFormData({ text: "", languageId: "" });
       setErrors({});
       setServerError("");
-    } catch (error: any) {
-      const errorMessage =
-        error.response?.data?.error || "Failed to update word";
-      const details = error.response?.data?.details
-        ? error.response.data.details.map((err: any) => err.message).join(", ")
-        : "";
-      setServerError(details ? `${errorMessage}: ${details}` : errorMessage);
+    } catch (error: unknown) {
+      if (error instanceof AxiosError) {
+        setServerError(error.response?.data?.error || "Failed to update Word");
+      } else {
+        setServerError("Something went wrong");
+      }
     }
   };
 
@@ -169,12 +197,19 @@ const AdminWordsPage: React.FC = () => {
     try {
       await deleteWord(currentWord._id);
       setWords(words.filter((word) => word._id !== currentWord._id));
+      setTotalWords(totalWords - 1);
       setIsDeleteModalOpen(false);
       setCurrentWord(null);
-    } catch (error: any) {
-      setServerError(error.response?.data?.error || "Failed to delete Word");
+    } catch (error: unknown) {
+      if (error instanceof AxiosError) {
+        setServerError(error.response?.data?.error || "Failed to create Card");
+      } else {
+        setServerError("Something went wrong");
+      }
     }
   };
+
+  console.log(totalWords);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex justify-center p-4">
@@ -183,13 +218,13 @@ const AdminWordsPage: React.FC = () => {
           Admin Panel
         </h2>
         <div className="flex flex-col sm:flex-row justify-center items-end gap-8 mt-4 mb-6 space-y-4 sm:space-y-0 sm:space-x-4">
-          <div className="flex flex-col items-center">
+          <div className="flex flex-col items-center w-full sm:w-auto">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Filter by Language
             </label>
             <select
-              value={filterLanguageId}
-              onChange={(e) => setFilterLanguageId(e.target.value)}
+              value={filters.languageId}
+              onChange={(e) => handleFilterChange("languageId", e.target.value)}
               className="w-full py-2.5 px-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300"
             >
               <option value="">All Languages</option>
@@ -199,6 +234,18 @@ const AdminWordsPage: React.FC = () => {
                 </option>
               ))}
             </select>
+          </div>
+          <div className="flex flex-col items-center w-full sm:w-auto">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Filter by Text
+            </label>
+            <input
+              type="text"
+              value={filters.text}
+              onChange={(e) => handleFilterChange("text", e.target.value)}
+              placeholder="Search by text..."
+              className="w-full py-2.5 px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300"
+            ></input>
           </div>
           <button
             onClick={() => {
@@ -227,55 +274,78 @@ const AdminWordsPage: React.FC = () => {
           <div className="text-center text-gray-600">No words available.</div>
         )}
         {!loading && !error && words.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-xl overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-indigo-50">
-                  <th className="p-4 font-semibold text-indigo-700">Text</th>
-                  <th className="p-4 font-semibold text-indigo-700">
-                    Language
-                  </th>
-                  <th className="p-4 font-semibold text-indigo-700">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {words.map((word) => (
-                  <tr key={word._id} className="border-t hover:bg-gray-50">
-                    <td className="p-4 text-gray-800">{word.text}</td>
-                    <td className="p-4 text-gray-800">
-                      {word.languageId.name}
-                    </td>
-                    <td className="p-4">
-                      <button
-                        onClick={() => {
-                          setCurrentWord(word);
-                          setFormData({
-                            text: word.text,
-                            languageId: word.languageId._id,
-                          });
-                          setErrors({});
-                          setServerError("");
-                          setIsEditModalOpen(true);
-                        }}
-                        className="text-indigo-600 hover:text-indigo-800 mr-4 cursor-pointer"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => {
-                          setCurrentWord(word);
-                          setIsDeleteModalOpen(true);
-                        }}
-                        className="text-red-600 hover:text-red-800 cursor-pointer"
-                      >
-                        Delete
-                      </button>
-                    </td>
+          <>
+            <div className="bg-white rounded-2xl shadow-xl overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-indigo-50">
+                    <th className="p-4 font-semibold text-indigo-700">Text</th>
+                    <th className="p-4 font-semibold text-indigo-700">
+                      Language
+                    </th>
+                    <th className="p-4 font-semibold text-indigo-700">
+                      Actions
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {words.map((word) => (
+                    <tr key={word._id} className="border-t hover:bg-gray-50">
+                      <td className="p-4 text-gray-800">{word.text}</td>
+                      <td className="p-4 text-gray-800">
+                        {word.languageId.name}
+                      </td>
+                      <td className="p-4">
+                        <button
+                          onClick={() => {
+                            setCurrentWord(word);
+                            setFormData({
+                              text: word.text,
+                              languageId: word.languageId._id,
+                            });
+                            setErrors({});
+                            setServerError("");
+                            setIsEditModalOpen(true);
+                          }}
+                          className="text-indigo-600 hover:text-indigo-800 mr-4 cursor-pointer"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => {
+                            setCurrentWord(word);
+                            setIsDeleteModalOpen(true);
+                          }}
+                          className="text-red-600 hover:text-red-800 cursor-pointer"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex justify-between items-center mt-4">
+              <button
+                onClick={() => handlePageChange(filters.page - 1)}
+                disabled={filters.page === 1}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <span>
+                Page {filters.page} of {totalPages}
+              </span>
+              <button
+                onClick={() => handlePageChange(filters.page + 1)}
+                disabled={filters.page === totalPages}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+          </>
         )}
       </div>
       <Dialog

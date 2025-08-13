@@ -5,7 +5,7 @@ const cardRoutes = require("./cardRoutes");
 const categoryRoutes = require("./categoryRoutes");
 const languageRoutes = require("./languageRoutes");
 const userProgressRoutes = require("./userProgressRoutes");
-const wordRoutes = require("./wordController");
+const wordRoutes = require("./wordRoutes");
 
 router.use("/auth", authRoutes);
 router.use("/languages", languageRoutes);

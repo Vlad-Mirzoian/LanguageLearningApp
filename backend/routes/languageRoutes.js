@@ -14,8 +14,8 @@ router.post(
   authenticate,
   authorizeRoles(["admin"]),
   [
-    body("code").notEmpty().withMessage("Code is required").trim(),
-    body("name").notEmpty().withMessage("Name is required").trim(),
+    body("code").isString().trim().notEmpty().withMessage("Code is required"),
+    body("name").isString().trim().notEmpty().withMessage("Name is required"),
   ],
   validate,
   languageController.createLanguage
@@ -30,14 +30,16 @@ router.put(
     param("id").isMongoId().withMessage("Invalid language ID"),
     body("code")
       .optional()
+      .isString()
+      .trim()
       .notEmpty()
-      .withMessage("Code cannot be empty if provided")
-      .trim(),
+      .withMessage("Code cannot be empty if provided"),
     body("name")
       .optional()
+      .isString()
+      .trim()
       .notEmpty()
-      .withMessage("Name cannot be empty if provided")
-      .trim(),
+      .withMessage("Name cannot be empty if provided"),
   ],
   validate,
   languageController.updateLanguage

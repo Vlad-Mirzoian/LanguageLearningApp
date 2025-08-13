@@ -6,7 +6,7 @@ const Word = require("../models/Word");
 const wordController = {
   async getWords(req, res) {
     try {
-      const { languageId } = req.query;
+      const { languageId, text, limit = 20, skip = 0 } = req.query;
       const user = await User.findById(req.userId).lean();
       if (!user) {
         return res.status(404).json({ error: "User not found" });
@@ -38,10 +38,18 @@ const wordController = {
         query.languageId = { $in: allowedLanguagesIds };
       }
       if (languageId) query.languageId = languageId;
-      const words = await Word.find(query)
-        .populate("languageId", "code name")
-        .lean();
-      res.json(words);
+      if (text) query.text = { $regex: text, $options: "i" };
+
+      const [words, total] = await Promise.all([
+        Word.find(query)
+          .populate("languageId", "code name")
+          .skip(skip)
+          .limit(limit)
+          .lean(),
+        Word.countDocuments(query),
+      ]);
+      
+      res.json({words, total});
     } catch (error) {
       res
         .status(500)

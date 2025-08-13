@@ -14,6 +14,21 @@ router.get(
       .optional()
       .isMongoId()
       .withMessage("Invalid category ID"),
+    query("meaning")
+      .optional()
+      .isString()
+      .trim()
+      .withMessage("Text must be a string"),
+    query("limit")
+      .optional()
+      .isInt({ min: 1, max: 100 })
+      .withMessage("Limit must be an integer between 1 and 100")
+      .toInt(),
+    query("skip")
+      .optional()
+      .isInt({ min: 0 })
+      .withMessage("Skip must be a non-negative integer")
+      .toInt(),
   ],
   validate,
   cardController.getCards
@@ -39,6 +54,70 @@ router.get(
   cardController.getReviewCards
 );
 
+// GET /api/cards/test
+router.get(
+  "/test",
+  authenticate,
+  authorizeRoles(["user"]),
+  [
+    query("languageId")
+      .exists({ checkFalsy: true })
+      .withMessage("Language is required")
+      .isMongoId()
+      .withMessage("Invalid language ID"),
+    query("categoryId")
+      .optional()
+      .isMongoId()
+      .withMessage("Invalid category ID"),
+  ],
+  validate,
+  cardController.getTestCards
+);
+
+// POST /api/cards/:id/review
+router.post(
+  "/:id/review",
+  authenticate,
+  authorizeRoles(["user"]),
+  [
+    param("id").isMongoId().withMessage("Invalid card ID"),
+    body("languageId")
+      .notEmpty()
+      .withMessage("Language is required")
+      .isMongoId()
+      .withMessage("Invalid language ID"),
+    body("quality")
+      .isInt({ min: 1, max: 5 })
+      .withMessage("Quality must be an integer between 1 and 5"),
+    body("attemptId").optional().isString().withMessage("Invalid attempt ID"),
+  ],
+  validate,
+  cardController.reviewCard
+);
+
+// POST /api/cards/:id/answer
+router.post(
+  "/:id/answer",
+  authenticate,
+  authorizeRoles(["user"]),
+  [
+    param("id").isMongoId().withMessage("Invalid card ID"),
+    body("languageId")
+      .notEmpty()
+      .withMessage("Language is required")
+      .isMongoId()
+      .withMessage("Invalid language ID"),
+    body("answer")
+      .isString()
+      .trim()
+      .notEmpty()
+      .withMessage("Answer is required"),
+    body("attemptId").optional().isString().withMessage("Invalid attempt ID"),
+  ],
+  validate,
+  cardController.submitAnswer
+);
+
 // POST /api/cards
 router.post(
   "/",
@@ -62,33 +141,13 @@ router.post(
       .withMessage("Invalid category ID"),
     body("meaning")
       .optional()
+      .isString()
+      .trim()
       .notEmpty()
-      .withMessage("Meaning cannot be empty if provided")
-      .trim(),
+      .withMessage("Meaning cannot be empty if provided"),
   ],
   validate,
   cardController.createCard
-);
-
-// PUT /api/cards/:id/review
-router.put(
-  "/:id/review",
-  authenticate,
-  authorizeRoles(["user"]),
-  [
-    param("id").isMongoId().withMessage("Invalid card ID"),
-    body("languageId")
-      .notEmpty()
-      .withMessage("Language is required")
-      .isMongoId()
-      .withMessage("Invalid language ID"),
-    body("quality")
-      .isInt({ min: 1, max: 5 })
-      .withMessage("Quality must be an integer between 1 and 5"),
-    body("attemptId").optional().isString().withMessage("Invalid attempt ID"),
-  ],
-  validate,
-  cardController.reviewCard
 );
 
 // PUT /api/cards/:id
@@ -116,11 +175,7 @@ router.put(
       .withMessage("Category cannot be empty if provided")
       .isMongoId()
       .withMessage("Invalid category ID"),
-    body("meaning")
-      .optional()
-      .notEmpty()
-      .withMessage("Meaning cannot be empty if provided")
-      .trim(),
+    body("meaning").optional({ checkFalsy: false }).isString().trim(),
   ],
   validate,
   cardController.updateCard

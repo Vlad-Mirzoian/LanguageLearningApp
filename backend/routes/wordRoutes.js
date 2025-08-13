@@ -14,6 +14,21 @@ router.get(
       .optional()
       .isMongoId()
       .withMessage("Invalid language ID"),
+    query("text")
+      .optional()
+      .isString()
+      .trim()
+      .withMessage("Text must be a string"),
+    query("limit")
+      .optional()
+      .isInt({ min: 1, max: 100 })
+      .withMessage("Limit must be an integer between 1 and 100")
+      .toInt(),
+    query("skip")
+      .optional()
+      .isInt({ min: 0 })
+      .withMessage("Skip must be a non-negative integer")
+      .toInt(),
   ],
   validate,
   wordController.getWords
@@ -25,7 +40,7 @@ router.post(
   authenticate,
   authorizeRoles(["admin"]),
   [
-    body("text").notEmpty().withMessage("Text is required").trim(),
+    body("text").isString().trim().notEmpty().withMessage("Text is required"),
     body("languageId")
       .notEmpty()
       .withMessage("Language is required")
@@ -60,11 +75,12 @@ router.put(
   authorizeRoles(["admin"]),
   [
     param("id").isMongoId().withMessage("Invalid word ID"),
-    body("text")
+    body("Text")
       .optional()
+      .isString()
+      .trim()
       .notEmpty()
-      .withMessage("Text cannot be empty if provided")
-      .trim(),
+      .withMessage("Text cannot be empty if provided"),
     body("languageId")
       .optional()
       .notEmpty()

@@ -11,9 +11,11 @@ import {
 import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
 import FormInput from "../components/ui/FormInput";
 import { ArrowPathIcon } from "@heroicons/react/24/solid";
+import { AxiosError } from "axios";
 
 const AdminCardsPage: React.FC = () => {
   const [cards, setCards] = useState<Card[]>([]);
+  const [totalCards, setTotalCards] = useState(0);
   const [categories, setCategories] = useState<Category[]>([]);
   const [words, setWords] = useState<Word[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,30 +30,47 @@ const AdminCardsPage: React.FC = () => {
     categoryId: "",
     meaning: "",
   });
+  const [filters, setFilters] = useState({
+    categoryId: "",
+    meaning: "",
+    page: 1,
+    limit: 20,
+  });
   const [serverError, setServerError] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [filterCategoryId, setFilterCategoryId] = useState("");
+
+  const totalPages = Math.ceil(totalCards / filters.limit);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [cardData, wordData, catData] = await Promise.all([
-          getCards(filterCategoryId ? { categoryId: filterCategoryId } : {}),
+        const [cardResponse, wordData, catData] = await Promise.all([
+          getCards({
+            categoryId: filters.categoryId || undefined,
+            meaning: filters.meaning || undefined,
+            limit: filters.limit,
+            skip: (filters.page - 1) * filters.limit,
+          }),
           getWords(),
           getCategories(),
         ]);
-        setCards(cardData);
-        setWords(wordData);
+        setCards(cardResponse.cards);
+        setTotalCards(cardResponse.total);
+        setWords(wordData.words);
         setCategories(catData);
-      } catch (err: any) {
-        setError(err.response?.data?.error || "Failed to load data");
+      } catch (error: unknown) {
+        if (error instanceof AxiosError) {
+          setError(error.response?.data?.error || "Failed to load data");
+        } else {
+          setError("Failed to load data");
+        }
       } finally {
         setLoading(false);
       }
     };
     fetchData();
-  }, [filterCategoryId]);
+  }, [filters]);
 
   const validateField = useCallback(
     (field: keyof typeof formData, value: string): string | null => {
@@ -98,6 +117,19 @@ const AdminCardsPage: React.FC = () => {
     }
   };
 
+  const handleFilterChange = (
+    field: "categoryId" | "meaning",
+    value: string
+  ) => {
+    setFilters((prev) => ({ ...prev, [field]: value, page: 1 }));
+  };
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setFilters((prev) => ({ ...prev, page: newPage }));
+    }
+  };
+
   const handleAddCard = async (e: React.FormEvent) => {
     e.preventDefault();
     setServerError("");
@@ -111,6 +143,7 @@ const AdminCardsPage: React.FC = () => {
         meaning: formData.meaning || undefined,
       });
       setCards([...cards, newCard]);
+      setTotalCards(totalCards + 1);
       setIsAddModalOpen(false);
       setFormData({
         wordId: "",
@@ -120,13 +153,12 @@ const AdminCardsPage: React.FC = () => {
       });
       setErrors({});
       setServerError("");
-    } catch (error: any) {
-      const errorMessage =
-        error.response?.data?.error || "Failed to create Card";
-      const details = error.response?.data?.details
-        ? error.response.data.details.map((err: any) => err.message).join(", ")
-        : "";
-      setServerError(details ? `${errorMessage}: ${details}` : errorMessage);
+    } catch (error: unknown) {
+      if (error instanceof AxiosError) {
+        setServerError(error.response?.data?.error || "Failed to create Card");
+      } else {
+        setServerError("Something went wrong");
+      }
     }
   };
 
@@ -166,13 +198,12 @@ const AdminCardsPage: React.FC = () => {
       });
       setErrors({});
       setServerError("");
-    } catch (error: any) {
-      const errorMessage =
-        error.response?.data?.error || "Failed to update Card";
-      const details = error.response?.data?.details
-        ? error.response.data.details.map((err: any) => err.message).join(", ")
-        : "";
-      setServerError(details ? `${errorMessage}: ${details}` : errorMessage);
+    } catch (error: unknown) {
+      if (error instanceof AxiosError) {
+        setServerError(error.response?.data?.error || "Failed to update Card");
+      } else {
+        setServerError("Something went wrong");
+      }
     }
   };
 
@@ -184,12 +215,19 @@ const AdminCardsPage: React.FC = () => {
     try {
       await deleteCard(currentCard._id);
       setCards(cards.filter((Card) => Card._id !== currentCard._id));
+      setTotalCards(totalCards - 1);
       setIsDeleteModalOpen(false);
       setCurrentCard(null);
-    } catch (error: any) {
-      setServerError(error.response?.data?.error || "Failed to delete Card");
+    } catch (error: unknown) {
+      if (error instanceof AxiosError) {
+        setServerError(error.response?.data?.error || "Failed to delete Card");
+      } else {
+        setServerError("Something went wrong");
+      }
     }
   };
+
+  console.log(totalCards);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex justify-center p-4">
@@ -198,13 +236,13 @@ const AdminCardsPage: React.FC = () => {
           Admin Panel
         </h2>
         <div className="flex flex-col sm:flex-row justify-center items-end gap-8 mt-4 mb-6 space-y-4 sm:space-y-0 sm:space-x-4">
-          <div className="flex flex-col items-center">
+          <div className="flex flex-col items-center w-full sm:w-auto">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Filter by Category
             </label>
             <select
-              value={filterCategoryId}
-              onChange={(e) => setFilterCategoryId(e.target.value)}
+              value={filters.categoryId}
+              onChange={(e) => handleFilterChange("categoryId", e.target.value)}
               className="w-full py-2.5 px-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300"
             >
               <option value="">All Categories</option>
@@ -214,6 +252,18 @@ const AdminCardsPage: React.FC = () => {
                 </option>
               ))}
             </select>
+          </div>
+          <div className="flex flex-col items-center w-full sm:w-auto">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Filter by Meaning
+            </label>
+            <input
+              type="text"
+              value={filters.meaning}
+              onChange={(e) => handleFilterChange("meaning", e.target.value)}
+              placeholder="Search by meaning..."
+              className="w-full py-2.5 px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300"
+            ></input>
           </div>
           <button
             onClick={() => {
@@ -247,65 +297,90 @@ const AdminCardsPage: React.FC = () => {
           <div className="text-center text-gray-600">No cards available.</div>
         )}
         {!loading && !error && cards.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-xl overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-indigo-50">
-                  <th className="p-4 font-semibold text-indigo-700">Word</th>
-                  <th className="p-4 font-semibold text-indigo-700">
-                    Translation
-                  </th>
-                  <th className="p-4 font-semibold text-indigo-700">
-                    Category
-                  </th>
-                  <th className="p-4 font-semibold text-indigo-700">Meaning</th>
-                  <th className="p-4 font-semibold text-indigo-700">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {cards.map((Card) => (
-                  <tr key={Card._id} className="border-t hover:bg-gray-50">
-                    <td className="p-4 text-gray-800">{Card.wordId.text}</td>
-                    <td className="p-4 text-gray-800">
-                      {Card.translationId.text}
-                    </td>
-                    <td className="p-4 text-gray-800">
-                      {Card.categoryId.name}
-                    </td>
-                    <td className="p-4 text-gray-800">{Card.meaning}</td>
-                    <td className="p-4">
-                      <button
-                        onClick={() => {
-                          setCurrentCard(Card);
-                          setFormData({
-                            wordId: Card.wordId._id,
-                            translationId: Card.translationId._id,
-                            categoryId: Card.categoryId._id,
-                            meaning: Card.meaning ?? "",
-                          });
-                          setErrors({});
-                          setServerError("");
-                          setIsEditModalOpen(true);
-                        }}
-                        className="text-indigo-600 hover:text-indigo-800 mr-4 cursor-pointer"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => {
-                          setCurrentCard(Card);
-                          setIsDeleteModalOpen(true);
-                        }}
-                        className="text-red-600 hover:text-red-800 cursor-pointer"
-                      >
-                        Delete
-                      </button>
-                    </td>
+          <>
+            <div className="bg-white rounded-2xl shadow-xl overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-indigo-50">
+                    <th className="p-4 font-semibold text-indigo-700">Word</th>
+                    <th className="p-4 font-semibold text-indigo-700">
+                      Translation
+                    </th>
+                    <th className="p-4 font-semibold text-indigo-700">
+                      Category
+                    </th>
+                    <th className="p-4 font-semibold text-indigo-700">
+                      Meaning
+                    </th>
+                    <th className="p-4 font-semibold text-indigo-700">
+                      Actions
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {cards.map((Card) => (
+                    <tr key={Card._id} className="border-t hover:bg-gray-50">
+                      <td className="p-4 text-gray-800">{Card.wordId.text}</td>
+                      <td className="p-4 text-gray-800">
+                        {Card.translationId.text}
+                      </td>
+                      <td className="p-4 text-gray-800">
+                        {Card.categoryId.name}
+                      </td>
+                      <td className="p-4 text-gray-800">{Card.meaning}</td>
+                      <td className="p-4">
+                        <button
+                          onClick={() => {
+                            setCurrentCard(Card);
+                            setFormData({
+                              wordId: Card.wordId._id,
+                              translationId: Card.translationId._id,
+                              categoryId: Card.categoryId._id,
+                              meaning: Card.meaning ?? "",
+                            });
+                            setErrors({});
+                            setServerError("");
+                            setIsEditModalOpen(true);
+                          }}
+                          className="text-indigo-600 hover:text-indigo-800 mr-4 cursor-pointer"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => {
+                            setCurrentCard(Card);
+                            setIsDeleteModalOpen(true);
+                          }}
+                          className="text-red-600 hover:text-red-800 cursor-pointer"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex justify-between items-center mt-4">
+              <button
+                onClick={() => handlePageChange(filters.page - 1)}
+                disabled={filters.page === 1}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <span>
+                Page {filters.page} of {totalPages}
+              </span>
+              <button
+                onClick={() => handlePageChange(filters.page + 1)}
+                disabled={filters.page === totalPages}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+          </>
         )}
       </div>
       <Dialog
