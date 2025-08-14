@@ -7,7 +7,7 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import DashboardPage from "./pages/DashboardPage";
 import ProtectedRoute from "./components/routing/ProtectedRoute";
 import ReviewCardsPage from "./pages/ReviewCardsPage";
-// import ProgressPage from "./pages/ProgressPage";
+import StatisticsPage from "./pages/StatisticsPage";
 import ProfilePage from "./pages/ProfilePage";
 import AdminLanguagesPage from "./pages/AdminLanguagesPage";
 import AdminCategoriesPage from "./pages/AdminCategoriesPage";
@@ -41,16 +41,14 @@ function App() {
             </ProtectedRoute>
           }
         />
-        {/*
-          <Route
-            path="/progress"
-            element={
-              <ProtectedRoute>
-                <ProgressPage />
-              </ProtectedRoute>
-            }
-          />
-        */}
+        <Route
+          path="/stats"
+          element={
+            <ProtectedRoute>
+              <StatisticsPage />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/profile"
           element={
