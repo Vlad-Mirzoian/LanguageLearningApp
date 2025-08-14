@@ -12,8 +12,7 @@ import {
   getReviewCards,
   getTestCards,
   getUserProgress,
-  reviewCard,
-  submitAnswer,
+  submitCard,
 } from "../services/api";
 import { motion } from "framer-motion";
 import { useAuth } from "../hooks/useAuth";
@@ -24,6 +23,7 @@ import { AxiosError } from "axios";
 import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
 
 type ExerciseType = "flash" | "test" | "dictation" | null;
+type AnswerResult = { isCorrect?: boolean; correctTranslation?: string } | null;
 
 const ReviewCardsPage: React.FC = () => {
   const { user } = useAuth();
@@ -45,6 +45,7 @@ const ReviewCardsPage: React.FC = () => {
   const [exerciseType, setExerciseType] = useState<ExerciseType>(null);
   const [showFormatSelection, setShowFormatSelection] = useState(false);
   const [dictationAnswer, setDictationAnswer] = useState("");
+  const [answerResult, setAnswerResult] = useState<AnswerResult>(null);
 
   useEffect(() => {
     const fetchFiltersAndProgress = async () => {
@@ -112,6 +113,7 @@ const ReviewCardsPage: React.FC = () => {
       setCurrentCardIndex(0);
       setShowTranslation(false);
       setDictationAnswer("");
+      setAnswerResult(null);
       setShowCardsModal(true);
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
@@ -133,21 +135,22 @@ const ReviewCardsPage: React.FC = () => {
     setIsSubmitting(true);
     try {
       const prevProgressData = progress;
-      const currentProgress = await reviewCard(cards[currentCardIndex]._id, {
+      const result = await submitCard(cards[currentCardIndex]._id, {
         languageId: selectedLanguageId,
         quality,
         attemptId,
+        type: "flash",
       });
       setTotalScore((prev) => prev + (quality / 5) * (100 / cards.length));
       setShowTranslation(false);
       const nextIndex = currentCardIndex + 1;
       setCurrentCardIndex(nextIndex);
       setProgress((prev) =>
-        prev.some((p) => p.categoryId === currentProgress.categoryId)
+        prev.some((p) => p.categoryId === result.progress.categoryId)
           ? prev.map((p) =>
-              p.categoryId === currentProgress.categoryId ? currentProgress : p
+              p.categoryId === result.progress.categoryId ? result.progress : p
             )
-          : [...prev, currentProgress]
+          : [...prev, result.progress]
       );
       const currentCategory = categories.find(
         (cat) => cat._id === cards[currentCardIndex].categoryId._id
@@ -162,25 +165,25 @@ const ReviewCardsPage: React.FC = () => {
         setProgress(updatedProgress);
         if (nextCategory) {
           const nextProgress = updatedProgress.find(
-            (p) => p.categoryId === nextCategory._id
+            (p) => p.categoryId._id === nextCategory._id
           );
           const prevNextProgress = prevProgressData.find(
-            (p) => p.categoryId === nextCategory._id
+            (p) => p.categoryId._id === nextCategory._id
           );
           if (nextProgress?.unlocked && !prevNextProgress?.unlocked) {
             toast(`Level ${nextCategory.order} unlocked!`);
           }
         }
         toast(
-          `Level completed! Current attempt score: ${currentProgress.score.toFixed(
+          `Level completed! Current attempt score: ${result.progress.score.toFixed(
             2
-          )}%, Max score: ${currentProgress.maxScore.toFixed(2)}%`
+          )}%, Max score: ${result.progress.maxScore.toFixed(2)}%`
         );
       } else {
         toast(
-          `Current attempt score: ${currentProgress.score.toFixed(
+          `Current attempt score: ${result.progress.score.toFixed(
             2
-          )}%, Max score: ${currentProgress.maxScore.toFixed(2)}%`
+          )}%, Max score: ${result.progress.maxScore.toFixed(2)}%`
         );
       }
     } catch (error: unknown) {
@@ -203,16 +206,20 @@ const ReviewCardsPage: React.FC = () => {
     setIsSubmitting(true);
     try {
       const prevProgressData = progress;
-      const result = await submitAnswer(testCards[currentCardIndex]._id, {
+      const result = await submitCard(testCards[currentCardIndex]._id, {
         languageId: selectedLanguageId,
         answer: selectedAnswer,
         attemptId,
+        type: "test",
+      });
+      setAnswerResult({
+        isCorrect: result.isCorrect,
+        correctTranslation: result.correctTranslation,
       });
       setTotalScore(
-        (prev) => prev + (result.quality / 5) * (100 / testCards.length)
+        (prev) =>
+          prev + ((result.quality as number) / 5) * (100 / testCards.length)
       );
-      const nextIndex = currentCardIndex + 1;
-      setCurrentCardIndex(nextIndex);
       setProgress((prev) =>
         prev.some((p) => p.categoryId === result.progress.categoryId)
           ? prev.map((p) =>
@@ -220,41 +227,51 @@ const ReviewCardsPage: React.FC = () => {
             )
           : [...prev, result.progress]
       );
-      toast(result.isCorrect ? "Correct!" : "Incorrect!");
-      const currentCategory = categories.find(
-        (cat) => cat._id === testCards[currentCardIndex].category._id
+      toast(
+        result.isCorrect
+          ? "Correct!"
+          : `Incorrect! Correct answer: ${result.correctTranslation}`
       );
-      const nextCategory = currentCategory
-        ? categories.find((cat) => cat.order === currentCategory.order + 1)
-        : null;
-      if (nextIndex >= testCards.length && currentCategory) {
-        const updatedProgress = await getUserProgress({
-          languageId: selectedLanguageId,
-        });
-        setProgress(updatedProgress);
-        if (nextCategory) {
-          const nextProgress = updatedProgress.find(
-            (p) => p.categoryId === nextCategory._id
+
+      setTimeout(async () => {
+        const nextIndex = currentCardIndex + 1;
+        setCurrentCardIndex(nextIndex);
+        setAnswerResult(null);
+        if (nextIndex >= testCards.length) {
+          const updatedProgress = await getUserProgress({
+            languageId: selectedLanguageId,
+          });
+          setProgress(updatedProgress);
+          const currentCategory = categories.find(
+            (cat) => cat._id === testCards[currentCardIndex].category._id
           );
-          const prevNextProgress = prevProgressData.find(
-            (p) => p.categoryId === nextCategory._id
-          );
-          if (nextProgress?.unlocked && !prevNextProgress?.unlocked) {
-            toast(`Level ${nextCategory.order} unlocked!`);
+          const nextCategory = currentCategory
+            ? categories.find((cat) => cat.order === currentCategory.order + 1)
+            : null;
+          if (nextCategory) {
+            const nextProgress = updatedProgress.find(
+              (p) => p.categoryId._id === nextCategory._id
+            );
+            const prevNextProgress = prevProgressData.find(
+              (p) => p.categoryId._id === nextCategory._id
+            );
+            if (nextProgress?.unlocked && !prevNextProgress?.unlocked) {
+              toast.success(`Level ${nextCategory.order} unlocked!`);
+            }
           }
+          toast(
+            `Level completed! Current attempt score: ${result.progress.score.toFixed(
+              2
+            )}%, Max score: ${result.progress.maxScore.toFixed(2)}%`
+          );
+        } else {
+          toast(
+            `Current attempt score: ${result.progress.score.toFixed(
+              2
+            )}%, Max score: ${result.progress.maxScore.toFixed(2)}%`
+          );
         }
-        toast(
-          `Level completed! Current attempt score: ${result.progress.score.toFixed(
-            2
-          )}%, Max score: ${result.progress.maxScore.toFixed(2)}%`
-        );
-      } else {
-        toast(
-          `Current attempt score: ${result.progress.score.toFixed(
-            2
-          )}%, Max score: ${result.progress.maxScore.toFixed(2)}%`
-        );
-      }
+      }, 2000);
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
         setError(error.response?.data?.error || "Failed to submit answer");
@@ -275,17 +292,19 @@ const ReviewCardsPage: React.FC = () => {
     setIsSubmitting(true);
     try {
       const prevProgressData = progress;
-      const result = await submitAnswer(cards[currentCardIndex]._id, {
+      const result = await submitCard(cards[currentCardIndex]._id, {
         languageId: selectedLanguageId,
         answer: dictationAnswer,
         attemptId,
+        type: "dictation",
+      });
+      setAnswerResult({
+        isCorrect: result.isCorrect,
+        correctTranslation: result.correctTranslation,
       });
       setTotalScore(
-        (prev) => prev + (result.quality / 5) * (100 / cards.length)
+        (prev) => prev + ((result.quality as number) / 5) * (100 / cards.length)
       );
-      const nextIndex = currentCardIndex + 1;
-      setCurrentCardIndex(nextIndex);
-      setDictationAnswer("");
       setProgress((prev) =>
         prev.some((p) => p.categoryId === result.progress.categoryId)
           ? prev.map((p) =>
@@ -293,41 +312,52 @@ const ReviewCardsPage: React.FC = () => {
             )
           : [...prev, result.progress]
       );
-      toast(result.isCorrect ? "Correct!" : "Incorrect!");
-      const currentCategory = categories.find(
-        (cat) => cat._id === cards[currentCardIndex].categoryId._id
+      toast(
+        result.isCorrect
+          ? "Correct!"
+          : `Incorrect! Correct answer: ${result.correctTranslation}`
       );
-      const nextCategory = currentCategory
-        ? categories.find((cat) => cat.order === currentCategory.order + 1)
-        : null;
-      if (nextIndex >= cards.length && currentCategory) {
-        const updatedProgress = await getUserProgress({
-          languageId: selectedLanguageId,
-        });
-        setProgress(updatedProgress);
-        if (nextCategory) {
-          const nextProgress = updatedProgress.find(
-            (p) => p.categoryId === nextCategory._id
+
+      setTimeout(async () => {
+        const nextIndex = currentCardIndex + 1;
+        setCurrentCardIndex(nextIndex);
+        setDictationAnswer("");
+        setAnswerResult(null);
+        if (nextIndex >= cards.length) {
+          const updatedProgress = await getUserProgress({
+            languageId: selectedLanguageId,
+          });
+          setProgress(updatedProgress);
+          const currentCategory = categories.find(
+            (cat) => cat._id === cards[currentCardIndex].categoryId._id
           );
-          const prevNextProgress = prevProgressData.find(
-            (p) => p.categoryId === nextCategory._id
-          );
-          if (nextProgress?.unlocked && !prevNextProgress?.unlocked) {
-            toast(`Level ${nextCategory.order} unlocked!`);
+          const nextCategory = currentCategory
+            ? categories.find((cat) => cat.order === currentCategory.order + 1)
+            : null;
+          if (nextCategory) {
+            const nextProgress = updatedProgress.find(
+              (p) => p.categoryId._id === nextCategory._id
+            );
+            const prevNextProgress = prevProgressData.find(
+              (p) => p.categoryId._id === nextCategory._id
+            );
+            if (nextProgress?.unlocked && !prevNextProgress?.unlocked) {
+              toast.success(`Level ${nextCategory.order} unlocked!`);
+            }
           }
+          toast(
+            `Level completed! Current attempt score: ${result.progress.score.toFixed(
+              2
+            )}%, Max score: ${result.progress.maxScore.toFixed(2)}%`
+          );
+        } else {
+          toast(
+            `Current attempt score: ${result.progress.score.toFixed(
+              2
+            )}%, Max score: ${result.progress.maxScore.toFixed(2)}%`
+          );
         }
-        toast(
-          `Level completed! Current attempt score: ${result.progress.score.toFixed(
-            2
-          )}%, Max score: ${result.progress.maxScore.toFixed(2)}%`
-        );
-      } else {
-        toast(
-          `Current attempt score: ${result.progress.score.toFixed(
-            2
-          )}%, Max score: ${result.progress.maxScore.toFixed(2)}%`
-        );
-      }
+      }, 2000);
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
         setError(error.response?.data?.error || "Failed to submit answer");
@@ -351,6 +381,7 @@ const ReviewCardsPage: React.FC = () => {
     setTotalScore(0);
     setAttemptId(null);
     setExerciseType(null);
+    setAnswerResult(null);
   };
 
   const currentCard = cards[currentCardIndex];
@@ -374,6 +405,9 @@ const ReviewCardsPage: React.FC = () => {
     if (percentage >= 50) return "text-yellow-600";
     return "text-red-600";
   };
+
+  console.log("Categories:", categories);
+  console.log("Language progress:", languageProgress);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex flex-col items-center p-4">
@@ -410,9 +444,13 @@ const ReviewCardsPage: React.FC = () => {
           <h3 className="text-lg font-semibold text-gray-800 mb-2">Levels</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {categories.map((cat) => {
-              const catProgress = languageProgress.find(
-                (p) => p.categoryId === cat._id
-              );
+              const catProgress = languageProgress.find((p) => {
+                console.log("p.categoryId:", p.categoryId);
+                console.log("p.categoryId._id:", p.categoryId?._id);
+                console.log("cat._id:", cat._id);
+                return p.categoryId._id === cat._id;
+              });
+              console.log(catProgress);
               return (
                 <div
                   key={cat._id}
@@ -508,6 +546,17 @@ const ReviewCardsPage: React.FC = () => {
                 >
                   <XMarkIcon className="h-6 w-6" />
                 </button>
+                <div className="mb-4">
+                  <p className="text-sm text-gray-600">
+                    Attempt Progress: {totalScore.toFixed(1)}%
+                  </p>
+                  <div className="w-full bg-gray-200 rounded-full h-2.5">
+                    <div
+                      className="bg-indigo-600 h-2.5 rounded-full"
+                      style={{ width: `${totalScore}%` }}
+                    ></div>
+                  </div>
+                </div>
                 {loading && (
                   <div className="flex items-center mb-4">
                     <ArrowPathIcon className="h-5 w-5 text-indigo-600 animate-spin" />
@@ -619,17 +668,40 @@ const ReviewCardsPage: React.FC = () => {
                               Level: {currentTestCard.category.name}
                             </p>
                           )}
+                          {answerResult && (
+                            <p
+                              className={`mt-2 text-sm ${
+                                answerResult.isCorrect
+                                  ? "text-green-600"
+                                  : "text-red-600"
+                              }`}
+                            >
+                              {answerResult.isCorrect
+                                ? "Correct!"
+                                : `Incorrect! Correct answer: ${answerResult.correctTranslation}`}
+                            </p>
+                          )}
                           <div className="mt-4 flex flex-col space-y-2">
                             {currentTestCard.options.map((option, index) => (
                               <button
                                 key={index}
                                 onClick={() => handleTestAnswer(option.text)}
-                                disabled={isSubmitting}
-                                className={`px-4 py-2 rounded-lg font-semibold ${
-                                  isSubmitting
+                                disabled={isSubmitting || !!answerResult}
+                                className={`px-4 py-2 rounded-lg font-semibold transition-colors duration-200 ${
+                                  answerResult
+                                    ? option.isCorrect
+                                      ? "bg-green-600 text-white"
+                                      : option.text ===
+                                        answerResult.correctTranslation
+                                      ? "bg-green-600 text-white"
+                                      : answerResult.correctTranslation !==
+                                          option.text && !answerResult.isCorrect
+                                      ? "bg-red-600 text-white"
+                                      : "bg-gray-200 text-gray-800"
+                                    : isSubmitting
                                     ? "bg-gray-400 cursor-not-allowed"
                                     : "bg-indigo-600 text-white hover:bg-indigo-700"
-                                } transition-colors duration-200`}
+                                }`}
                               >
                                 {option.text}
                               </button>
@@ -652,18 +724,44 @@ const ReviewCardsPage: React.FC = () => {
                               Level: {currentCard.categoryId.name}
                             </p>
                           )}
+                          {answerResult && (
+                            <p
+                              className={`mt-2 text-sm ${
+                                answerResult.isCorrect
+                                  ? "text-green-600"
+                                  : "text-red-600"
+                              }`}
+                            >
+                              {answerResult.isCorrect
+                                ? "Correct!"
+                                : `Incorrect! Correct answer: ${answerResult.correctTranslation}`}
+                            </p>
+                          )}
                           <input
                             type="text"
                             value={dictationAnswer}
                             onChange={(e) => setDictationAnswer(e.target.value)}
                             placeholder="Type the translation"
-                            className="mt-4 w-full py-2 px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300"
+                            disabled={isSubmitting || !!answerResult}
+                            className={`mt-4 w-full py-2 px-4 border rounded-lg focus:ring-2 focus:ring-indigo-300 ${
+                              answerResult
+                                ? answerResult.isCorrect
+                                  ? "border-green-600 bg-green-50"
+                                  : "border-red-600 bg-red-50"
+                                : "border-gray-300"
+                            }`}
                           />
                           <button
                             onClick={handleDictationSubmit}
-                            disabled={isSubmitting || !dictationAnswer.trim()}
+                            disabled={
+                              isSubmitting ||
+                              !dictationAnswer.trim() ||
+                              !!answerResult
+                            }
                             className={`mt-4 w-full py-2 rounded-lg font-semibold ${
-                              isSubmitting || !dictationAnswer.trim()
+                              isSubmitting ||
+                              !dictationAnswer.trim() ||
+                              !!answerResult
                                 ? "bg-gray-400 cursor-not-allowed"
                                 : "bg-indigo-600 text-white hover:bg-indigo-700"
                             } transition-colors duration-200`}

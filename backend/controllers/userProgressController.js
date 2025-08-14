@@ -36,12 +36,14 @@ const userProgressController = {
       if (languageId) query.languageId = languageId;
       if (categoryId) query.categoryId = categoryId;
 
-      const progress = await UserProgress.find(query).lean();
+      const progress = await UserProgress.find(query)
+        .populate({ path: "categoryId", select: "name order requiredScore" })
+        .lean();
       const formattedProgress = progress.map((p) => ({
         _id: p._id.toString(),
         userId: p.userId.toString(),
         languageId: p.languageId.toString(),
-        categoryId: p.categoryId.toString(),
+        categoryId: p.categoryId,
         totalCards: p.totalCards,
         score: p.score,
         maxScore: p.maxScore,

@@ -5,6 +5,7 @@ const Word = require("../models/Word");
 const Card = require("../models/Card");
 const Language = require("../models/Language");
 const UserProgress = require("../models/UserProgress");
+const Attempt = require("../models/Attempt");
 
 const cardController = {
   async getCards(req, res) {
@@ -315,10 +316,10 @@ const cardController = {
     }
   },
 
-  async reviewCard(req, res) {
+  async submitCard(req, res) {
     try {
       const { id } = req.params;
-      const { languageId, quality, attemptId } = req.body;
+      const { languageId, quality, answer, attemptId, type } = req.body;
       const user = await User.findById(req.userId).lean();
       if (!user) {
         return res.status(404).json({ error: "User not found" });
@@ -357,141 +358,18 @@ const cardController = {
         return res.status(404).json({ error: "Card not found" });
       }
 
-      let progress = await UserProgress.findOne({
-        userId: req.userId,
-        languageId,
-        categoryId: card.categoryId._id,
-      });
-      const totalCards = await Card.countDocuments({
-        categoryId: card.categoryId._id,
-        translationId: { $in: translationWordIds },
-      });
-      const scorePerCard = totalCards > 0 ? 100 / totalCards : 0;
+      let finalQuality = quality;
+      let isCorrect = null;
+      let correctTranslation = null;
 
-      if (!progress) {
-        progress = await UserProgress.create({
-          userId: req.userId,
-          languageId,
-          categoryId: card.categoryId._id,
-          totalCards,
-          score: (quality / 5) * scorePerCard,
-          maxScore: (quality / 5) * scorePerCard,
-          unlocked: card.categoryId.order === 1,
-          attemptId: attemptId || new mongoose.Types.ObjectId().toString(),
-        });
-      } else {
-        if (attemptId && progress.attemptId !== attemptId) {
-          progress.score = (quality / 5) * scorePerCard;
-          progress.attemptId = attemptId;
-        } else {
-          progress.score += (quality / 5) * scorePerCard;
-        }
-        if (progress.score > progress.maxScore) {
-          progress.maxScore = progress.score;
-        }
-        await progress.save();
+      if (type === "test" || type === "dictation") {
+        correctTranslation = (await Word.findById(card.translationId).lean())
+          .text;
+        isCorrect =
+          answer.trim().toLowerCase() ===
+          correctTranslation.trim().toLowerCase();
+        finalQuality = isCorrect ? 5 : 0;
       }
-
-      const nextCategory = await Category.findOne({
-        order: card.categoryId.order + 1,
-      }).lean();
-      if (nextCategory && progress.maxScore >= card.categoryId.requiredScore) {
-        const nextProgress = await UserProgress.findOne({
-          userId: req.userId,
-          languageId,
-          categoryId: nextCategory._id,
-        });
-        if (!nextProgress) {
-          await UserProgress.create({
-            userId: req.userId,
-            languageId,
-            categoryId: nextCategory._id,
-            totalCards: await Card.countDocuments({
-              categoryId: nextCategory._id,
-              translationId: { $in: translationWordIds },
-            }),
-            score: 0,
-            maxScore: 0,
-            unlocked: true,
-            attemptId: null,
-          });
-        } else if (!nextProgress.unlocked) {
-          await UserProgress.findOneAndUpdate(
-            { userId: req.userId, languageId, categoryId: nextCategory._id },
-            { $set: { unlocked: true } },
-            { new: true }
-          );
-        }
-      }
-
-      res.json({
-        progress: {
-          _id: progress._id.toString(),
-          userId: progress.userId.toString(),
-          languageId: progress.languageId.toString(),
-          categoryId: progress.categoryId.toString(),
-          totalCards: progress.totalCards,
-          score: progress.score,
-          maxScore: progress.maxScore,
-          unlocked: progress.unlocked,
-          attemptId: progress.attemptId,
-        },
-      });
-    } catch (error) {
-      res
-        .status(500)
-        .json({ error: `Failed to review card: ${error.message}` });
-    }
-  },
-
-  async submitAnswer(req, res) {
-    try {
-      const { id } = req.params;
-      const { languageId, answer, attemptId } = req.body;
-      const user = await User.findById(req.userId).lean();
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
-      if (!user.learningLanguagesIds?.length) {
-        return res
-          .status(400)
-          .json({ error: "User must have at least one learning language" });
-      }
-
-      const language = await Language.findById(languageId).lean();
-      if (!language) {
-        return res.status(404).json({ error: "Language not found" });
-      }
-      if (
-        !user.nativeLanguageId.equals(languageId) &&
-        !user.learningLanguagesIds.some((id) => id.equals(languageId))
-      ) {
-        return res
-          .status(403)
-          .json({ error: "Access to this language is restricted" });
-      }
-
-      const nativeWordIds = await Word.find({
-        languageId: user.nativeLanguageId,
-      }).distinct("_id");
-      const translationWordIds = await Word.find({
-        languageId,
-      }).distinct("_id");
-      const card = await Card.findOne({
-        _id: id,
-        wordId: { $in: nativeWordIds },
-        translationId: { $in: translationWordIds },
-      }).populate("categoryId");
-      if (!card) {
-        return res.status(404).json({ error: "Card not found" });
-      }
-
-      const correctTranslation = (
-        await Word.findById(card.translationId).lean()
-      ).text;
-      const isCorrect =
-        answer.trim().toLowerCase() === correctTranslation.trim().toLowerCase();
-      const quality = isCorrect ? 5 : 0;
 
       let progress = await UserProgress.findOne({
         userId: req.userId,
@@ -510,23 +388,35 @@ const cardController = {
           languageId,
           categoryId: card.categoryId._id,
           totalCards,
-          score: (quality / 5) * scorePerCard,
-          maxScore: (quality / 5) * scorePerCard,
+          score: (finalQuality / 5) * scorePerCard,
+          maxScore: (finalQuality / 5) * scorePerCard,
           unlocked: card.categoryId.order === 1,
           attemptId: attemptId || new mongoose.Types.ObjectId().toString(),
         });
       } else {
         if (attemptId && progress.attemptId !== attemptId) {
-          progress.score = (quality / 5) * scorePerCard;
+          progress.score = (finalQuality / 5) * scorePerCard;
           progress.attemptId = attemptId;
         } else {
-          progress.score += (quality / 5) * scorePerCard;
+          progress.score += (finalQuality / 5) * scorePerCard;
         }
         if (progress.score > progress.maxScore) {
           progress.maxScore = progress.score;
         }
         await progress.save();
       }
+
+      await Attempt.create({
+        attemptId,
+        userId: req.userId,
+        languageId,
+        categoryId: card.categoryId._id,
+        type,
+        date: new Date(),
+        score: (finalQuality / 5) * scorePerCard,
+        correctAnswers: finalQuality === 5 ? 1 : 0,
+        totalAnswers: 1,
+      });
 
       const nextCategory = await Category.findOne({
         order: card.categoryId.order + 1,
@@ -561,26 +451,35 @@ const cardController = {
         }
       }
 
-      res.json({
-        isCorrect,
-        correctTranslation,
-        quality,
+      if (progress && progress.categoryId) {
+        await progress.populate({
+          path: "categoryId",
+          select: "name order requiredScore",
+        });
+      }
+      const response = {
         progress: {
           _id: progress._id.toString(),
           userId: progress.userId.toString(),
           languageId: progress.languageId.toString(),
-          categoryId: progress.categoryId.toString(),
+          categoryId: progress.categoryId,
           totalCards: progress.totalCards,
           score: progress.score,
           maxScore: progress.maxScore,
           unlocked: progress.unlocked,
           attemptId: progress.attemptId,
         },
-      });
+      };
+      if (type === "test" || type === "dictation") {
+        response.isCorrect = isCorrect;
+        response.correctTranslation = correctTranslation;
+        response.quality = finalQuality;
+      }
+      res.json(response);
     } catch (error) {
       res
         .status(500)
-        .json({ error: `Failed to check user answer: ${error.message}` });
+        .json({ error: `Failed to submit card: ${error.message}` });
     }
   },
 

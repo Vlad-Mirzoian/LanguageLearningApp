@@ -61,12 +61,31 @@ export interface UserProgress {
   _id: string;
   userId: string;
   languageId: string;
-  categoryId: string;
+  categoryId: Category;
   totalCards: number;
   score: number;
   maxScore: number;
   unlocked: boolean;
   attemptId: string | null;
+}
+
+export interface Attempt {
+  attemptId: string;
+  userId: string;
+  languageId: string;
+  categoryId: Category;
+  type: "flash" | "test" | "dictation";
+  date: Date;
+  score: number;
+  correctAnswers: number;
+  totalAnswers: number;
+}
+
+export interface StatsByType {
+  [key: string]: {
+    correctAnswers: number;
+    totalAnswers: number;
+  };
 }
 
 export interface AuthResponse {

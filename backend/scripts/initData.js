@@ -15,6 +15,7 @@ const Category = require("../models/Category");
 const Word = require("../models/Word");
 const Card = require("../models/Card");
 const UserProgress = require("../models/UserProgress");
+const Attempt = require("../models/Attempt");
 
 async function initDB() {
   try {
@@ -26,6 +27,7 @@ async function initDB() {
       Word.deleteMany({}),
       Card.deleteMany({}),
       UserProgress.deleteMany({}),
+      Attempt.deleteMany({}),
     ]);
 
     // Create Languages

@@ -74,9 +74,9 @@ router.get(
   cardController.getTestCards
 );
 
-// POST /api/cards/:id/review
+// POST /api/cards/:id/submit
 router.post(
-  "/:id/review",
+  "/:id/submit",
   authenticate,
   authorizeRoles(["user"]),
   [
@@ -86,36 +86,23 @@ router.post(
       .withMessage("Language is required")
       .isMongoId()
       .withMessage("Invalid language ID"),
+    body("type")
+      .isIn(["flash", "test", "dictation"])
+      .withMessage("Type must be on of: 'flash', 'test', 'dictation'"),
+    body("attemptId").optional().isString().withMessage("Invalid attempt ID"),
     body("quality")
+      .if(body("type").equals("flash"))
       .isInt({ min: 1, max: 5 })
       .withMessage("Quality must be an integer between 1 and 5"),
-    body("attemptId").optional().isString().withMessage("Invalid attempt ID"),
-  ],
-  validate,
-  cardController.reviewCard
-);
-
-// POST /api/cards/:id/answer
-router.post(
-  "/:id/answer",
-  authenticate,
-  authorizeRoles(["user"]),
-  [
-    param("id").isMongoId().withMessage("Invalid card ID"),
-    body("languageId")
-      .notEmpty()
-      .withMessage("Language is required")
-      .isMongoId()
-      .withMessage("Invalid language ID"),
     body("answer")
+      .if(body("type").isIn(["test", "dictation"]))
       .isString()
       .trim()
       .notEmpty()
       .withMessage("Answer is required"),
-    body("attemptId").optional().isString().withMessage("Invalid attempt ID"),
   ],
   validate,
-  cardController.submitAnswer
+  cardController.submitCard
 );
 
 // POST /api/cards

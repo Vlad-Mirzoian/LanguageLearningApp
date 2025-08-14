@@ -1,10 +1,12 @@
 import axios from "axios";
 import type {
+  Attempt,
   AuthResponse,
   Card,
   CardResponse,
   Category,
   Language,
+  StatsByType,
   TestCard,
   UserProgress,
   Word,
@@ -285,24 +287,22 @@ export const getTestCards = async (filters: {
   return response.data;
 };
 
-export const reviewCard = async (
+export const submitCard = async (
   cardId: string,
-  data: { languageId: string; quality: number; attemptId?: string | null }
-): Promise<UserProgress> => {
-  const response = await api.post(`/cards/${cardId}/review`, data);
-  return response.data.progress;
-};
-
-export const submitAnswer = async (
-  cardId: string,
-  data: { languageId: string; answer: string; attemptId?: string | null }
+  data: {
+    languageId: string;
+    type: "flash" | "test" | "dictation";
+    attemptId?: string | null;
+    quality?: number;
+    answer?: string;
+  }
 ): Promise<{
-  isCorrect: boolean;
-  correctTranslation: string;
-  quality: number;
+  isCorrect?: boolean;
+  correctTranslation?: string;
+  quality?: number;
   progress: UserProgress;
 }> => {
-  const response = await api.post(`/cards/${cardId}/answer`, data);
+  const response = await api.post(`/cards/${cardId}/submit`, data);
   return response.data;
 };
 
@@ -310,6 +310,17 @@ export const getUserProgress = async (
   filters: { languageId?: string; categoryId?: string } = {}
 ): Promise<UserProgress[]> => {
   const response = await api.get("/user-progress", { params: filters });
+  return response.data;
+};
+
+export const getStats = async (
+  filters: { languageId?: string } = {}
+): Promise<{
+  progress: UserProgress[];
+  statsByType: StatsByType;
+  attempts: Attempt[];
+}> => {
+  const response = await api.get("/stats", { params: filters });
   return response.data;
 };
 
