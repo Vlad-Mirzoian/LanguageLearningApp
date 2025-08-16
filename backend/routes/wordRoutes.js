@@ -75,7 +75,7 @@ router.put(
   authorizeRoles(["admin"]),
   [
     param("id").isMongoId().withMessage("Invalid word ID"),
-    body("Text")
+    body("text")
       .optional()
       .isString()
       .trim()

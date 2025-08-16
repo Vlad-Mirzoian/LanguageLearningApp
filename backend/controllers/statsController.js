@@ -37,6 +37,14 @@ const statsController = {
       attemptQuery.languageId = languageId;
       const attempts = await Attempt.find(attemptQuery)
         .populate({
+          path: "userId",
+          select: "username avatar",
+        })
+        .populate({
+          path: "languageId",
+          select: "name",
+        })
+        .populate({
           path: "categoryId",
           select: "name order",
         })

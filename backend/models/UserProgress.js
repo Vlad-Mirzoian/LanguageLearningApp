@@ -13,10 +13,8 @@ const userProgressSchema = new mongoose.Schema({
     required: true,
   },
   totalCards: { type: Number, default: 0 },
-  score: { type: Number, default: 0 },
   maxScore: { type: Number, default: 0 },
   unlocked: { type: Boolean, default: false },
-  attemptId: { type: String, default: null },
 });
 
 userProgressSchema.index(

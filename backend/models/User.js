@@ -36,7 +36,11 @@ const userSchema = new mongoose.Schema(
     },
     isVerified: { type: Boolean, default: false },
     verificationToken: { type: String, default: null },
-    resetPasswordToken: { type: String, default: null },
+    verificationTokenExpires: { type: Date, default: null },
+    resetPasswordToken: {
+      type: String,
+      default: null,
+    },
     resetPasswordExpires: { type: Date, default: null },
   },
   { timestamps: true }
@@ -44,5 +48,12 @@ const userSchema = new mongoose.Schema(
 
 userSchema.index({ nativeLanguageId: 1 });
 userSchema.index({ learningLanguagesIds: 1 });
+userSchema.index(
+  { resetPasswordToken: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { resetPasswordToken: { $type: "string" } },
+  }
+);
 
 module.exports = mongoose.model("User", userSchema);

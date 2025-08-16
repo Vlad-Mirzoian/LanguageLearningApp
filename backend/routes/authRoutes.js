@@ -4,7 +4,7 @@ const router = express.Router();
 const { authenticate } = require("../middleware/auth");
 const { validate } = require("../middleware/validation");
 const upload = require("../middleware/upload");
-const { param, body } = require("express-validator");
+const { param, body, query } = require("express-validator");
 const authController = require("../controllers/authController");
 
 // POST /api/auth/register
