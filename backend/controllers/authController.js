@@ -1,4 +1,5 @@
 const bcrypt = require("bcrypt");
+const { v4: uuidv4 } = require("uuid");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const Language = require("../models/Language");
@@ -48,9 +49,10 @@ const authController = {
       }
 
       const hashedPassword = await bcrypt.hash(password, 10);
-      const verificationToken = jwt.sign({ email }, process.env.JWT_SECRET, {
-        expiresIn: "24h",
-      });
+      const verificationToken = uuidv4();
+      const verificationTokenExpires = new Date(
+        Date.now() + 24 * 60 * 60 * 1000
+      );
 
       const user = new User({
         email,
@@ -58,7 +60,9 @@ const authController = {
         password: hashedPassword,
         nativeLanguageId,
         learningLanguagesIds,
+        isVerified: false,
         verificationToken,
+        verificationTokenExpires,
       });
       await user.save();
       await sendVerificationEmail(email, verificationToken);
@@ -75,26 +79,19 @@ const authController = {
   async verifyEmail(req, res) {
     try {
       const { token } = req.params;
-      let decoded;
-      try {
-        decoded = jwt.verify(token, process.env.JWT_SECRET);
-      } catch (error) {
-        return res
-          .status(400)
-          .json({ error: "Invalid or expired verification token" });
-      }
-      const user = await User.findOne({ email: decoded.email });
+      const user = await User.findOne({
+        verificationToken: token,
+        verificationTokenExpires: { $gt: new Date() },
+      });
       if (!user) {
         return res.status(400).json({ error: "User not found" });
       }
       if (user.isVerified) {
         return res.status(400).json({ error: "Email already verified" });
       }
-      if (user.verificationToken !== token) {
-        return res.status(400).json({ error: "Invalid verification token" });
-      }
       user.isVerified = true;
       user.verificationToken = null;
+      user.verificationTokenExpires = null;
       await user.save();
       res.json({ message: "User verified successfully" });
     } catch (error) {
@@ -146,7 +143,7 @@ const authController = {
   async forgotPassword(req, res) {
     try {
       const { email } = req.body;
-      const user = await User.findOne({ email }).lean();
+      const user = await User.findOne({ email });
       if (!user) {
         return res.status(404).json({ error: "User not found" });
       }
@@ -155,21 +152,11 @@ const authController = {
           error: "Please verify your email before resetting your password",
         });
       }
-
-      const resetToken = jwt.sign(
-        { userId: user._id },
-        process.env.JWT_SECRET,
-        { expiresIn: "1h" }
-      );
-      await User.findOneAndUpdate(
-        { _id: user._id },
-        {
-          resetPasswordToken: resetToken,
-          resetPasswordExpires: new Date(Date.now() + 3600000),
-        },
-        { runValidators: true }
-      );
-
+      const resetToken = uuidv4();
+      const resetPasswordExpires = new Date(Date.now() + 1 * 60 * 60 * 1000);
+      user.resetPasswordToken = resetToken;
+      user.resetPasswordExpires = resetPasswordExpires;
+      await user.save({ runValidators: true });
       await sendResetPasswordEmail(email, resetToken);
       res.json({ message: "Password reset link sent to your email" });
     } catch (error) {
@@ -183,35 +170,18 @@ const authController = {
     try {
       const { token } = req.params;
       const { password } = req.body;
-      let decoded;
-      try {
-        decoded = jwt.verify(token, process.env.JWT_SECRET);
-      } catch (error) {
-        return res
-          .status(500)
-          .json({ error: "Invalid or expired reset token" });
+      const user = await User.findOne({
+        resetPasswordToken: token,
+        resetPasswordExpires: { $gt: new Date() },
+      });
+      if (!user) {
+        return res.status(400).json({ error: "Invalid or expired token" });
       }
       const hashedPassword = await bcrypt.hash(password, 10);
-      const user = await User.findOneAndUpdate(
-        {
-          _id: decoded.userId,
-          resetPasswordToken: token,
-          resetPasswordExpires: { $gt: new Date() },
-          isVerified: true,
-        },
-        {
-          password: hashedPassword,
-          resetPasswordToken: null,
-          resetPasswordExpires: null,
-        },
-        { new: true, lean: true }
-      );
-
-      if (!user) {
-        return res
-          .status(400)
-          .json({ error: "User not found or token invalid" });
-      }
+      user.password = hashedPassword;
+      user.resetPasswordToken = null;
+      user.resetPasswordExpires = null;
+      await user.save();
       res.json({ message: "Password reset successfully" });
     } catch (error) {
       res
