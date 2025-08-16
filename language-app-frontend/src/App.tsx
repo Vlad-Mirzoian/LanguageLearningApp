@@ -4,10 +4,12 @@ import LoginPage from "./pages/LoginPage";
 import VerifyEmailPage from "./pages/VerifyEmailPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import ViewAttemptPage from "./pages/ViewAttemptPage";
 import DashboardPage from "./pages/DashboardPage";
 import ProtectedRoute from "./components/routing/ProtectedRoute";
 import ReviewCardsPage from "./pages/ReviewCardsPage";
 import StatisticsPage from "./pages/StatisticsPage";
+import LeaderboardPage from "./pages/LeaderboardPage";
 import ProfilePage from "./pages/ProfilePage";
 import AdminLanguagesPage from "./pages/AdminLanguagesPage";
 import AdminCategoriesPage from "./pages/AdminCategoriesPage";
@@ -23,6 +25,7 @@ function App() {
       <Route path="/verify/:token" element={<VerifyEmailPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+      <Route path="/attempts/view/:token" element={<ViewAttemptPage />} />
       <Route path="/" element={<LoginPage />} />
       <Route element={<Layout />}>
         <Route
@@ -46,6 +49,14 @@ function App() {
           element={
             <ProtectedRoute>
               <StatisticsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/leaderboard"
+          element={
+            <ProtectedRoute>
+              <LeaderboardPage />
             </ProtectedRoute>
           }
         />

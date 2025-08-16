@@ -6,6 +6,7 @@ import type {
   CardResponse,
   Category,
   Language,
+  LeaderboardEntry,
   StatsByType,
   TestCard,
   UserProgress,
@@ -282,7 +283,7 @@ export const getReviewCards = async (filters: {
 export const getTestCards = async (filters: {
   languageId: string;
   categoryId?: string;
-}): Promise<{ cards: TestCard[]; attemptId: string | null; total: number }> => {
+}): Promise<{ cards: TestCard[]; attemptId: string | null }> => {
   const response = await api.get("/cards/test", { params: filters });
   return response.data;
 };
@@ -300,7 +301,7 @@ export const submitCard = async (
   isCorrect?: boolean;
   correctTranslation?: string;
   quality?: number;
-  progress: UserProgress;
+  attempt: Attempt;
 }> => {
   const response = await api.post(`/cards/${cardId}/submit`, data);
   return response.data;
@@ -321,6 +322,23 @@ export const getStats = async (
   attempts: Attempt[];
 }> => {
   const response = await api.get("/stats", { params: filters });
+  return response.data;
+};
+
+export const shareAttempt = async (attemptId: string) => {
+  const response = await api.post(`/attempts/${attemptId}/share`);
+  return response.data;
+};
+
+export const viewAttempt = async (token: string): Promise<Attempt> => {
+  const response = await api.get(`/attempts/view/${token}`);
+  return response.data;
+};
+
+export const getLeaderboard = async (data: {
+  languageId: string;
+}): Promise<LeaderboardEntry[]> => {
+  const response = await api.get("/leaderboard", { params: data });
   return response.data;
 };
 

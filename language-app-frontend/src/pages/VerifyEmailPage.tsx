@@ -2,41 +2,44 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { verifyEmail } from "../services/api";
 import { ArrowPathIcon } from "@heroicons/react/24/solid";
+import { AxiosError } from "axios";
 
 const VerifyEmailPage: React.FC = () => {
   const navigate = useNavigate();
   const { token } = useParams<{ token: string }>();
-  const [status, setStatus] = useState<"loading" | "success" | "error">(
-    "loading"
-  );
-  const [message, setMessage] = useState("");
-  const isMounted = useRef(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const isMounted = useRef(false); // to avoid double call to API
 
   useEffect(() => {
     if (isMounted.current) return;
-
     const verify = async () => {
       if (!token) {
-        setStatus("error");
-        setMessage("Invalid verification token");
+        setError("Invalid verification token");
+        setLoading(false);
         return;
       }
-
+      setLoading(true);
+      setError("");
       try {
         isMounted.current = true;
         await verifyEmail(token);
-        setStatus("success");
-        setMessage("Email verified successfully! Redirecting to login...");
+        setSuccess("Email verified successfully! Redirecting to login...");
         setTimeout(() => {
           navigate("/login");
         }, 3000);
-      } catch (error: any) {
+      } catch (error: unknown) {
         isMounted.current = true;
-        setStatus("error");
-        setMessage(error.response?.data?.error || "Verification failed");
+        if (error instanceof AxiosError) {
+          setError(error.response?.data?.error || "Verification failed");
+        } else {
+          setError("Verification failed");
+        }
+      } finally {
+        setLoading(false);
       }
     };
-
     verify();
   }, [token, navigate]);
 
@@ -48,27 +51,26 @@ const VerifyEmailPage: React.FC = () => {
         </h2>
         <div
           className={`p-3 text-sm rounded-lg text-center animate-fade-in ${
-            status === "success"
+            success
               ? "bg-green-100 text-green-700"
-              : status === "error"
+              : error
               ? "bg-red-100 text-red-700"
               : "bg-gray-100 text-gray-700"
           }`}
         >
-          {status === "loading" && (
+          {loading && (
             <div className="flex items-center mb-4">
               <ArrowPathIcon className="h-5 w-5 text-indigo-600 animate-spin" />
               <span className="ml-2 text-gray-600">Verifying...</span>
             </div>
           )}
-          {status !== "loading" && message}
         </div>
-        {status === "success" && (
-          <p className="mt-4 text-center text-sm text-gray-600">
+        {success && (
+          <p className="mt-4 text-center text-sm">
             You will be redirected to the login page shortly.
           </p>
         )}
-        {status === "error" && (
+        {error && (
           <p className="mt-4 text-center text-sm text-gray-600">
             Please try again or{" "}
             <a

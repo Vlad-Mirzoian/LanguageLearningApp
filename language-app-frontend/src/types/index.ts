@@ -71,8 +71,8 @@ export interface UserProgress {
 
 export interface Attempt {
   attemptId: string;
-  userId: string;
-  languageId: string;
+  userId: User;
+  languageId: Language;
   categoryId: Category;
   type: "flash" | "test" | "dictation";
   date: Date;
@@ -86,6 +86,12 @@ export interface StatsByType {
     correctAnswers: number;
     totalAnswers: number;
   };
+}
+
+export interface LeaderboardEntry {
+  userName: string;
+  maxScore: number;
+  totalScore: number;
 }
 
 export interface AuthResponse {

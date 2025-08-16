@@ -12,6 +12,7 @@ import {
   getReviewCards,
   getTestCards,
   getUserProgress,
+  shareAttempt,
   submitCard,
 } from "../services/api";
 import { motion } from "framer-motion";
@@ -21,6 +22,8 @@ import { ArrowPathIcon, XMarkIcon } from "@heroicons/react/24/solid";
 import toast from "react-hot-toast";
 import { AxiosError } from "axios";
 import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
+import { CheckIcon } from "@heroicons/react/24/solid";
+import { ClipboardIcon } from "@heroicons/react/24/solid";
 
 type ExerciseType = "flash" | "test" | "dictation" | null;
 type AnswerResult = { isCorrect?: boolean; correctTranslation?: string } | null;
@@ -46,6 +49,8 @@ const ReviewCardsPage: React.FC = () => {
   const [showFormatSelection, setShowFormatSelection] = useState(false);
   const [dictationAnswer, setDictationAnswer] = useState("");
   const [answerResult, setAnswerResult] = useState<AnswerResult>(null);
+  const [shareLink, setShareLink] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const fetchFiltersAndProgress = async () => {
@@ -97,6 +102,7 @@ const ReviewCardsPage: React.FC = () => {
       setLoading(true);
       setError("");
       setTotalScore(0);
+      setShareLink(null);
       const filters: { languageId: string; categoryId?: string } = {
         languageId: selectedLanguageId,
         ...(selectedCategory && { categoryId: selectedCategory }),
@@ -145,24 +151,18 @@ const ReviewCardsPage: React.FC = () => {
       setShowTranslation(false);
       const nextIndex = currentCardIndex + 1;
       setCurrentCardIndex(nextIndex);
-      setProgress((prev) =>
-        prev.some((p) => p.categoryId === result.progress.categoryId)
-          ? prev.map((p) =>
-              p.categoryId === result.progress.categoryId ? result.progress : p
-            )
-          : [...prev, result.progress]
-      );
-      const currentCategory = categories.find(
-        (cat) => cat._id === cards[currentCardIndex].categoryId._id
-      );
-      const nextCategory = currentCategory
-        ? categories.find((cat) => cat.order === currentCategory.order + 1)
-        : null;
-      if (nextIndex >= cards.length && currentCategory) {
+
+      if (nextIndex >= cards.length) {
         const updatedProgress = await getUserProgress({
           languageId: selectedLanguageId,
         });
         setProgress(updatedProgress);
+        const currentCategory = categories.find(
+          (cat) => cat._id === cards[currentCardIndex].categoryId._id
+        );
+        const nextCategory = currentCategory
+          ? categories.find((cat) => cat.order === currentCategory.order + 1)
+          : null;
         if (nextCategory) {
           const nextProgress = updatedProgress.find(
             (p) => p.categoryId._id === nextCategory._id
@@ -174,17 +174,16 @@ const ReviewCardsPage: React.FC = () => {
             toast(`Level ${nextCategory.order} unlocked!`);
           }
         }
+        const currentProgress = updatedProgress.find(
+          (p) => p.categoryId._id === currentCategory?._id
+        );
         toast(
-          `Level completed! Current attempt score: ${result.progress.score.toFixed(
+          `Level completed! Current attempt score: ${result.attempt.score.toFixed(
             2
-          )}%, Max score: ${result.progress.maxScore.toFixed(2)}%`
+          )}%, Max score: ${currentProgress?.maxScore.toFixed(2) || "0"}%`
         );
       } else {
-        toast(
-          `Current attempt score: ${result.progress.score.toFixed(
-            2
-          )}%, Max score: ${result.progress.maxScore.toFixed(2)}%`
-        );
+        toast(`Current attempt score: ${result.attempt.score.toFixed(2)}%`);
       }
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
@@ -220,13 +219,6 @@ const ReviewCardsPage: React.FC = () => {
         (prev) =>
           prev + ((result.quality as number) / 5) * (100 / testCards.length)
       );
-      setProgress((prev) =>
-        prev.some((p) => p.categoryId === result.progress.categoryId)
-          ? prev.map((p) =>
-              p.categoryId === result.progress.categoryId ? result.progress : p
-            )
-          : [...prev, result.progress]
-      );
       toast(
         result.isCorrect
           ? "Correct!"
@@ -259,17 +251,16 @@ const ReviewCardsPage: React.FC = () => {
               toast.success(`Level ${nextCategory.order} unlocked!`);
             }
           }
+          const currentProgress = updatedProgress.find(
+            (p) => p.categoryId._id === currentCategory?._id
+          );
           toast(
-            `Level completed! Current attempt score: ${result.progress.score.toFixed(
+            `Level completed! Current attempt score: ${result.attempt.score.toFixed(
               2
-            )}%, Max score: ${result.progress.maxScore.toFixed(2)}%`
+            )}%, Max score: ${currentProgress?.maxScore.toFixed(2) || "0"}%`
           );
         } else {
-          toast(
-            `Current attempt score: ${result.progress.score.toFixed(
-              2
-            )}%, Max score: ${result.progress.maxScore.toFixed(2)}%`
-          );
+          toast(`Current attempt score: ${result.attempt.score.toFixed(2)}%`);
         }
       }, 2000);
     } catch (error: unknown) {
@@ -305,13 +296,6 @@ const ReviewCardsPage: React.FC = () => {
       setTotalScore(
         (prev) => prev + ((result.quality as number) / 5) * (100 / cards.length)
       );
-      setProgress((prev) =>
-        prev.some((p) => p.categoryId === result.progress.categoryId)
-          ? prev.map((p) =>
-              p.categoryId === result.progress.categoryId ? result.progress : p
-            )
-          : [...prev, result.progress]
-      );
       toast(
         result.isCorrect
           ? "Correct!"
@@ -345,17 +329,16 @@ const ReviewCardsPage: React.FC = () => {
               toast.success(`Level ${nextCategory.order} unlocked!`);
             }
           }
+          const currentProgress = updatedProgress.find(
+            (p) => p.categoryId._id === currentCategory?._id
+          );
           toast(
-            `Level completed! Current attempt score: ${result.progress.score.toFixed(
+            `Level completed! Current attempt score: ${result.attempt.score.toFixed(
               2
-            )}%, Max score: ${result.progress.maxScore.toFixed(2)}%`
+            )}%, Max score: ${currentProgress?.maxScore.toFixed(2) || "0"}%`
           );
         } else {
-          toast(
-            `Current attempt score: ${result.progress.score.toFixed(
-              2
-            )}%, Max score: ${result.progress.maxScore.toFixed(2)}%`
-          );
+          toast(`Current attempt score: ${result.attempt.score.toFixed(2)}%`);
         }
       }, 2000);
     } catch (error: unknown) {
@@ -366,6 +349,26 @@ const ReviewCardsPage: React.FC = () => {
       }
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleShareAttempt = async () => {
+    if (!attemptId) {
+      toast("No attempt selected");
+      return;
+    }
+    try {
+      const shareUrl = await shareAttempt(attemptId);
+      setShareLink(shareUrl);
+      toast("Share link generated! Copy it below.");
+    } catch (error: unknown) {
+      if (error instanceof AxiosError) {
+        setError(
+          error.response?.data?.error || "Failed to generate share link"
+        );
+      } else {
+        setError("Failed to generate share link");
+      }
     }
   };
 
@@ -382,6 +385,7 @@ const ReviewCardsPage: React.FC = () => {
     setAttemptId(null);
     setExerciseType(null);
     setAnswerResult(null);
+    setShareLink(null);
   };
 
   const currentCard = cards[currentCardIndex];
@@ -405,9 +409,6 @@ const ReviewCardsPage: React.FC = () => {
     if (percentage >= 50) return "text-yellow-600";
     return "text-red-600";
   };
-
-  console.log("Categories:", categories);
-  console.log("Language progress:", languageProgress);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex flex-col items-center p-4">
@@ -445,12 +446,8 @@ const ReviewCardsPage: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {categories.map((cat) => {
               const catProgress = languageProgress.find((p) => {
-                console.log("p.categoryId:", p.categoryId);
-                console.log("p.categoryId._id:", p.categoryId?._id);
-                console.log("cat._id:", cat._id);
                 return p.categoryId._id === cat._id;
               });
-              console.log(catProgress);
               return (
                 <div
                   key={cat._id}
@@ -797,6 +794,53 @@ const ReviewCardsPage: React.FC = () => {
                       >
                         Total Score: {totalScore.toFixed(1)}%
                       </p>
+                      <div className="flex flex-col space-y-2 w-full">
+                        <button
+                          onClick={handleShareAttempt}
+                          disabled={
+                            !attemptId || !selectedLanguageId || isSubmitting
+                          }
+                          className={`py-2 px-4 rounded-lg font-semibold ${
+                            !attemptId || isSubmitting
+                              ? "bg-gray-400 cursor-not-allowed"
+                              : "bg-green-600 text-white hover:bg-green-700"
+                          } transition-colors duration-200`}
+                        >
+                          Share Attempt Link
+                        </button>
+                        {shareLink && (
+                          <div className="flex flex-col w-full">
+                            <div className="flex items-center border rounded-lg overflow-hidden">
+                              <input
+                                type="text"
+                                value={shareLink}
+                                readOnly
+                                className="flex-1 py-2 px-4 focus:outline-none"
+                                onClick={(e) => e.currentTarget.select()}
+                              />
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(shareLink);
+                                  setCopied(true);
+                                  setTimeout(() => setCopied(false), 1500);
+                                }}
+                                className="flex items-center justify-center px-3 bg-gray-100 hover:bg-gray-200 transition-colors"
+                              >
+                                {copied ? (
+                                  <CheckIcon className="text-green-500 w-5 h-5" />
+                                ) : (
+                                  <ClipboardIcon className="text-gray-600 w-5 h-5" />
+                                )}
+                              </button>
+                            </div>
+                            {copied && (
+                              <p className="text-sm text-green-500 mt-1 animate-fadeIn">
+                                Copied to clipboard!
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
                       <button
                         onClick={closeModal}
                         className="bg-indigo-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-indigo-700 transition-colors duration-200"

@@ -27,6 +27,7 @@ const Navbar: React.FC = () => {
       ? [
           { name: "Review", href: "/review", current: false },
           { name: "Statistics", href: "/stats", current: false },
+          { name: "Leaderboard", href: "/leaderboard", current: false },
         ]
       : []),
     ...(user?.role === "admin"

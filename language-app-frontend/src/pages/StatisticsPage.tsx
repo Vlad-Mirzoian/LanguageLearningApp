@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { useLanguage } from "../hooks/useLanguage";
-import type { Attempt, StatsByType, UserProgress } from "../types";
+import type { Attempt, Language, StatsByType, UserProgress } from "../types";
 import { AxiosError } from "axios";
-import { getStats } from "../services/api";
+import { getLanguages, getStats } from "../services/api";
 import { ArrowPathIcon } from "@heroicons/react/24/solid";
 import {
   LineChart,
@@ -13,30 +13,50 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  CartesianGrid,
+  BarChart,
+  Bar,
 } from "recharts";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import toast from "react-hot-toast";
 
-const StatiscticsPage: React.FC = () => {
+const StatisticsPage: React.FC = () => {
   const { user } = useAuth();
   const { selectedLanguageId, setSelectedLanguageId } = useLanguage();
   const [progress, setProgress] = useState<UserProgress[]>([]);
   const [statsByType, setStatsByType] = useState<StatsByType>({});
   const [attempts, setAttempts] = useState<Attempt[]>([]);
+  const [languages, setLanguages] = useState<Language[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [dateFilter, setDateFilter] = useState<"7 days" | "30 days" | "all">(
     "all"
   );
+  const [typeFilter, setTypeFilter] = useState<
+    "flash" | "test" | "dictation" | "all"
+  >("all");
 
   useEffect(() => {
     const fetchStatistics = async () => {
       try {
         setLoading(true);
-        const statsData = await getStats(
-          selectedLanguageId ? { languageId: selectedLanguageId } : {}
+        setError("");
+        const [statsData, langData] = await Promise.all([
+          getStats(
+            selectedLanguageId ? { languageId: selectedLanguageId } : {}
+          ),
+          getLanguages(),
+        ]);
+        setProgress(statsData.progress || []);
+        setStatsByType(statsData.statsByType || {});
+        setAttempts(
+          statsData.attempts?.map((a: Attempt) => ({
+            ...a,
+            date: a.date,
+          })) || []
         );
-        setProgress(statsData.progress);
-        setStatsByType(statsData.statsByType);
-        setAttempts(statsData.attempts);
+        setLanguages(langData || []);
         if (user?.learningLanguagesIds?.length && !selectedLanguageId) {
           setSelectedLanguageId(user.learningLanguagesIds[0]);
         }
@@ -44,7 +64,7 @@ const StatiscticsPage: React.FC = () => {
         if (error instanceof AxiosError) {
           setError(error.response?.data?.error || "Failed to load statistics");
         } else {
-          setError("Failed to load filters");
+          setError("Failed to load statistics");
         }
       } finally {
         setLoading(false);
@@ -53,55 +73,191 @@ const StatiscticsPage: React.FC = () => {
     fetchStatistics();
   }, [user, selectedLanguageId, setSelectedLanguageId]);
 
-  const languageProgress = progress.filter(
-    (p) => p.languageId === selectedLanguageId
-  );
-
-  const filterByDate = (attempts: Attempt[]) => {
+  const filterByDate = (attempts: Attempt[]): Attempt[] => {
+    if (dateFilter === "all") return attempts;
     const now = new Date();
-    if (dateFilter === "7 days") {
-      const sevenDaysAgo = new Date(now.setDate(now.getDate() - 7));
-      return attempts.filter((a) => new Date(a.date) >= sevenDaysAgo);
-    } else if (dateFilter === "30 days") {
-      const thirtyDaysAgo = new Date(now.setDate(now.getDate() - 30));
-      return attempts.filter((a) => new Date(a.date) >= thirtyDaysAgo);
-    }
-    return attempts;
+    const cutoffDate =
+      dateFilter === "7 days"
+        ? new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+        : new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    return attempts.filter((a) => new Date(a.date) >= cutoffDate);
   };
 
-  const attemptData = filterByDate(attempts)
-    .filter((a) => a.languageId === selectedLanguageId)
+  const filteredAttempts = filterByDate(attempts).filter((a) => {
+    const languageMatch =
+      String(a.languageId?._id || a.languageId) === selectedLanguageId;
+    const typeMatch = typeFilter === "all" || a.type === typeFilter;
+    return languageMatch && typeMatch;
+  });
+
+  const attemptData = filteredAttempts
     .map((a) => ({
-      date: new Date(a.date).toLocaleDateString(),
+      date: new Date(a.date).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }),
       score: a.score,
-      category: a.categoryId.name,
+      categoryId: a.categoryId._id,
+      categoryName: a.categoryId.name,
+      type: a.type,
+      attemptCount: 1,
     }))
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-  const chartData = Array.from(new Set(attemptData.map((a) => a.date))).map(
-    (date) => {
-      const dataPoint: { date: string; [key: string]: string | number } = {
-        date,
-      };
-      languageProgress.forEach((p) => {
-        const categoryAttempts = attemptData.filter(
-          (a) => a.date === date && a.category === p.categoryId.name
+  const uniqueDates = Array.from(new Set(attemptData.map((a) => a.date)));
+
+  const chartData = uniqueDates.map((date) => {
+    const dataPoint: {
+      date: string;
+      [key: string]: number | string | undefined;
+    } = { date };
+    const categories = Array.from(
+      new Set(attemptData.map((a) => a.categoryId))
+    );
+    categories.forEach((categoryId) => {
+      const categoryAttempts = attemptData
+        .filter((a) => a.date === date && a.categoryId === categoryId)
+        .sort(
+          (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
         );
-        dataPoint[`${p.categoryId.name}`] = categoryAttempts.length
-          ? categoryAttempts[categoryAttempts.length - 1].score
-          : 0;
-      });
-      return dataPoint;
-    }
+      const categoryProgress = progress.find(
+        (p) => p.categoryId._id === categoryId
+      );
+      const categoryName =
+        categoryProgress?.categoryId.name || `Category ${categoryId}`;
+      if (categoryAttempts.length > 0) {
+        dataPoint[categoryName] =
+          categoryAttempts[categoryAttempts.length - 1].score;
+        dataPoint[`${categoryName}_attempts`] = categoryAttempts.length;
+        dataPoint[`${categoryName}_type`] =
+          categoryAttempts[categoryAttempts.length - 1].type;
+        dataPoint[`${categoryName}_categoryId`] = categoryId;
+      } else {
+        dataPoint[categoryName] = undefined;
+        dataPoint[`${categoryName}_attempts`] = undefined;
+        dataPoint[`${categoryName}_type`] = undefined;
+        dataPoint[`${categoryName}_categoryId`] = undefined;
+      }
+    });
+    return dataPoint;
+  });
+
+  const languageProgress = progress.filter(
+    (p) => String(p.languageId) === selectedLanguageId
   );
 
-  const colors = ["#4B0082", "#FF4500", "#228B22", "#FFD700", "#1E90FF"];
+  const accuracyData = ["flash", "test", "dictation"].map((type) => {
+    const stats = statsByType[type] || { correctAnswers: 0, totalAnswers: 0 };
+    const accuracy =
+      stats.totalAnswers > 0
+        ? (stats.correctAnswers / stats.totalAnswers) * 100
+        : 0;
+    return {
+      type: type.charAt(0).toUpperCase() + type.slice(1),
+      accuracy: Number(accuracy.toFixed(1)),
+      correctAnswers: stats.correctAnswers,
+      totalAnswers: stats.totalAnswers,
+    };
+  });
+
+  const colors = ["#4B0082", "#FF4500", "#228B22", "#FFD700"];
+
+  const handleExportToPDF = () => {
+    if (!selectedLanguageId) {
+      setError("Please select a language");
+      return;
+    }
+    try {
+      const doc = new jsPDF();
+      const languageName =
+        languages.find((lang) => lang._id === selectedLanguageId)?.name ||
+        "Selected language";
+
+      let yOffset = 15;
+      doc.setFontSize(16);
+      doc.text(`Language Learning Statistics - ${languageName}`, 10, yOffset);
+
+      doc.setFontSize(12);
+      yOffset += 10;
+      doc.text(`Date Filter: ${dateFilter}`, 10, yOffset);
+      yOffset += 10;
+      doc.text(
+        `Type Filter: ${
+          typeFilter === "all"
+            ? "All Types"
+            : typeFilter.charAt(0).toUpperCase() + typeFilter.slice(1)
+        }`,
+        10,
+        yOffset
+      );
+      yOffset += 20;
+
+      doc.setFontSize(14);
+      doc.text(`Progress By Category`, 10, yOffset);
+      yOffset += 10;
+      autoTable(doc, {
+        startY: yOffset,
+        head: [["Level", "Category", "Max Score (%)", "Total Cards"]],
+        body: languageProgress.map((p) => [
+          p.categoryId.order,
+          p.categoryId.name,
+          p.maxScore.toFixed(2),
+          p.totalCards,
+        ]),
+        styles: { fontSize: 10 },
+        headStyles: { fillColor: [79, 70, 229] },
+        margin: { top: 10 },
+      });
+      yOffset = (doc as any).lastAutoTable.finalY + 20;
+
+      doc.setFontSize(14);
+      doc.text("Accuracy By Exercise Type", 10, yOffset);
+      yOffset += 10;
+      autoTable(doc, {
+        startY: yOffset,
+        head: [
+          ["Exercise Type", "Correct Answers", "Total Answers", "Accuracy (%)"],
+        ],
+        body: accuracyData
+          .filter(
+            (d) => typeFilter === "all" || d.type.toLowerCase() === typeFilter
+          )
+          .map((d) => [
+            d.type,
+            d.correctAnswers,
+            d.totalAnswers,
+            d.accuracy.toFixed(1),
+          ]),
+        styles: { fontSize: 10 },
+        headStyles: { fillColor: [79, 70, 229] },
+        margin: { top: 10 },
+      });
+
+      doc.save(
+        `language_stats_${selectedLanguageId}_${
+          new Date().toISOString().split("T")[0]
+        }.pdf`
+      );
+      toast("Statistics exported to PDF!");
+    } catch (error: unknown) {
+      if (error instanceof AxiosError) {
+        setError(
+          error.response?.data?.error || "Failed to export statistics to PDF"
+        );
+      } else {
+        setError("Failed to export statistics to PDF");
+      }
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex flex-col items-center p-4">
       <div className="w-full max-w-4xl">
         <h2 className="text-3xl font-bold text-center text-indigo-700 mb-6">
-          Statistics
+          Statistics:{" "}
+          {languages.find((lang) => lang._id === selectedLanguageId)?.name ||
+            "Select a Language"}
         </h2>
         {loading && (
           <div className="flex items-center mb-4">
@@ -116,102 +272,233 @@ const StatiscticsPage: React.FC = () => {
         )}
         {!loading && !error && selectedLanguageId && (
           <>
-            <div className="mb-4">
-              <label htmlFor="dateFilter" className="mr-2 text-gray-700">
-                Filter by date:
-              </label>
-              <select
-                id="dateFilter"
-                value={dateFilter}
-                onChange={(e) =>
-                  setDateFilter(e.target.value as "7 days" | "30 days" | "all")
-                }
-                className="p-2 border rounded-md"
+            <div className="mb-4 flex flex-col sm:flex-row gap-4">
+              <div>
+                <label
+                  htmlFor="dateFilter"
+                  className="mr-2 text-gray-700 font-medium"
+                >
+                  Filter by date:
+                </label>
+                <select
+                  id="dateFilter"
+                  value={dateFilter}
+                  onChange={(e) =>
+                    setDateFilter(
+                      e.target.value as "7 days" | "30 days" | "all"
+                    )
+                  }
+                  className="p-2 border rounded-md bg-white shadow-sm focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="7 days">Last 7 days</option>
+                  <option value="30 days">Last 30 days</option>
+                  <option value="all">All time</option>
+                </select>
+              </div>
+              <div>
+                <label
+                  htmlFor="typeFilter"
+                  className="mr-2 text-gray-700 font-medium"
+                >
+                  Filter by type:
+                </label>
+                <select
+                  id="typeFilter"
+                  value={typeFilter}
+                  onChange={(e) =>
+                    setTypeFilter(
+                      e.target.value as "flash" | "test" | "dictation" | "all"
+                    )
+                  }
+                  className="p-2 border rounded-md bg-white shadow-sm focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="all">All types</option>
+                  <option value="flash">Flash</option>
+                  <option value="test">Test</option>
+                  <option value="dictation">Dictation</option>
+                </select>
+              </div>
+              <button
+                onClick={() => {
+                  setDateFilter("all");
+                  setTypeFilter("all");
+                }}
+                className="p-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
               >
-                <option value="7days">Last 7 days</option>
-                <option value="30days">Last 30 days</option>
-                <option value="all">All time</option>
-              </select>
+                Reset Filters
+              </button>
+              <button
+                onClick={handleExportToPDF}
+                className="p-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors duration-200"
+              >
+                Export to PDF
+              </button>
             </div>
-            <div className="mb-6 bg-gray-50 p-4 rounded-lg shadow-md">
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                Progress Over Time
+            <div className="mb-6 bg-white p-6 rounded-lg shadow-lg">
+              <h3 className="text-xl font-semibold text-gray-800 mb-4">
+                Daily Progress by Category
               </h3>
               {attemptData.length === 0 || languageProgress.length === 0 ? (
-                <p className="text-gray-600">No progress data available</p>
+                <div className="text-center text-gray-600 py-8">
+                  <p className="mb-2">
+                    No attempt data available for the selected filters.
+                  </p>
+                  <p className="text-sm">
+                    Try completing some exercises or resetting the filters!
+                  </p>
+                </div>
               ) : (
-                <div className="h-96">
+                <div className="h-[400px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData}>
-                      <XAxis dataKey="date" />
-                      <YAxis domain={[0, 100]} />
-                      <Tooltip />
-                      <Legend />
-                      {languageProgress.map((p, index) => (
-                        <Line
-                          key={p.categoryId._id}
-                          type="monotone"
-                          dataKey={p.categoryId.name}
-                          name={`Level ${p.categoryId.order}: ${p.categoryId.name}`}
-                          stroke={colors[index % colors.length]}
-                        />
-                      ))}
+                    <LineChart
+                      data={chartData}
+                      margin={{ top: 20, right: 30, left: 20, bottom: 10 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                      <XAxis
+                        dataKey="date"
+                        tick={{ fontSize: 12, fill: "#4B5563" }}
+                        tickLine={false}
+                        axisLine={{ stroke: "#D1D5DB" }}
+                      />
+                      <YAxis
+                        domain={[0, 100]}
+                        tick={{ fontSize: 12, fill: "#4B5563" }}
+                        tickLine={false}
+                        axisLine={{ stroke: "#D1D5DB" }}
+                        label={{
+                          value: "Score (%)",
+                          angle: -90,
+                          position: "insideLeft",
+                          offset: -5,
+                          fill: "#4B5563",
+                          fontSize: 14,
+                        }}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "#FFF",
+                          border: "1px solid #E5E7EB",
+                          borderRadius: "8px",
+                          boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                        }}
+                        formatter={(value, name, props) => {
+                          const categoryName = String(name).replace(
+                            /Category /,
+                            ""
+                          );
+                          const attemptCount =
+                            props.payload[`${name}_attempts`] || 0;
+                          const type =
+                            props.payload[`${name}_type`] || "Unknown";
+                          const categoryId =
+                            props.payload[`${name}_categoryId`];
+                          const maxScore =
+                            languageProgress.find(
+                              (p) => p.categoryId._id === categoryId
+                            )?.maxScore || 0;
+                          return [
+                            `${value}% (Attempts: ${attemptCount}, Type: ${type}, Max: ${maxScore}%)`,
+                            `Level ${
+                              languageProgress.find(
+                                (p) => p.categoryId._id === categoryId
+                              )?.categoryId.order || 0
+                            }: ${categoryName}`,
+                          ];
+                        }}
+                      />
+                      <Legend
+                        wrapperStyle={{
+                          paddingTop: "10px",
+                          fontSize: 14,
+                          color: "#1F2937",
+                        }}
+                        formatter={(value) => {
+                          const categoryProgress = languageProgress.find(
+                            (p) => p.categoryId.name === value
+                          );
+                          return `Level ${
+                            categoryProgress?.categoryId.order || 0
+                          }: ${value.replace(/Category /, "")}`;
+                        }}
+                      />
+                      {languageProgress.map((p, index) => {
+                        const categoryName =
+                          p.categoryId.name || `Category ${p.categoryId._id}`;
+                        return (
+                          <Line
+                            key={p.categoryId._id}
+                            type="monotone"
+                            dataKey={categoryName}
+                            name={categoryName}
+                            stroke={colors[index % colors.length]}
+                            strokeWidth={2}
+                            dot={{ r: 4, fill: colors[index % colors.length] }}
+                            activeDot={{ r: 6, stroke: "#FFF", strokeWidth: 2 }}
+                            connectNulls={false}
+                          />
+                        );
+                      })}
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
               )}
             </div>
-            <div className="mb-6 bg-gray-50 p-4 rounded-lg shadow-md">
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">
+            <div className="mb-6 bg-white p-6 rounded-lg shadow-lg">
+              <h3 className="text-xl font-semibold text-gray-800 mb-4">
                 Accuracy by Exercise Type
               </h3>
-              <table className="min-w-full bg-white rounded-lg shadow-md">
-                <thead>
-                  <tr>
-                    <th className="px-4 py-2 text-left text-sm font-semibold text-gray-800">
-                      Exercise Type
-                    </th>
-                    <th className="px-4 py-2 text-left text-sm font-semibold text-gray-800">
-                      Correct Answers
-                    </th>
-                    <th className="px-4 py-2 text-left text-sm font-semibold text-gray-800">
-                      Total Answers
-                    </th>
-                    <th className="px-4 py-2 text-left text-sm font-semibold text-gray-800">
-                      Accuracy (%)
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {["flash", "test", "dictation"].map((type) => {
-                    const stats = statsByType[type] || {
-                      correctAnswers: 0,
-                      totalAnswers: 0,
-                    };
-                    const accuracy =
-                      stats.totalAnswers > 0
-                        ? (
-                            (stats.correctAnswers / stats.totalAnswers) *
-                            100
-                          ).toFixed(1)
-                        : 0;
-                    return (
-                      <tr key={type} className="border-t">
-                        <td className="px-4 py-2 text-gray-600">
-                          {type.charAt(0).toUpperCase() + type.slice(1)}
-                        </td>
-                        <td className="px-4 py-2 text-gray-600">
-                          {stats.correctAnswers}
-                        </td>
-                        <td className="px-4 py-2 text-gray-600">
-                          {stats.totalAnswers}
-                        </td>
-                        <td className="px-4 py-2 text-gray-600">{accuracy}%</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+              {accuracyData.every((d) => d.accuracy === 0) ? (
+                <p className="text-gray-600">No accuracy data available</p>
+              ) : (
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={accuracyData}
+                      margin={{ top: 20, right: 30, left: 20, bottom: 10 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                      <XAxis
+                        dataKey="type"
+                        tick={{ fontSize: 12, fill: "#4B5563" }}
+                        tickLine={false}
+                        axisLine={{ stroke: "#D1D5DB" }}
+                      />
+                      <YAxis
+                        domain={[0, 100]}
+                        tick={{ fontSize: 12, fill: "#4B5563" }}
+                        tickLine={false}
+                        axisLine={{ stroke: "#D1D5DB" }}
+                        label={{
+                          value: "Accuracy (%)",
+                          angle: -90,
+                          position: "insideLeft",
+                          offset: -5,
+                          fill: "#4B5563",
+                          fontSize: 14,
+                        }}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "#FFF",
+                          border: "1px solid #E5E7EB",
+                          borderRadius: "8px",
+                          boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                        }}
+                        formatter={(value) => [`${value}%`, "Accuracy"]}
+                      />
+                      <Legend
+                        wrapperStyle={{
+                          paddingTop: "10px",
+                          fontSize: 14,
+                          color: "#1F2937",
+                        }}
+                      />
+                      <Bar dataKey="accuracy" fill="#4B0082" name="Accuracy" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
             </div>
           </>
         )}
@@ -220,4 +507,4 @@ const StatiscticsPage: React.FC = () => {
   );
 };
 
-export default StatiscticsPage;
+export default StatisticsPage;
