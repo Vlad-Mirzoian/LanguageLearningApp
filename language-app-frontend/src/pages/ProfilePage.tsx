@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import api from "../services/api";
 import type { Language } from "../types";
 import { useAuth } from "../hooks/useAuth";
+import { AxiosError } from "axios";
 
 interface FormData {
   email: string;
@@ -162,13 +163,14 @@ const ProfilePage: React.FC = () => {
         setSuccessMessage("");
         navigate("/dashboard");
       }, 3000);
-    } catch (error: any) {
-      const errorMessage =
-        error.response?.data?.error || "Profile update failed";
-      const details = error.response?.data?.details
-        ? error.response.data.details.map((err: any) => err.message).join(", ")
-        : "";
-      setServerError(details ? `${errorMessage}: ${details}` : errorMessage);
+    } catch (error: unknown) {
+      if (error instanceof AxiosError) {
+        setServerError(
+          error.response?.data?.error || "Failed to update profile"
+        );
+      } else {
+        setServerError("Failed to update profile");
+      }
     }
   };
 

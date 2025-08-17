@@ -15,7 +15,7 @@ import {
   shareAttempt,
   submitCard,
 } from "../services/api";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "../hooks/useAuth";
 import { useLanguage } from "../hooks/useLanguage";
 import { ArrowPathIcon, XMarkIcon } from "@heroicons/react/24/solid";
@@ -35,6 +35,7 @@ const ReviewCardsPage: React.FC = () => {
   const [testCards, setTestCards] = useState<TestCard[]>([]);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [showTranslation, setShowTranslation] = useState(false);
+  const [showExample, setShowExample] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -47,7 +48,7 @@ const ReviewCardsPage: React.FC = () => {
   const [attemptId, setAttemptId] = useState<string | null>(null);
   const [exerciseType, setExerciseType] = useState<ExerciseType>(null);
   const [showFormatSelection, setShowFormatSelection] = useState(false);
-  const [dictationAnswer, setDictationAnswer] = useState("");
+  const [cardAnswer, setCardAnswer] = useState("");
   const [answerResult, setAnswerResult] = useState<AnswerResult>(null);
   const [shareLink, setShareLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -118,7 +119,7 @@ const ReviewCardsPage: React.FC = () => {
       setAttemptId(response.attemptId);
       setCurrentCardIndex(0);
       setShowTranslation(false);
-      setDictationAnswer("");
+      setCardAnswer("");
       setAnswerResult(null);
       setShowCardsModal(true);
     } catch (error: unknown) {
@@ -132,7 +133,7 @@ const ReviewCardsPage: React.FC = () => {
     }
   };
 
-  const handleFlashReview = async (quality: number) => {
+  const handleFlashReview = async () => {
     if (!cards[currentCardIndex]) return;
     if (selectedLanguageId === null) {
       setError("Please select a learning language before reviewing.");
@@ -143,53 +144,68 @@ const ReviewCardsPage: React.FC = () => {
       const prevProgressData = progress;
       const result = await submitCard(cards[currentCardIndex]._id, {
         languageId: selectedLanguageId,
-        quality,
+        answer: cardAnswer,
         attemptId,
         type: "flash",
       });
-      setTotalScore((prev) => prev + (quality / 5) * (100 / cards.length));
-      setShowTranslation(false);
-      const nextIndex = currentCardIndex + 1;
-      setCurrentCardIndex(nextIndex);
+      setAnswerResult({
+        isCorrect: result.isCorrect,
+        correctTranslation: result.correctTranslation,
+      });
+      setTotalScore(
+        (prev) => prev + ((result.quality as number) / 5) * (100 / cards.length)
+      );
+      toast(
+        result.isCorrect
+          ? "Correct!"
+          : `Incorrect! Correct answer: ${result.correctTranslation}`
+      );
 
-      if (nextIndex >= cards.length) {
-        const updatedProgress = await getUserProgress({
-          languageId: selectedLanguageId,
-        });
-        setProgress(updatedProgress);
-        const currentCategory = categories.find(
-          (cat) => cat._id === cards[currentCardIndex].categoryId._id
-        );
-        const nextCategory = currentCategory
-          ? categories.find((cat) => cat.order === currentCategory.order + 1)
-          : null;
-        if (nextCategory) {
-          const nextProgress = updatedProgress.find(
-            (p) => p.categoryId._id === nextCategory._id
+      setTimeout(async () => {
+        const nextIndex = currentCardIndex + 1;
+        setCurrentCardIndex(nextIndex);
+        setCardAnswer("");
+        setAnswerResult(null);
+        setShowTranslation(false);
+        if (nextIndex >= cards.length) {
+          const updatedProgress = await getUserProgress({
+            languageId: selectedLanguageId,
+          });
+          setProgress(updatedProgress);
+          const currentCategory = categories.find(
+            (cat) => cat._id === cards[currentCardIndex].categoryId._id
           );
-          const prevNextProgress = prevProgressData.find(
-            (p) => p.categoryId._id === nextCategory._id
-          );
-          if (nextProgress?.unlocked && !prevNextProgress?.unlocked) {
-            toast(`Level ${nextCategory.order} unlocked!`);
+          const nextCategory = currentCategory
+            ? categories.find((cat) => cat.order === currentCategory.order + 1)
+            : null;
+          if (nextCategory) {
+            const nextProgress = updatedProgress.find(
+              (p) => p.categoryId._id === nextCategory._id
+            );
+            const prevNextProgress = prevProgressData.find(
+              (p) => p.categoryId._id === nextCategory._id
+            );
+            if (nextProgress?.unlocked && !prevNextProgress?.unlocked) {
+              toast.success(`Level ${nextCategory.order} unlocked!`);
+            }
           }
+          const currentProgress = updatedProgress.find(
+            (p) => p.categoryId._id === currentCategory?._id
+          );
+          toast(
+            `Level completed! Current attempt score: ${result.attempt.score.toFixed(
+              2
+            )}%, Max score: ${currentProgress?.maxScore.toFixed(2) || "0"}%`
+          );
+        } else {
+          toast(`Current attempt score: ${result.attempt.score.toFixed(2)}%`);
         }
-        const currentProgress = updatedProgress.find(
-          (p) => p.categoryId._id === currentCategory?._id
-        );
-        toast(
-          `Level completed! Current attempt score: ${result.attempt.score.toFixed(
-            2
-          )}%, Max score: ${currentProgress?.maxScore.toFixed(2) || "0"}%`
-        );
-      } else {
-        toast(`Current attempt score: ${result.attempt.score.toFixed(2)}%`);
-      }
+      }, 1500);
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
-        setError(error.response?.data?.error || "Failed to submit review");
+        setError(error.response?.data?.error || "Failed to submit answer");
       } else {
-        setError("Failed to submit review");
+        setError("Failed to submit answer");
       }
     } finally {
       setIsSubmitting(false);
@@ -262,7 +278,7 @@ const ReviewCardsPage: React.FC = () => {
         } else {
           toast(`Current attempt score: ${result.attempt.score.toFixed(2)}%`);
         }
-      }, 2000);
+      }, 1500);
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
         setError(error.response?.data?.error || "Failed to submit answer");
@@ -275,7 +291,7 @@ const ReviewCardsPage: React.FC = () => {
   };
 
   const handleDictationSubmit = async () => {
-    if (!cards[currentCardIndex] || !dictationAnswer.trim()) return;
+    if (!cards[currentCardIndex] || !cardAnswer.trim()) return;
     if (selectedLanguageId === null) {
       setError("Please select a learning language before reviewing.");
       return;
@@ -285,7 +301,7 @@ const ReviewCardsPage: React.FC = () => {
       const prevProgressData = progress;
       const result = await submitCard(cards[currentCardIndex]._id, {
         languageId: selectedLanguageId,
-        answer: dictationAnswer,
+        answer: cardAnswer,
         attemptId,
         type: "dictation",
       });
@@ -305,7 +321,7 @@ const ReviewCardsPage: React.FC = () => {
       setTimeout(async () => {
         const nextIndex = currentCardIndex + 1;
         setCurrentCardIndex(nextIndex);
-        setDictationAnswer("");
+        setCardAnswer("");
         setAnswerResult(null);
         if (nextIndex >= cards.length) {
           const updatedProgress = await getUserProgress({
@@ -340,7 +356,7 @@ const ReviewCardsPage: React.FC = () => {
         } else {
           toast(`Current attempt score: ${result.attempt.score.toFixed(2)}%`);
         }
-      }, 2000);
+      }, 1500);
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
         setError(error.response?.data?.error || "Failed to submit answer");
@@ -380,7 +396,8 @@ const ReviewCardsPage: React.FC = () => {
     setTestCards([]);
     setCurrentCardIndex(0);
     setShowTranslation(false);
-    setDictationAnswer("");
+    setShowExample(false);
+    setCardAnswer("");
     setTotalScore(0);
     setAttemptId(null);
     setExerciseType(null);
@@ -409,6 +426,8 @@ const ReviewCardsPage: React.FC = () => {
     if (percentage >= 50) return "text-yellow-600";
     return "text-red-600";
   };
+
+  const toggleExample = () => setShowExample((prev) => !prev);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex flex-col items-center p-4">
@@ -584,7 +603,13 @@ const ReviewCardsPage: React.FC = () => {
                         <motion.div
                           animate={{ rotateY: showTranslation ? 180 : 0 }}
                           transition={{ duration: 0.3 }}
-                          className="bg-white p-6 rounded-lg text-center shadow-md w-full h-48"
+                          className={`bg-white p-6 rounded-lg text-center shadow-md w-full h-70 relative ${
+                            answerResult
+                              ? answerResult.isCorrect
+                                ? "border-2 border-green-500"
+                                : "border-2 border-red-500"
+                              : ""
+                          }`}
                           style={{
                             transformStyle: "preserve-3d",
                             perspective: 1000,
@@ -597,21 +622,64 @@ const ReviewCardsPage: React.FC = () => {
                             <h3 className="text-lg font-semibold text-gray-800">
                               {currentCard.translationId.text}
                             </h3>
-                            {currentCard.meaning && (
-                              <p className="mt-2 text-gray-600">
-                                Meaning: {currentCard.meaning}
-                              </p>
+                            {currentCard.example && (
+                              <div className="mt-2 w-full">
+                              <button
+                                onClick={toggleExample}
+                                className="py-2 px-15 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 hover:text-indigo-800 focus:ring-2 focus:ring-indigo-300 focus:outline-none transition-colors duration-200"
+                              >
+                                  {showExample
+                                    ? "Hide example"
+                                    : "Show example"}
+                                </button>
+                                <AnimatePresence>
+                                  {showExample && (
+                                    <motion.p
+                                      className="mt-2 text-gray-600"
+                                      initial={{ opacity: 0, height: 0 }}
+                                      animate={{ opacity: 1, height: "auto" }}
+                                      exit={{ opacity: 0, height: 0 }}
+                                      transition={{ duration: 0.25 }}
+                                    >
+                                      {currentCard.example}
+                                    </motion.p>
+                                  )}
+                                </AnimatePresence>
+                              </div>
                             )}
-                            {currentCard.categoryId && (
-                              <p className="mt-1 text-gray-400 text-sm">
-                                Level: {currentCard.categoryId.name}
-                              </p>
-                            )}
+                            <input
+                              type="text"
+                              value={cardAnswer}
+                              onChange={(e) => setCardAnswer(e.target.value)}
+                              placeholder="Type the translation"
+                              disabled={isSubmitting || !!answerResult}
+                              className={`mt-4 w-3/4 py-2 px-4 border rounded-lg focus:ring-2 focus:ring-indigo-300 ${
+                                answerResult
+                                  ? answerResult.isCorrect
+                                    ? "border-green-600 bg-green-50"
+                                    : "border-red-600 bg-red-50"
+                                  : "border-gray-300"
+                              }`}
+                            />
                             <button
-                              onClick={() => setShowTranslation(true)}
-                              className="mt-4 bg-indigo-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-indigo-700 transition-colors duration-200"
+                              onClick={async () => {
+                                await handleFlashReview();
+                                setShowTranslation(true);
+                              }}
+                              disabled={
+                                isSubmitting ||
+                                !cardAnswer.trim() ||
+                                !!answerResult
+                              }
+                              className={`mt-3 w-3/4 py-2 rounded-lg font-semibold ${
+                                isSubmitting ||
+                                !cardAnswer.trim() ||
+                                !!answerResult
+                                  ? "bg-gray-400 cursor-not-allowed"
+                                  : "bg-indigo-600 text-white hover:bg-indigo-700"
+                              } transition-colors duration-200`}
                             >
-                              Show Translation
+                              Check
                             </button>
                           </div>
                           <div
@@ -624,47 +692,32 @@ const ReviewCardsPage: React.FC = () => {
                             <h3 className="text-lg font-semibold text-gray-800">
                               {currentCard.wordId.text}
                             </h3>
-                            {currentCard.meaning && (
-                              <p className="mt-2 text-gray-600">
-                                Meaning: {currentCard.meaning}
+                            {answerResult && (
+                              <p
+                                className={`mt-2 text-sm ${
+                                  answerResult.isCorrect
+                                    ? "text-green-600"
+                                    : "text-red-600"
+                                }`}
+                              >
+                                {answerResult.isCorrect
+                                  ? "Correct!"
+                                  : `Incorrect! Correct answer: ${answerResult.correctTranslation}`}
                               </p>
                             )}
-                            {currentCard.categoryId && (
-                              <p className="mt-1 text-gray-400 text-sm">
-                                Level: {currentCard.categoryId.name}
+                            {!answerResult?.isCorrect && cardAnswer && (
+                              <p className="mt-1 text-sm text-red-500">
+                                Your answer: {cardAnswer}
                               </p>
                             )}
                           </div>
                         </motion.div>
-                      )}
-                      {exerciseType === "flash" && showTranslation && (
-                        <div className="flex flex-wrap justify-center gap-2">
-                          {[1, 2, 3, 4, 5].map((quality) => (
-                            <button
-                              key={quality}
-                              onClick={() => handleFlashReview(quality)}
-                              disabled={isSubmitting}
-                              className={`px-4 py-2 rounded-lg font-semibold ${
-                                isSubmitting
-                                  ? "bg-gray-400 cursor-not-allowed"
-                                  : "bg-indigo-600 text-white hover:bg-indigo-700"
-                              } transition-colors duration-200`}
-                            >
-                              {quality}
-                            </button>
-                          ))}
-                        </div>
                       )}
                       {exerciseType === "test" && currentTestCard && (
                         <div className="bg-white p-6 rounded-lg text-center shadow-md w-full">
                           <h3 className="text-lg font-semibold text-gray-800">
                             {currentTestCard.word.text}
                           </h3>
-                          {currentTestCard.category && (
-                            <p className="mt-1 text-gray-400 text-sm">
-                              Level: {currentTestCard.category.name}
-                            </p>
-                          )}
                           {answerResult && (
                             <p
                               className={`mt-2 text-sm ${
@@ -711,16 +764,6 @@ const ReviewCardsPage: React.FC = () => {
                           <h3 className="text-lg font-semibold text-gray-800">
                             {currentCard.wordId.text}
                           </h3>
-                          {currentCard.meaning && (
-                            <p className="mt-2 text-gray-600">
-                              Meaning: {currentCard.meaning}
-                            </p>
-                          )}
-                          {currentCard.categoryId && (
-                            <p className="mt-1 text-gray-400 text-sm">
-                              Level: {currentCard.categoryId.name}
-                            </p>
-                          )}
                           {answerResult && (
                             <p
                               className={`mt-2 text-sm ${
@@ -736,8 +779,8 @@ const ReviewCardsPage: React.FC = () => {
                           )}
                           <input
                             type="text"
-                            value={dictationAnswer}
-                            onChange={(e) => setDictationAnswer(e.target.value)}
+                            value={cardAnswer}
+                            onChange={(e) => setCardAnswer(e.target.value)}
                             placeholder="Type the translation"
                             disabled={isSubmitting || !!answerResult}
                             className={`mt-4 w-full py-2 px-4 border rounded-lg focus:ring-2 focus:ring-indigo-300 ${
@@ -752,12 +795,12 @@ const ReviewCardsPage: React.FC = () => {
                             onClick={handleDictationSubmit}
                             disabled={
                               isSubmitting ||
-                              !dictationAnswer.trim() ||
+                              !cardAnswer.trim() ||
                               !!answerResult
                             }
                             className={`mt-4 w-full py-2 rounded-lg font-semibold ${
                               isSubmitting ||
-                              !dictationAnswer.trim() ||
+                              !cardAnswer.trim() ||
                               !!answerResult
                                 ? "bg-gray-400 cursor-not-allowed"
                                 : "bg-indigo-600 text-white hover:bg-indigo-700"
@@ -794,7 +837,7 @@ const ReviewCardsPage: React.FC = () => {
                       >
                         Total Score: {totalScore.toFixed(1)}%
                       </p>
-                      <div className="flex flex-col space-y-2 w-full">
+                      <div className="flex flex-col space-y-2 w-48">
                         <button
                           onClick={handleShareAttempt}
                           disabled={
@@ -840,13 +883,13 @@ const ReviewCardsPage: React.FC = () => {
                             )}
                           </div>
                         )}
+                        <button
+                          onClick={closeModal}
+                          className="bg-indigo-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-indigo-700 transition-colors duration-200"
+                        >
+                          Return to Levels
+                        </button>
                       </div>
-                      <button
-                        onClick={closeModal}
-                        className="bg-indigo-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-indigo-700 transition-colors duration-200"
-                      >
-                        Return to Levels
-                      </button>
                     </div>
                   )}
               </div>

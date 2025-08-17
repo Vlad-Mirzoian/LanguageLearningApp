@@ -28,11 +28,11 @@ const AdminCardsPage: React.FC = () => {
     wordId: "",
     translationId: "",
     categoryId: "",
-    meaning: "",
+    example: "",
   });
   const [filters, setFilters] = useState({
     categoryId: "",
-    meaning: "",
+    example: "",
     page: 1,
     limit: 20,
   });
@@ -48,7 +48,7 @@ const AdminCardsPage: React.FC = () => {
         const [cardResponse, wordData, catData] = await Promise.all([
           getCards({
             categoryId: filters.categoryId || undefined,
-            meaning: filters.meaning || undefined,
+            example: filters.example || undefined,
             limit: filters.limit,
             skip: (filters.page - 1) * filters.limit,
           }),
@@ -61,9 +61,9 @@ const AdminCardsPage: React.FC = () => {
         setCategories(catData);
       } catch (error: unknown) {
         if (error instanceof AxiosError) {
-          setError(error.response?.data?.error || "Failed to load data");
+          setError(error.response?.data?.error || "Failed to load cards");
         } else {
-          setError("Failed to load data");
+          setError("Failed to load cards");
         }
       } finally {
         setLoading(false);
@@ -118,7 +118,7 @@ const AdminCardsPage: React.FC = () => {
   };
 
   const handleFilterChange = (
-    field: "categoryId" | "meaning",
+    field: "categoryId" | "example",
     value: string
   ) => {
     setFilters((prev) => ({ ...prev, [field]: value, page: 1 }));
@@ -140,7 +140,7 @@ const AdminCardsPage: React.FC = () => {
     try {
       const newCard = await createCard({
         ...formData,
-        meaning: formData.meaning || undefined,
+        example: formData.example || undefined,
       });
       setCards([...cards, newCard]);
       setTotalCards(totalCards + 1);
@@ -149,7 +149,7 @@ const AdminCardsPage: React.FC = () => {
         wordId: "",
         translationId: "",
         categoryId: "",
-        meaning: "",
+        example: "",
       });
       setErrors({});
       setServerError("");
@@ -157,7 +157,7 @@ const AdminCardsPage: React.FC = () => {
       if (error instanceof AxiosError) {
         setServerError(error.response?.data?.error || "Failed to create Card");
       } else {
-        setServerError("Something went wrong");
+        setServerError("Failed to create Card");
       }
     }
   };
@@ -177,8 +177,8 @@ const AdminCardsPage: React.FC = () => {
         updateData.translationId = formData.translationId;
       if (formData.categoryId !== currentCard.categoryId._id)
         updateData.categoryId = formData.categoryId;
-      if ((formData.meaning || "") !== (currentCard.meaning || ""))
-        updateData.meaning = formData.meaning || undefined;
+      if ((formData.example || "") !== (currentCard.example || ""))
+        updateData.example = formData.example || undefined;
 
       if (Object.keys(updateData).length > 0) {
         const updatedCard = await updateCard(currentCard._id, updateData);
@@ -194,7 +194,7 @@ const AdminCardsPage: React.FC = () => {
         wordId: "",
         translationId: "",
         categoryId: "",
-        meaning: "",
+        example: "",
       });
       setErrors({});
       setServerError("");
@@ -202,7 +202,7 @@ const AdminCardsPage: React.FC = () => {
       if (error instanceof AxiosError) {
         setServerError(error.response?.data?.error || "Failed to update Card");
       } else {
-        setServerError("Something went wrong");
+        setServerError("Failed to update Card");
       }
     }
   };
@@ -222,7 +222,7 @@ const AdminCardsPage: React.FC = () => {
       if (error instanceof AxiosError) {
         setServerError(error.response?.data?.error || "Failed to delete Card");
       } else {
-        setServerError("Something went wrong");
+        setServerError("Failed to delete Card");
       }
     }
   };
@@ -255,13 +255,13 @@ const AdminCardsPage: React.FC = () => {
           </div>
           <div className="flex flex-col items-center w-full sm:w-auto">
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Filter by Meaning
+              Filter by Example
             </label>
             <input
               type="text"
-              value={filters.meaning}
-              onChange={(e) => handleFilterChange("meaning", e.target.value)}
-              placeholder="Search by meaning..."
+              value={filters.example}
+              onChange={(e) => handleFilterChange("example", e.target.value)}
+              placeholder="Search by example..."
               className="w-full py-2.5 px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300"
             ></input>
           </div>
@@ -271,7 +271,7 @@ const AdminCardsPage: React.FC = () => {
                 wordId: "",
                 translationId: "",
                 categoryId: "",
-                meaning: "",
+                example: "",
               });
               setErrors({});
               setServerError("");
@@ -310,7 +310,7 @@ const AdminCardsPage: React.FC = () => {
                       Category
                     </th>
                     <th className="p-4 font-semibold text-indigo-700">
-                      Meaning
+                      Example
                     </th>
                     <th className="p-4 font-semibold text-indigo-700">
                       Actions
@@ -327,7 +327,7 @@ const AdminCardsPage: React.FC = () => {
                       <td className="p-4 text-gray-800">
                         {Card.categoryId.name}
                       </td>
-                      <td className="p-4 text-gray-800">{Card.meaning}</td>
+                      <td className="p-4 text-gray-800">{Card.example}</td>
                       <td className="p-4">
                         <button
                           onClick={() => {
@@ -336,7 +336,7 @@ const AdminCardsPage: React.FC = () => {
                               wordId: Card.wordId._id,
                               translationId: Card.translationId._id,
                               categoryId: Card.categoryId._id,
-                              meaning: Card.meaning ?? "",
+                              example: Card.example ?? "",
                             });
                             setErrors({});
                             setServerError("");
@@ -391,7 +391,7 @@ const AdminCardsPage: React.FC = () => {
             wordId: "",
             translationId: "",
             categoryId: "",
-            meaning: "",
+            example: "",
           });
           setErrors({});
           setServerError("");
@@ -479,10 +479,10 @@ const AdminCardsPage: React.FC = () => {
                   )}
                 </div>
                 <FormInput
-                  label="Meaning"
-                  value={formData.meaning}
-                  onChange={(e) => handleChange("meaning", e.target.value)}
-                  error={errors.meaning}
+                  label="Example"
+                  value={formData.example}
+                  onChange={(e) => handleChange("example", e.target.value)}
+                  error={errors.example}
                   placeholder="e.g., A greeting"
                 />
               </div>
@@ -494,7 +494,7 @@ const AdminCardsPage: React.FC = () => {
                       wordId: "",
                       translationId: "",
                       categoryId: "",
-                      meaning: "",
+                      example: "",
                     });
                     setErrors({});
                     setServerError("");
@@ -524,7 +524,7 @@ const AdminCardsPage: React.FC = () => {
             wordId: "",
             translationId: "",
             categoryId: "",
-            meaning: "",
+            example: "",
           });
           setErrors({});
           setServerError("");
@@ -612,10 +612,10 @@ const AdminCardsPage: React.FC = () => {
                   )}
                 </div>
                 <FormInput
-                  label="Meaning"
-                  value={formData.meaning}
-                  onChange={(e) => handleChange("meaning", e.target.value)}
-                  error={errors.meaning}
+                  label="Example"
+                  value={formData.example}
+                  onChange={(e) => handleChange("example", e.target.value)}
+                  error={errors.example}
                   placeholder="e.g., A greeting"
                 />
               </div>
@@ -628,7 +628,7 @@ const AdminCardsPage: React.FC = () => {
                       wordId: "",
                       translationId: "",
                       categoryId: "",
-                      meaning: "",
+                      example: "",
                     });
                     setErrors({});
                     setServerError("");

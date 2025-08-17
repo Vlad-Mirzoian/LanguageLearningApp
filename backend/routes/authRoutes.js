@@ -63,6 +63,12 @@ router.post(
   authController.login
 );
 
+// POST /api/auth/refresh
+router.post("/refresh", authController.refresh);
+
+// POST /api/auth/logout
+router.post("/logout", authenticate, authController.logout);
+
 // POST /api/auth/upload-avatar
 router.post(
   "/upload-avatar",

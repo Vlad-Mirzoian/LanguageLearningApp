@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import FormInput from "../components/ui/FormInput";
 import { forgotPassword } from "../services/api";
+import { AxiosError } from "axios";
 
 const ForgotPasswordPage: React.FC = () => {
   const navigate = useNavigate();
@@ -65,12 +66,14 @@ const ForgotPasswordPage: React.FC = () => {
       setTimeout(() => {
         navigate("/login");
       }, 3000);
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.error || "Logging in failed";
-      const details = error.response?.data?.details
-        ? error.response.data.details.map((err: any) => err.message).join(", ")
-        : "";
-      setServerError(details ? `${errorMessage}: ${details}` : errorMessage);
+    } catch (error: unknown) {
+      if (error instanceof AxiosError) {
+        setServerError(
+          error.response?.data?.error || "Failed to send reset password email"
+        );
+      } else {
+        setServerError("Failed to send reset password email");
+      }
     }
   };
 

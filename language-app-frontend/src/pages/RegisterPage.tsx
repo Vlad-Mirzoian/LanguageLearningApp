@@ -6,6 +6,7 @@ import { register } from "../services/api";
 import { useQuery } from "@tanstack/react-query";
 import api from "../services/api";
 import type { Language } from "../types";
+import { AxiosError } from "axios";
 
 const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
@@ -107,12 +108,14 @@ const RegisterPage: React.FC = () => {
       setTimeout(() => {
         navigate("/login");
       }, 3000);
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.error || "Registration failed";
-      const details = error.response?.data?.details
-        ? error.response.data.details.map((err: any) => err.message).join(", ")
-        : "";
-      setServerError(details ? `${errorMessage}: ${details}` : errorMessage);
+    } catch (error: unknown) {
+      if (error instanceof AxiosError) {
+        setServerError(
+          error.response?.data?.error || "Failed to register new profile"
+        );
+      } else {
+        setServerError("Failed to register new profile");
+      }
     }
   };
 

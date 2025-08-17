@@ -9,6 +9,7 @@ import {
 import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
 import FormInput from "../components/ui/FormInput";
 import { ArrowPathIcon } from "@heroicons/react/24/solid";
+import { AxiosError } from "axios";
 
 const AdminLanguagesPage: React.FC = () => {
   const [languages, setLanguages] = useState<Language[]>([]);
@@ -31,8 +32,12 @@ const AdminLanguagesPage: React.FC = () => {
         setLoading(true);
         const data = await getLanguages();
         setLanguages(data);
-      } catch (err: any) {
-        setError(err.response?.data?.error || "Failed to load languages");
+      } catch (error: unknown) {
+        if (error instanceof AxiosError) {
+          setError(error.response?.data?.error || "Failed to load languages");
+        } else {
+          setError("Failed to load languages");
+        }
       } finally {
         setLoading(false);
       }
@@ -95,13 +100,14 @@ const AdminLanguagesPage: React.FC = () => {
       setFormData({ code: "", name: "" });
       setErrors({});
       setServerError("");
-    } catch (error: any) {
-      const errorMessage =
-        error.response?.data?.error || "Failed to create language";
-      const details = error.response?.data?.details
-        ? error.response.data.details.map((err: any) => err.message).join(", ")
-        : "";
-      setServerError(details ? `${errorMessage}: ${details}` : errorMessage);
+    } catch (error: unknown) {
+      if (error instanceof AxiosError) {
+        setServerError(
+          error.response?.data?.error || "Failed to create Language"
+        );
+      } else {
+        setServerError("Failed to create Language");
+      }
     }
   };
 
@@ -135,13 +141,14 @@ const AdminLanguagesPage: React.FC = () => {
       setFormData({ code: "", name: "" });
       setErrors({});
       setServerError("");
-    } catch (error: any) {
-      const errorMessage =
-        error.response?.data?.error || "Failed to update language";
-      const details = error.response?.data?.details
-        ? error.response.data.details.map((err: any) => err.message).join(", ")
-        : "";
-      setServerError(details ? `${errorMessage}: ${details}` : errorMessage);
+    } catch (error: unknown) {
+      if (error instanceof AxiosError) {
+        setServerError(
+          error.response?.data?.error || "Failed to update Language"
+        );
+      } else {
+        setServerError("Failed to update Language");
+      }
     }
   };
 
@@ -157,10 +164,14 @@ const AdminLanguagesPage: React.FC = () => {
       );
       setIsDeleteModalOpen(false);
       setCurrentLanguage(null);
-    } catch (error: any) {
-      setServerError(
-        error.response?.data?.error || "Failed to delete language"
-      );
+    } catch (error: unknown) {
+      if (error instanceof AxiosError) {
+        setServerError(
+          error.response?.data?.error || "Failed to delete Language"
+        );
+      } else {
+        setServerError("Failed to delete Language");
+      }
     }
   };
 

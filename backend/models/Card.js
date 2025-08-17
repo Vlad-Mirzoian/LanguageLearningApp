@@ -12,7 +12,7 @@ const cardSchema = new mongoose.Schema({
     ref: "Category",
     required: true,
   },
-  meaning: { type: String, default: "" },
+  example: { type: String, default: "" },
 });
 
 cardSchema.index({ wordId: 1, translationId: 1 }, { unique: true });

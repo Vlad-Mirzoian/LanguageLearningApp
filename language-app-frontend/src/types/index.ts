@@ -37,7 +37,7 @@ export interface Card {
   wordId: Word;
   translationId: Word;
   categoryId: Category;
-  meaning?: string;
+  example?: string;
   interval: number;
   nextReview: string;
   easiness: number;
@@ -54,6 +54,7 @@ export interface TestCard {
   _id: string;
   word: Word;
   category: Category;
+  example?: string;
   options: { text: string; isCorrect: boolean }[];
 }
 

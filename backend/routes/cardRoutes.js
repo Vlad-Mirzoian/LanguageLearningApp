@@ -14,7 +14,7 @@ router.get(
       .optional()
       .isMongoId()
       .withMessage("Invalid category ID"),
-    query("meaning")
+    query("example")
       .optional()
       .isString()
       .trim()
@@ -90,12 +90,7 @@ router.post(
       .isIn(["flash", "test", "dictation"])
       .withMessage("Type must be on of: 'flash', 'test', 'dictation'"),
     body("attemptId").optional().isString().withMessage("Invalid attempt ID"),
-    body("quality")
-      .if(body("type").equals("flash"))
-      .isInt({ min: 1, max: 5 })
-      .withMessage("Quality must be an integer between 1 and 5"),
     body("answer")
-      .if(body("type").isIn(["test", "dictation"]))
       .isString()
       .trim()
       .notEmpty()
@@ -126,12 +121,12 @@ router.post(
       .withMessage("Category is required")
       .isMongoId()
       .withMessage("Invalid category ID"),
-    body("meaning")
+    body("example")
       .optional()
       .isString()
       .trim()
       .notEmpty()
-      .withMessage("Meaning cannot be empty if provided"),
+      .withMessage("Example cannot be empty if provided"),
   ],
   validate,
   cardController.createCard
@@ -162,7 +157,7 @@ router.put(
       .withMessage("Category cannot be empty if provided")
       .isMongoId()
       .withMessage("Invalid category ID"),
-    body("meaning").optional({ checkFalsy: false }).isString().trim(),
+    body("example").optional({ checkFalsy: false }).isString().trim(),
   ],
   validate,
   cardController.updateCard

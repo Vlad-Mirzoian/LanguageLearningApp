@@ -9,7 +9,12 @@ const authenticate = (req, res, next) => {
     req.userRole = decoded.role;
     next();
   } catch (error) {
-    res.status(401).json({ error: "Invalid token" });
+    if (error.name === "TokenExpiredError") {
+      return res
+        .status(401)
+        .json({ error: "Expired token", needsRefresh: true });
+    }
+    return res.status(401).json({ error: "Invalid token" });
   }
 };
 

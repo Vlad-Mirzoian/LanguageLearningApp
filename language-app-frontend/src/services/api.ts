@@ -20,6 +20,7 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  withCredentials: true,
 });
 
 api.interceptors.request.use((config) => {
@@ -32,12 +33,23 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config;
     if (
       error.response?.status === 401 &&
-      window.location.pathname !== "/login"
+      error.response?.data?.needsRefresh &&
+      !originalRequest._retry
     ) {
-      useAuthStore.getState().clearAuth();
+      originalRequest._retry = true;
+      try {
+        const { token: newToken } = await refreshAPI();
+        useAuthStore.getState().setAuth(useAuthStore.getState().user, newToken);
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        return api(originalRequest);
+      } catch (err) {
+        useAuthStore.getState().clearAuth();
+        return Promise.reject(err);
+      }
     }
     return Promise.reject(error);
   }
@@ -54,14 +66,21 @@ export const register = async (data: {
   return response.data;
 };
 
-export const login = async (data: {
+export const loginAPI = async (data: {
   identifier: string;
   password: string;
 }): Promise<AuthResponse> => {
   const response = await api.post<AuthResponse>("/auth/login", data);
-  const { setAuth } = useAuthStore.getState();
-  setAuth(response.data.user, response.data.token);
   return response.data;
+};
+
+export const refreshAPI = async (): Promise<{ token: string }> => {
+  const response = await api.post("/auth/refresh");
+  return response.data;
+};
+
+export const logoutAPI = async (): Promise<void> => {
+  await api.post("/auth/logout");
 };
 
 export const verifyEmail = async (token: string) => {
@@ -233,7 +252,7 @@ export const deleteWord = async (
 export const getCards = async (
   filters: {
     categoryId?: string;
-    meaning?: string;
+    example?: string;
     limit?: number;
     skip?: number;
   } = {}
@@ -246,7 +265,7 @@ export const createCard = async (data: {
   wordId: string;
   translationId: string;
   categoryId: string;
-  meaning?: string;
+  example?: string;
 }): Promise<Card> => {
   const response = await api.post("/cards", data);
   return response.data;
@@ -258,7 +277,7 @@ export const updateCard = async (
     wordId: string;
     translationId: string;
     categoryId: string;
-    meaning?: string;
+    example?: string;
   }>
 ): Promise<Card> => {
   const response = await api.put(`/cards/${cardId}`, data);
@@ -294,13 +313,12 @@ export const submitCard = async (
     languageId: string;
     type: "flash" | "test" | "dictation";
     attemptId?: string | null;
-    quality?: number;
     answer?: string;
   }
 ): Promise<{
-  isCorrect?: boolean;
-  correctTranslation?: string;
-  quality?: number;
+  isCorrect: boolean;
+  correctTranslation: string;
+  quality: number;
   attempt: Attempt;
 }> => {
   const response = await api.post(`/cards/${cardId}/submit`, data);

@@ -1,6 +1,7 @@
 const bcrypt = require("bcrypt");
 const { v4: uuidv4 } = require("uuid");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 const User = require("../models/User");
 const Language = require("../models/Language");
 const {
@@ -119,13 +120,35 @@ const authController = {
           .json({ error: "Please verify your email before logging in" });
       }
 
-      const token = jwt.sign(
+      const accessToken = jwt.sign(
         { userId: user._id, role: user.role },
         process.env.JWT_SECRET,
-        { expiresIn: "1h" }
+        { expiresIn: "15m" }
       );
+
+      const refreshToken = crypto.randomBytes(32).toString("hex");
+      const refreshTokenHash = await bcrypt.hash(refreshToken, 10);
+      const refreshTokenExpires = new Date(
+        Date.now() + 7 * 24 * 60 * 60 * 1000
+      );
+
+      await User.updateOne(
+        { _id: user._id },
+        {
+          refreshToken: refreshTokenHash,
+          refreshTokenExpires: refreshTokenExpires,
+        }
+      );
+
+      res.cookie("refreshToken", refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+
       res.json({
-        token,
+        token: accessToken,
         user: {
           email: user.email,
           username: user.username,
@@ -137,6 +160,76 @@ const authController = {
       });
     } catch (error) {
       res.status(500).json({ error: `Failed to login user: ${error.message}` });
+    }
+  },
+
+  async refresh(req, res) {
+    try {
+      const refreshToken = req.cookies.refreshToken;
+      if (!refreshToken) {
+        return res.status(401).json({ error: "Refresh token not provided" });
+      }
+      const user = await User.findOne({
+        refreshTokenExpires: { $gt: new Date() },
+      });
+      if (!user) {
+        return res
+          .status(401)
+          .json({ error: "Invalid or expired refresh token" });
+      }
+      const isMatch = await bcrypt.compare(refreshToken, user.refreshToken);
+      if (!isMatch) {
+        return res.status(401).json({ error: "Invalid refresh token" });
+      }
+
+      const accessToken = jwt.sign(
+        { userId: user._id, role: user.role },
+        process.env.JWT_SECRET,
+        { expiresIn: "15m" }
+      );
+      const newRefreshToken = crypto.randomBytes(32).toString("hex");
+      const newRefreshTokenHash = await bcrypt.hash(newRefreshToken, 10);
+      const newRefreshTokenExpires = new Date(
+        Date.now() + 7 * 24 * 60 * 60 * 1000
+      );
+      await User.updateOne(
+        { _id: user._id },
+        {
+          refreshToken: newRefreshTokenHash,
+          refreshTokenExpires: newRefreshTokenExpires,
+        }
+      );
+      res.cookie("refreshToken", newRefreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+      res.json({ token: accessToken });
+    } catch (error) {
+      res.status(500).json({ error: `Token refresh failed: ${error.message}` });
+    }
+  },
+
+  async logout(req, res) {
+    try {
+      await User.updateOne(
+        {
+          _id: req.userId,
+        },
+        {
+          refreshToken: null,
+          refreshTokenExpires: null,
+        }
+      );
+      res.clearCookie("refreshToken", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+      });
+      res.json({ message: "Logged out successfully" });
+    } catch (error) {
+      res.status(500).json({ error: `Logout failed: ${error.message}` });
     }
   },
 

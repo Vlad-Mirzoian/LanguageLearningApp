@@ -23,6 +23,7 @@ const leaderboardController = {
           },
         },
         { $unwind: "$user" },
+        { $match: { "user.role": { $ne: "admin" } } },
         {
           $project: {
             userName: "$user.username",

@@ -56,9 +56,9 @@ const AdminWordsPage: React.FC = () => {
         setLanguages(langData);
       } catch (error: unknown) {
         if (error instanceof AxiosError) {
-          setError(error.response?.data?.error || "Failed to load data");
+          setError(error.response?.data?.error || "Failed to load words");
         } else {
-          setError("Failed to load data");
+          setError("Failed to load words");
         }
       } finally {
         setLoading(false);
@@ -144,7 +144,7 @@ const AdminWordsPage: React.FC = () => {
       if (error instanceof AxiosError) {
         setServerError(error.response?.data?.error || "Failed to create Word");
       } else {
-        setServerError("Something went wrong");
+        setServerError("Failed to create Word");
       }
     }
   };
@@ -184,7 +184,7 @@ const AdminWordsPage: React.FC = () => {
       if (error instanceof AxiosError) {
         setServerError(error.response?.data?.error || "Failed to update Word");
       } else {
-        setServerError("Something went wrong");
+        setServerError("Failed to update Word");
       }
     }
   };
@@ -202,9 +202,9 @@ const AdminWordsPage: React.FC = () => {
       setCurrentWord(null);
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
-        setServerError(error.response?.data?.error || "Failed to create Card");
+        setServerError(error.response?.data?.error || "Failed to delere Word");
       } else {
-        setServerError("Something went wrong");
+        setServerError("Failed to delere Word");
       }
     }
   };

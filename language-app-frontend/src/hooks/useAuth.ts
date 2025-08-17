@@ -1,5 +1,5 @@
+import { loginAPI, logoutAPI, refreshAPI } from "../services/api";
 import { useAuthStore } from "../store/authStore";
-import { useNavigate } from "react-router-dom";
 import type { User } from "../types";
 
 interface AuthHook {
@@ -9,16 +9,36 @@ interface AuthHook {
   isAdmin: boolean;
   setAuth: (user: User | null, token: string | null) => void;
   setUser: (user: User | null) => void;
+  login: (idenitifier: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  refreshToken: () => Promise<string>;
 }
 
 export const useAuth = (): AuthHook => {
   const { user, token, setAuth, setUser, clearAuth } = useAuthStore();
-  const navigate = useNavigate();
+
+  const login = async (identifier: string, password: string) => {
+    const data = await loginAPI({ identifier, password });
+    setAuth(data.user, data.token);
+  };
 
   const logout = async () => {
-    clearAuth();
-    navigate("/login");
+    try {
+      await logoutAPI();
+    } finally {
+      clearAuth();
+    }
+  };
+
+  const refreshToken = async (): Promise<string> => {
+    try {
+      const { token: newToken } = await refreshAPI();
+      setAuth(user, newToken);
+      return newToken;
+    } catch (error) {
+      clearAuth();
+      throw error;
+    }
   };
 
   return {
@@ -28,6 +48,8 @@ export const useAuth = (): AuthHook => {
     isAdmin: user?.role === "admin",
     setAuth,
     setUser,
+    login,
     logout,
+    refreshToken,
   };
 };

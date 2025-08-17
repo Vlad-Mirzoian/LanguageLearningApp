@@ -38,8 +38,6 @@ const LeaderboardPage: React.FC = () => {
     fetchData();
   }, [selectedLanguageId, setSelectedLanguageId, user]);
 
-  console.log(leaderboard);
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex flex-col items-center p-4">
       <div className="w-full max-w-4xl">

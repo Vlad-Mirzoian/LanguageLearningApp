@@ -1,12 +1,12 @@
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import FormInput from "../components/ui/FormInput";
-import { login } from "../services/api";
 import { useAuth } from "../hooks/useAuth";
+import { AxiosError } from "axios";
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
-  const { setAuth } = useAuth();
+  const { login } = useAuth();
 
   const [formData, setFormData] = useState({
     identifier: "",
@@ -75,15 +75,14 @@ const LoginPage: React.FC = () => {
     }
 
     try {
-      const { user, token } = await login(formData);
-      setAuth(user, token);
-      navigate("/dashboard");
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.error || "Logging in failed";
-      const details = error.response?.data?.details
-        ? error.response.data.details.map((err: any) => err.message).join(", ")
-        : "";
-      setServerError(details ? `${errorMessage}: ${details}` : errorMessage);
+      await login(formData.identifier, formData.password);
+      navigate("/review");
+    } catch (error: unknown) {
+      if (error instanceof AxiosError) {
+        setServerError(error.response?.data?.error || "Logging in failed");
+      } else {
+        setServerError("Logging in failed");
+      }
     }
   };
 

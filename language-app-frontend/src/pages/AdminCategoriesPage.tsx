@@ -12,6 +12,7 @@ import FormInput from "../components/ui/FormInput";
 import { ArrowPathIcon } from "@heroicons/react/24/solid";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import type { DropResult } from "@hello-pangea/dnd";
+import { AxiosError } from "axios";
 
 const AdminCategoriesPage: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -36,8 +37,12 @@ const AdminCategoriesPage: React.FC = () => {
         setLoading(true);
         const data = await getCategories();
         setCategories(data.sort((a, b) => a.order - b.order));
-      } catch (err: any) {
-        setError(err.response?.data?.error || "Failed to load categories");
+      } catch (error: unknown) {
+        if (error instanceof AxiosError) {
+          setError(error.response?.data?.error || "Failed to load categories");
+        } else {
+          setError("Failed to load categories");
+        }
       } finally {
         setLoading(false);
       }
@@ -127,13 +132,14 @@ const AdminCategoriesPage: React.FC = () => {
       });
       setErrors({});
       setServerError("");
-    } catch (error: any) {
-      const errorMessage =
-        error.response?.data?.error || "Failed to create category";
-      const details = error.response?.data?.details
-        ? error.response.data.details.map((err: any) => err.message).join(", ")
-        : "";
-      setServerError(details ? `${errorMessage}: ${details}` : errorMessage);
+    } catch (error: unknown) {
+      if (error instanceof AxiosError) {
+        setServerError(
+          error.response?.data?.error || "Failed to create Category"
+        );
+      } else {
+        setServerError("Failed to create Category");
+      }
     }
   };
 
@@ -175,13 +181,14 @@ const AdminCategoriesPage: React.FC = () => {
       });
       setErrors({});
       setServerError("");
-    } catch (error: any) {
-      const errorMessage =
-        error.response?.data?.error || "Failed to update category";
-      const details = error.response?.data?.details
-        ? error.response.data.details.map((err: any) => err.message).join(", ")
-        : "";
-      setServerError(details ? `${errorMessage}: ${details}` : errorMessage);
+    } catch (error: unknown) {
+      if (error instanceof AxiosError) {
+        setServerError(
+          error.response?.data?.error || "Failed to update Category"
+        );
+      } else {
+        setServerError("Failed to update Category");
+      }
     }
   };
 
@@ -197,10 +204,14 @@ const AdminCategoriesPage: React.FC = () => {
       );
       setIsDeleteModalOpen(false);
       setCurrentCategory(null);
-    } catch (error: any) {
-      setServerError(
-        error.response?.data?.error || "Failed to delete category"
-      );
+    } catch (error: unknown) {
+      if (error instanceof AxiosError) {
+        setServerError(
+          error.response?.data?.error || "Failed to delete Category"
+        );
+      } else {
+        setServerError("Failed to delete Category");
+      }
     }
   };
 
@@ -228,10 +239,14 @@ const AdminCategoriesPage: React.FC = () => {
     setCategories(updatedCategories);
     try {
       await updateCategoryOrders(changedOrders);
-    } catch (error: any) {
-      setError(
-        error.response?.data?.error || "Failed to update category order"
-      );
+    } catch (error: unknown) {
+      if (error instanceof AxiosError) {
+        setError(
+          error.response?.data?.error || "Failed to update Category order"
+        );
+      } else {
+        setError("Failed to update Category order");
+      }
       const data = await getCategories();
       setCategories(data.sort((a, b) => a.order - b.order));
     }

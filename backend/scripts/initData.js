@@ -49,8 +49,17 @@ async function initDB() {
     const hashedPassword = await bcrypt.hash("password123", saltRounds);
     const users = [
       {
-        email: "user@example.com",
-        username: "test_user",
+        email: "admin@example.com",
+        username: "test_admin",
+        password: hashedPassword,
+        role: "admin",
+        isVerified: true,
+        nativeLanguageId: ukrainianLang._id,
+        learningLanguagesIds: otherLangIds,
+      },
+      {
+        email: "user1@example.com",
+        username: "test_user1",
         password: hashedPassword,
         role: "user",
         isVerified: true,
@@ -58,10 +67,28 @@ async function initDB() {
         learningLanguagesIds: otherLangIds,
       },
       {
-        email: "admin@example.com",
-        username: "test_admin",
+        email: "user2@example.com",
+        username: "test_user2",
         password: hashedPassword,
-        role: "admin",
+        role: "user",
+        isVerified: true,
+        nativeLanguageId: ukrainianLang._id,
+        learningLanguagesIds: otherLangIds,
+      },
+      {
+        email: "user3@example.com",
+        username: "test_user3",
+        password: hashedPassword,
+        role: "user",
+        isVerified: true,
+        nativeLanguageId: ukrainianLang._id,
+        learningLanguagesIds: otherLangIds,
+      },
+      {
+        email: "user4@example.com",
+        username: "test_user4",
+        password: hashedPassword,
+        role: "user",
         isVerified: true,
         nativeLanguageId: ukrainianLang._id,
         learningLanguagesIds: otherLangIds,
@@ -104,202 +131,533 @@ async function initDB() {
     ];
     const createdCategories = await Category.insertMany(categories);
 
-    // Create Words (125 words, ~25 per language)
-    const words = [];
-    const wordSets = {
-      uk: [
-        "дім",
-        "книга",
-        "дерево",
-        "сонце",
-        "місяць",
-        "вода",
-        "небо",
-        "вітер",
-        "квітка",
-        "птах",
-        "друг",
-        "любов",
-        "час",
-        "шлях",
-        "світ",
-        "рука",
-        "око",
-        "серце",
-        "голова",
-        "ніч",
-        "день",
-        "життя",
-        "мрія",
-        "земля",
-        "зірка",
+    // Define concepts per category (3 per category, 30 total concepts)
+    const conceptsPerCategory = [
+      // Vocabulary
+      [
+        {
+          trans: {
+            uk: "привіт",
+            en: "hello",
+            es: "hola",
+            fr: "bonjour",
+            de: "hallo",
+          },
+          examples: {
+            en: "Hello, how are you today?",
+            es: "Hola, ¿cómo estás hoy?",
+            fr: "Bonjour, comment vas-tu aujourd'hui ?",
+            de: "Hallo, wie geht's dir heute?",
+          },
+        },
+        {
+          trans: {
+            uk: "дякую",
+            en: "thank you",
+            es: "gracias",
+            fr: "merci",
+            de: "danke",
+          },
+          examples: {
+            en: "Thank you for your help!",
+            es: "¡Gracias por tu ayuda!",
+            fr: "Merci pour ton aide !",
+            de: "Danke für deine Hilfe!",
+          },
+        },
+        {
+          trans: {
+            uk: "будь ласка",
+            en: "please",
+            es: "por favor",
+            fr: "s'il vous plaît",
+            de: "bitte",
+          },
+          examples: {
+            en: "Please pass the salt.",
+            es: "Por favor, pasa la sal.",
+            fr: "S'il vous plaît, passe le sel.",
+            de: "Bitte gib mir das Salz.",
+          },
+        },
       ],
-      en: [
-        "house",
-        "book",
-        "tree",
-        "sun",
-        "moon",
-        "water",
-        "sky",
-        "wind",
-        "flower",
-        "bird",
-        "friend",
-        "love",
-        "time",
-        "path",
-        "world",
-        "hand",
-        "eye",
-        "heart",
-        "head",
-        "night",
-        "day",
-        "life",
-        "dream",
-        "earth",
-        "star",
+      // Food
+      [
+        {
+          trans: {
+            uk: "яблуко",
+            en: "apple",
+            es: "manzana",
+            fr: "pomme",
+            de: "Apfel",
+          },
+          examples: {
+            en: "I ate a juicy apple for breakfast.",
+            es: "Comí una manzana jugosa para el desayuno.",
+            fr: "J'ai mangé une pomme juteuse au petit déjeuner.",
+            de: "Ich habe einen saftigen Apfel zum Frühstück gegessen.",
+          },
+        },
+        {
+          trans: {
+            uk: "хліб",
+            en: "bread",
+            es: "pan",
+            fr: "pain",
+            de: "Brot",
+          },
+          examples: {
+            en: "I baked fresh bread this morning.",
+            es: "Horneé pan fresco esta mañana.",
+            fr: "J'ai fait du pain frais ce matin.",
+            de: "Ich habe heute Morgen frisches Brot gebacken.",
+          },
+        },
+        {
+          trans: {
+            uk: "молоко",
+            en: "milk",
+            es: "leche",
+            fr: "lait",
+            de: "Milch",
+          },
+          examples: {
+            en: "She drinks milk with her cereal.",
+            es: "Ella bebe leche con su cereal.",
+            fr: "Elle boit du lait avec ses céréales.",
+            de: "Sie trinkt Milch mit ihrem Müsli.",
+          },
+        },
       ],
-      es: [
-        "casa",
-        "libro",
-        "árbol",
-        "sol",
-        "luna",
-        "agua",
-        "cielo",
-        "viento",
-        "flor",
-        "pájaro",
-        "amigo",
-        "amor",
-        "tiempo",
-        "camino",
-        "mundo",
-        "mano",
-        "ojo",
-        "corazón",
-        "cabeza",
-        "noche",
-        "día",
-        "vida",
-        "sueño",
-        "tierra",
-        "estrella",
+      // Travel
+      [
+        {
+          trans: {
+            uk: "літак",
+            en: "airplane",
+            es: "avión",
+            fr: "avion",
+            de: "Flugzeug",
+          },
+          examples: {
+            en: "The airplane took off on time.",
+            es: "El avión despegó a tiempo.",
+            fr: "L'avion a décollé à l'heure.",
+            de: "Das Flugzeug ist pünktlich gestartet.",
+          },
+        },
+        {
+          trans: {
+            uk: "готель",
+            en: "hotel",
+            es: "hotel",
+            fr: "hôtel",
+            de: "Hotel",
+          },
+          examples: {
+            en: "We stayed at a cozy hotel by the beach.",
+            es: "Nos quedamos en un hotel acogedor junto a la playa.",
+            fr: "Nous avons séjourné dans un hôtel confortable près de la plage.",
+            de: "Wir haben in einem gemütlichen Hotel am Strand übernachtet.",
+          },
+        },
+        {
+          trans: {
+            uk: "карта",
+            en: "map",
+            es: "mapa",
+            fr: "carte",
+            de: "Karte",
+          },
+          examples: {
+            en: "I used a map to find the museum.",
+            es: "Usé un mapa para encontrar el museo.",
+            fr: "J'ai utilisé une carte pour trouver le musée.",
+            de: "Ich habe eine Karte benutzt, um das Museum zu finden.",
+          },
+        },
       ],
-      fr: [
-        "maison",
-        "livre",
-        "arbre",
-        "soleil",
-        "lune",
-        "eau",
-        "ciel",
-        "vent",
-        "fleur",
-        "oiseau",
-        "ami",
-        "amour",
-        "temps",
-        "chemin",
-        "monde",
-        "main",
-        "œil",
-        "cœur",
-        "tête",
-        "nuit",
-        "jour",
-        "vie",
-        "rêve",
-        "terre",
-        "étoile",
+      // Family
+      [
+        {
+          trans: {
+            uk: "мати",
+            en: "mother",
+            es: "madre",
+            fr: "mère",
+            de: "Mutter",
+          },
+          examples: {
+            en: "My mother cooks delicious meals.",
+            es: "Mi madre cocina comidas deliciosas.",
+            fr: "Ma mère cuisine des plats délicieux.",
+            de: "Meine Mutter kocht leckere Mahlzeiten.",
+          },
+        },
+        {
+          trans: {
+            uk: "батько",
+            en: "father",
+            es: "padre",
+            fr: "père",
+            de: "Vater",
+          },
+          examples: {
+            en: "My father taught me how to ride a bike.",
+            es: "Mi padre me enseñó a montar en bicicleta.",
+            fr: "Mon père m'a appris à faire du vélo.",
+            de: "Mein Vater hat mir beigebracht, Fahrrad zu fahren.",
+          },
+        },
+        {
+          trans: {
+            uk: "брат",
+            en: "brother",
+            es: "hermano",
+            fr: "frère",
+            de: "Bruder",
+          },
+          examples: {
+            en: "My brother is good at soccer.",
+            es: "Mi hermano es bueno en fútbol.",
+            fr: "Mon frère est doué pour le football.",
+            de: "Mein Bruder ist gut im Fußball.",
+          },
+        },
       ],
-      de: [
-        "Haus",
-        "Buch",
-        "Baum",
-        "Sonne",
-        "Mond",
-        "Wasser",
-        "Himmel",
-        "Wind",
-        "Blume",
-        "Vogel",
-        "Freund",
-        "Liebe",
-        "Zeit",
-        "Weg",
-        "Welt",
-        "Hand",
-        "Auge",
-        "Herz",
-        "Kopf",
-        "Nacht",
-        "Tag",
-        "Leben",
-        "Traum",
-        "Erde",
-        "Stern",
+      // Nature
+      [
+        {
+          trans: {
+            uk: "дерево",
+            en: "tree",
+            es: "árbol",
+            fr: "arbre",
+            de: "Baum",
+          },
+          examples: {
+            en: "The tree in our yard is very old.",
+            es: "El árbol en nuestro patio es muy viejo.",
+            fr: "L'arbre dans notre jardin est très vieux.",
+            de: "Der Baum in unserem Garten ist sehr alt.",
+          },
+        },
+        {
+          trans: {
+            uk: "річка",
+            en: "river",
+            es: "río",
+            fr: "rivière",
+            de: "Fluss",
+          },
+          examples: {
+            en: "We went fishing by the river.",
+            es: "Fuimos a pescar al río.",
+            fr: "Nous sommes allés pêcher près de la rivière.",
+            de: "Wir waren am Fluss angeln.",
+          },
+        },
+        {
+          trans: {
+            uk: "гора",
+            en: "mountain",
+            es: "montaña",
+            fr: "montagne",
+            de: "Berg",
+          },
+          examples: {
+            en: "We hiked up the mountain last weekend.",
+            es: "Subimos la montaña el fin de semana pasado.",
+            fr: "Nous avons escaladé la montagne le week-end dernier.",
+            de: "Wir sind am letzten Wochenende den Berg hinaufgewandert.",
+          },
+        },
       ],
-    };
+      // Work
+      [
+        {
+          trans: {
+            uk: "робота",
+            en: "job",
+            es: "trabajo",
+            fr: "travail",
+            de: "Arbeit",
+          },
+          examples: {
+            en: "She loves her new job at the hospital.",
+            es: "Ella ama su nuevo trabajo en el hospital.",
+            fr: "Elle adore son nouveau travail à l'hôpital.",
+            de: "Sie liebt ihren neuen Job im Krankenhaus.",
+          },
+        },
+        {
+          trans: {
+            uk: "офіс",
+            en: "office",
+            es: "oficina",
+            fr: "bureau",
+            de: "Büro",
+          },
+          examples: {
+            en: "The office is open from 9 to 5.",
+            es: "La oficina está abierta de 9 a 5.",
+            fr: "Le bureau est ouvert de 9h à 17h.",
+            de: "Das Büro ist von 9 bis 17 Uhr geöffnet.",
+          },
+        },
+        {
+          trans: {
+            uk: "комп'ютер",
+            en: "computer",
+            es: "computadora",
+            fr: "ordinateur",
+            de: "Computer",
+          },
+          examples: {
+            en: "I use my computer for work and gaming.",
+            es: "Uso mi computadora para trabajar y jugar.",
+            fr: "J'utilise mon ordinateur pour travailler et jouer.",
+            de: "Ich benutze meinen Computer für Arbeit und Spiele.",
+          },
+        },
+      ],
+      // Clothing
+      [
+        {
+          trans: {
+            uk: "сорочка",
+            en: "shirt",
+            es: "camisa",
+            fr: "chemise",
+            de: "Hemd",
+          },
+          examples: {
+            en: "He wore a blue shirt to the party.",
+            es: "Llevó una camisa azul a la fiesta.",
+            fr: "Il a porté une chemise bleue à la fête.",
+            de: "Er trug ein blaues Hemd zur Party.",
+          },
+        },
+        {
+          trans: {
+            uk: "штани",
+            en: "pants",
+            es: "pantalones",
+            fr: "pantalon",
+            de: "Hose",
+          },
+          examples: {
+            en: "These pants are very comfortable.",
+            es: "Estos pantalones son muy cómodos.",
+            fr: "Ce pantalon est très confortable.",
+            de: "Diese Hose ist sehr bequem.",
+          },
+        },
+        {
+          trans: {
+            uk: "взуття",
+            en: "shoes",
+            es: "zapatos",
+            fr: "chaussures",
+            de: "Schuhe",
+          },
+          examples: {
+            en: "I need new shoes for running.",
+            es: "Necesito zapatos nuevos para correr.",
+            fr: "J'ai besoin de nouvelles chaussures pour courir.",
+            de: "Ich brauche neue Schuhe zum Laufen.",
+          },
+        },
+      ],
+      // Weather
+      [
+        {
+          trans: {
+            uk: "дощ",
+            en: "rain",
+            es: "lluvia",
+            fr: "pluie",
+            de: "Regen",
+          },
+          examples: {
+            en: "It's going to rain this afternoon.",
+            es: "Va a llover esta tarde.",
+            fr: "Il va pleuvoir cet après-midi.",
+            de: "Es wird heute Nachmittag regnen.",
+          },
+        },
+        {
+          trans: {
+            uk: "сонце",
+            en: "sun",
+            es: "sol",
+            fr: "soleil",
+            de: "Sonne",
+          },
+          examples: {
+            en: "The sun is shining brightly today.",
+            es: "El sol brilla intensamente hoy.",
+            fr: "Le soleil brille fort aujourd'hui.",
+            de: "Die Sonne scheint heute hell.",
+          },
+        },
+        {
+          trans: {
+            uk: "вітер",
+            en: "wind",
+            es: "viento",
+            fr: "vent",
+            de: "Wind",
+          },
+          examples: {
+            en: "The wind is blowing strongly today.",
+            es: "El viento sopla fuerte hoy.",
+            fr: "Le vent souffle fort aujourd'hui.",
+            de: "Der Wind weht heute stark.",
+          },
+        },
+      ],
+      // Emotions
+      [
+        {
+          trans: {
+            uk: "щасливий",
+            en: "happy",
+            es: "feliz",
+            fr: "heureux",
+            de: "glücklich",
+          },
+          examples: {
+            en: "She was so happy to see her friends.",
+            es: "Estaba tan feliz de ver a sus amigos.",
+            fr: "Elle était si heureuse de voir ses amis.",
+            de: "Sie war so glücklich, ihre Freunde zu sehen.",
+          },
+        },
+        {
+          trans: {
+            uk: "сумний",
+            en: "sad",
+            es: "triste",
+            fr: "triste",
+            de: "traurig",
+          },
+          examples: {
+            en: "He felt sad after the movie.",
+            es: "Se sintió triste después de la película.",
+            fr: "Il s'est senti triste après le film.",
+            de: "Er fühlte sich nach dem Film traurig.",
+          },
+        },
+        {
+          trans: {
+            uk: "злий",
+            en: "angry",
+            es: "enojado",
+            fr: "en colère",
+            de: "wütend",
+          },
+          examples: {
+            en: "She was angry about the mistake.",
+            es: "Estaba enojada por el error.",
+            fr: "Elle était en colère à cause de l'erreur.",
+            de: "Sie war wegen des Fehlers wütend.",
+          },
+        },
+      ],
+      // Technology
+      [
+        {
+          trans: {
+            uk: "телефон",
+            en: "phone",
+            es: "teléfono",
+            fr: "téléphone",
+            de: "Telefon",
+          },
+          examples: {
+            en: "I left my phone at home.",
+            es: "Dejé mi teléfono en casa.",
+            fr: "J'ai oublié mon téléphone à la maison.",
+            de: "Ich habe mein Telefon zu Hause vergessen.",
+          },
+        },
+        {
+          trans: {
+            uk: "інтернет",
+            en: "internet",
+            es: "internet",
+            fr: "internet",
+            de: "Internet",
+          },
+          examples: {
+            en: "The internet is down again.",
+            es: "El internet está caído otra vez.",
+            fr: "L'internet ne fonctionne plus.",
+            de: "Das Internet ist wieder ausgefallen.",
+          },
+        },
+        {
+          trans: {
+            uk: "додаток",
+            en: "app",
+            es: "aplicación",
+            fr: "application",
+            de: "App",
+          },
+          examples: {
+            en: "I downloaded a new app for learning.",
+            es: "Descargué una nueva aplicación para aprender.",
+            fr: "J'ai téléchargé une nouvelle application pour apprendre.",
+            de: "Ich habe eine neue App zum Lernen heruntergeladen.",
+          },
+        },
+      ],
+    ];
 
-    for (const lang of createdLanguages) {
-      const langWords = wordSets[lang.code].map((text) => ({
-        text,
-        languageId: lang._id,
-      }));
-      words.push(...langWords);
+    // Create Words (150 words, 30 per language)
+    const words = [];
+    for (let catIdx = 0; catIdx < conceptsPerCategory.length; catIdx++) {
+      const catConcepts = conceptsPerCategory[catIdx];
+      for (const concept of catConcepts) {
+        for (const lang of createdLanguages) {
+          words.push({
+            text: concept.trans[lang.code],
+            languageId: lang._id,
+          });
+        }
+      }
     }
     const createdWords = await Word.insertMany(words);
 
-    // Create Cards (100 cards, Ukrainian to each learning language)
-    const cards = [];
-    const meanings = [
-      "A place where people live",
-      "A collection of written pages",
-      "A tall plant with branches",
-      "The star that provides light and heat",
-      "Earth's natural satellite",
-      "A clear liquid essential for life",
-      "The atmosphere above the earth",
-      "Moving air",
-      "A colorful plant part",
-      "A feathered animal",
-      "A close companion",
-      "Deep affection",
-      "A measure of duration",
-      "A route or track",
-      "The planet we live on",
-      "The part of the body used for grasping",
-      "The organ of sight",
-      "The organ of emotion",
-      "The part containing the brain",
-      "The time after sunset",
-      "The time when the sun is up",
-      "The state of being alive",
-      "A vision during sleep",
-      "The ground we walk on",
-      "A celestial body",
-    ];
+    // Create wordMap for easy lookup (langId -> text -> wordId)
+    const wordMap = {};
+    createdWords.forEach((word) => {
+      const langIdStr = word.languageId.toString();
+      if (!wordMap[langIdStr]) wordMap[langIdStr] = {};
+      wordMap[langIdStr][word.text] = word._id;
+    });
 
-    const ukWords = createdWords.filter(
-      (w) => w.languageId.toString() === ukrainianLang._id.toString()
-    );
-    let cardCount = 0;
-    for (const lang of createdLanguages.filter((l) => l.code !== "uk")) {
-      const targetWords = createdWords.filter(
-        (w) => w.languageId.toString() === lang._id.toString()
-      );
-      for (let i = 0; i < 25 && cardCount < 100; i++) {
-        const category = createdCategories[i % createdCategories.length]; // Distribute across all categories
-        cards.push({
-          wordId: ukWords[i]._id,
-          translationId: targetWords[i]._id,
-          categoryId: category._id,
-          meaning: meanings[i % meanings.length],
-        });
-        cardCount++;
+    // Create Cards (120 cards, Ukrainian to each learning language, grouped by category)
+    const cards = [];
+    for (let catIdx = 0; catIdx < conceptsPerCategory.length; catIdx++) {
+      const categoryId = createdCategories[catIdx]._id;
+      const catConcepts = conceptsPerCategory[catIdx];
+      for (const concept of catConcepts) {
+        const ukText = concept.trans.uk;
+        const ukWordId = wordMap[ukrainianLang._id.toString()][ukText];
+        for (const targetLang of createdLanguages.filter(
+          (l) => l.code !== "uk"
+        )) {
+          const targetText = concept.trans[targetLang.code];
+          const targetWordId = wordMap[targetLang._id.toString()][targetText];
+          cards.push({
+            wordId: ukWordId,
+            translationId: targetWordId,
+            categoryId,
+            example: concept.examples[targetLang.code],
+          });
+        }
       }
     }
     await Card.insertMany(cards);

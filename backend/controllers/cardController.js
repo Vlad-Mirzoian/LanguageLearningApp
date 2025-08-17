@@ -11,7 +11,7 @@ const Attempt = require("../models/Attempt");
 const cardController = {
   async getCards(req, res) {
     try {
-      const { categoryId, meaning, limit = 20, skip = 0 } = req.query;
+      const { categoryId, example, limit = 20, skip = 0 } = req.query;
       const user = await User.findById(req.userId).lean();
       if (!user) {
         return res.status(404).json({ error: "User not found" });
@@ -36,7 +36,7 @@ const cardController = {
       }
 
       if (categoryId) query.categoryId = categoryId;
-      if (meaning) query.meaning = { $regex: meaning, $options: "i" };
+      if (example) query.example = { $regex: example, $options: "i" };
 
       const [cards, total] = await Promise.all([
         Card.find(query)
@@ -228,6 +228,7 @@ const cardController = {
           _id: card._id,
           word: card.wordId,
           category: card.categoryId,
+          example: card.example,
           options,
         };
       });
@@ -243,7 +244,7 @@ const cardController = {
 
   async createCard(req, res) {
     try {
-      const { wordId, translationId, categoryId, meaning } = req.body;
+      const { wordId, translationId, categoryId, example } = req.body;
       const [word, translation, category] = await Promise.all([
         Word.findById(wordId).lean(),
         Word.findById(translationId).lean(),
@@ -259,7 +260,7 @@ const cardController = {
         return res.status(404).json({ error: "Category not found" });
       }
 
-      const card = new Card({ wordId, translationId, categoryId, meaning });
+      const card = new Card({ wordId, translationId, categoryId, example });
       await card.save();
 
       const users = await User.find({
@@ -296,7 +297,7 @@ const cardController = {
   async submitCard(req, res) {
     try {
       const { id } = req.params;
-      const { languageId, quality, answer, attemptId, type } = req.body;
+      const { languageId, answer, attemptId, type } = req.body;
 
       const [user, language] = await Promise.all([
         User.findById(req.userId),
@@ -340,17 +341,21 @@ const cardController = {
         return res.status(404).json({ error: "Card not found" });
       }
 
-      let finalQuality = quality;
-      let isCorrect = null;
-      let correctTranslation = null;
-      if (type === "test" || type === "dictation") {
+      let isCorrect;
+      let correctTranslation;
+      if (type === "flash") {
+        correctTranslation = (await Word.findById(card.wordId).lean()).text;
+        isCorrect =
+          answer.trim().toLowerCase() ===
+          correctTranslation.trim().toLowerCase();
+      } else {
         correctTranslation = (await Word.findById(card.translationId).lean())
           .text;
         isCorrect =
           answer.trim().toLowerCase() ===
           correctTranslation.trim().toLowerCase();
-        finalQuality = isCorrect ? 5 : 0;
       }
+      const finalQuality = isCorrect ? 5 : 0;
 
       let progress = await UserProgress.findOne({
         userId: req.userId,
@@ -450,12 +455,10 @@ const cardController = {
           correctAnswers: attempt.correctAnswers,
           totalAnswers: attempt.totalAnswers,
         },
+        isCorrect: isCorrect,
+        correctTranslation: correctTranslation,
+        quality: finalQuality,
       };
-      if (type === "test" || type === "dictation") {
-        response.isCorrect = isCorrect;
-        response.correctTranslation = correctTranslation;
-        response.quality = finalQuality;
-      }
       res.json(response);
     } catch (error) {
       res
@@ -466,7 +469,7 @@ const cardController = {
 
   async updateCard(req, res) {
     try {
-      const { wordId, translationId, categoryId, meaning } = req.body;
+      const { wordId, translationId, categoryId, example } = req.body;
       const card = await Card.findById(req.params.id);
       if (!card) {
         return res.status(404).json({ error: "Card not found" });
@@ -496,7 +499,7 @@ const cardController = {
       if (wordId) updateData.wordId = wordId;
       if (translationId) updateData.translationId = translationId;
       if (categoryId) updateData.categoryId = categoryId;
-      if (meaning !== undefined) updateData.meaning = meaning;
+      if (example !== undefined) updateData.example = example;
       Object.assign(card, updateData);
       await card.save();
 

@@ -3,12 +3,19 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const path = require("path");
+const cookieParser = require("cookie-parser");
 const apiRoutes = require("./routes/api");
 
 const app = express();
 
-app.use(cors());
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL,
+    credentials: true,
+  })
+);
 app.use(express.json());
+app.use(cookieParser());
 
 mongoose
   .connect(process.env.MONGODB_URI)
