@@ -43,6 +43,7 @@ router.get(
     query("languageId")
       .exists({ checkFalsy: true })
       .withMessage("Language is required")
+      .bail()
       .isMongoId()
       .withMessage("Invalid language ID"),
     query("categoryId")
@@ -63,6 +64,7 @@ router.get(
     query("languageId")
       .exists({ checkFalsy: true })
       .withMessage("Language is required")
+      .bail()
       .isMongoId()
       .withMessage("Invalid language ID"),
     query("categoryId")
@@ -84,6 +86,7 @@ router.post(
     body("languageId")
       .notEmpty()
       .withMessage("Language is required")
+      .bail()
       .isMongoId()
       .withMessage("Invalid language ID"),
     body("type")
@@ -109,16 +112,19 @@ router.post(
     body("wordId")
       .notEmpty()
       .withMessage("Original word is required")
+      .bail()
       .isMongoId()
       .withMessage("Invalid word ID"),
     body("translationId")
       .notEmpty()
       .withMessage("Translation word is required")
+      .bail()
       .isMongoId()
       .withMessage("Invalid translation ID"),
     body("categoryId")
       .notEmpty()
       .withMessage("Category is required")
+      .bail()
       .isMongoId()
       .withMessage("Invalid category ID"),
     body("example")
@@ -143,18 +149,21 @@ router.put(
       .optional()
       .notEmpty()
       .withMessage("Original word cannot be empty if provided")
+      .bail()
       .isMongoId()
       .withMessage("Invalid word ID"),
     body("translationId")
       .optional()
       .notEmpty()
       .withMessage("Translation word cannot be empty if provided")
+      .bail()
       .isMongoId()
       .withMessage("Invalid translation ID"),
     body("categoryId")
       .optional()
       .notEmpty()
       .withMessage("Category cannot be empty if provided")
+      .bail()
       .isMongoId()
       .withMessage("Invalid category ID"),
     body("example").optional({ checkFalsy: false }).isString().trim(),

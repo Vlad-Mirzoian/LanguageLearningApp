@@ -20,6 +20,12 @@ router.post(
     body("password")
       .isLength({ min: 8 })
       .withMessage("Password must be at least 8 characters"),
+    body("interfaceLanguageId")
+      .notEmpty()
+      .withMessage("interfaceLanguageId is required")
+      .bail()
+      .isMongoId()
+      .withMessage("Invalid interfaceLanguageId"),
     body("nativeLanguageId")
       .optional()
       .isMongoId()
@@ -96,6 +102,22 @@ router.post(
   ],
   validate,
   authController.resetPassword
+);
+
+// PUT /api/auth/interface-language
+router.put(
+  "/interface-language",
+  authenticate,
+  [
+    body("interfaceLanguageId")
+      .notEmpty()
+      .withMessage("interfaceLanguageId is required")
+      .bail()
+      .isMongoId()
+      .withMessage("Invalid interfaceLanguageId"),
+  ],
+  validate,
+  authController.updateInterfaceLanguage
 );
 
 // PUT /api/auth/user

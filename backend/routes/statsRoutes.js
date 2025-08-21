@@ -13,6 +13,7 @@ router.get(
     query("languageId")
       .exists({ checkFalsy: true })
       .withMessage("Language is required")
+      .bail()
       .isMongoId()
       .withMessage("Invalid language ID"),
   ],

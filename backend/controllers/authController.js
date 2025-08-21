@@ -16,6 +16,7 @@ const authController = {
         email,
         username,
         password,
+        interfaceLanguageId,
         nativeLanguageId,
         learningLanguagesIds,
       } = req.body;
@@ -32,9 +33,14 @@ const authController = {
         });
       }
 
+      const intLang = await Language.findById(interfaceLanguageId).lean();
+      if (!intLang) {
+        return res.status(400).json({ error: "Interface language not found" });
+      }
+
       if (nativeLanguageId) {
-        const lang = await Language.findById(nativeLanguageId).lean();
-        if (!lang) {
+        const natLang = await Language.findById(nativeLanguageId).lean();
+        if (!natLang) {
           return res.status(400).json({ error: "Native language not found" });
         }
       }
@@ -59,6 +65,7 @@ const authController = {
         email,
         username: username.toLowerCase(),
         password: hashedPassword,
+        interfaceLanguageId,
         nativeLanguageId,
         learningLanguagesIds,
         isVerified: false,
@@ -110,7 +117,9 @@ const authController = {
           { email: identifier.toLowerCase() },
           { username: identifier.toLowerCase() },
         ],
-      }).lean();
+      })
+        .populate("interfaceLanguageId")
+        .lean();
       if (!user || !(await bcrypt.compare(password, user.password))) {
         return res.status(401).json({ error: "Invalid credentials" });
       }
@@ -153,6 +162,7 @@ const authController = {
           email: user.email,
           username: user.username,
           role: user.role,
+          interfaceLanguage: user.interfaceLanguageId,
           nativeLanguageId: user.nativeLanguageId,
           learningLanguagesIds: user.learningLanguagesIds,
           avatar: user.avatar,
@@ -299,19 +309,41 @@ const authController = {
       }
       res.json({
         message: "Avatar uploaded successfully",
-        user: {
-          email: user.email,
-          username: user.username,
-          role: user.role,
-          nativeLanguageId: user.nativeLanguageId,
-          learningLanguagesIds: user.learningLanguagesIds,
-          avatar: user.avatar,
-        },
+        avatar: user.avatar,
       });
     } catch (error) {
       res
         .status(500)
         .json({ error: `Failed to upload avatar: ${error.message}` });
+    }
+  },
+
+  async updateInterfaceLanguage(req, res) {
+    try {
+      const { interfaceLanguageId } = req.body;
+      if (interfaceLanguageId) {
+        const lang = await Language.findById(interfaceLanguageId).lean();
+        if (!lang) {
+          return res
+            .status(400)
+            .json({ error: "Preferred language not found" });
+        }
+      }
+      const user = await User.findOneAndUpdate(
+        { _id: req.userId },
+        { interfaceLanguageId },
+        { new: true }
+      )
+        .populate("interfaceLanguageId")
+        .lean();
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      res.json({ interfaceLanguage: user.interfaceLanguageId });
+    } catch (error) {
+      res.status(500).json({
+        error: `Failed to update interface language: ${error.message}`,
+      });
     }
   },
 

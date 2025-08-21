@@ -44,6 +44,7 @@ router.post(
     body("languageId")
       .notEmpty()
       .withMessage("Language is required")
+      .bail()
       .isMongoId()
       .withMessage("Invalid language ID"),
   ],
@@ -61,6 +62,7 @@ router.get(
     query("languageId")
       .notEmpty()
       .withMessage("Language is required")
+      .bail()
       .isMongoId()
       .withMessage("Invalid language ID"),
   ],
@@ -85,6 +87,7 @@ router.put(
       .optional()
       .notEmpty()
       .withMessage("Language cannot be empty if provided")
+      .bail()
       .isMongoId()
       .withMessage("Invalid language ID"),
   ],

@@ -18,6 +18,11 @@ const userSchema = new mongoose.Schema(
     },
     password: { type: String, required: true },
     role: { type: String, enum: ["user", "admin"], default: "user" },
+    interfaceLanguageId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Language",
+      required: true,
+    },
     nativeLanguageId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Language",

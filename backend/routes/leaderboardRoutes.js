@@ -14,6 +14,7 @@ router.get(
     query("languageId")
       .notEmpty()
       .withMessage("Language is required")
+      .bail()
       .isMongoId()
       .withMessage("Invalid language ID"),
   ],

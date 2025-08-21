@@ -32,11 +32,11 @@ async function initDB() {
 
     // Create Languages
     const languages = [
-      { code: "uk", name: "Ukrainian" },
+      { code: "uk", name: "Українська" },
       { code: "en", name: "English" },
-      { code: "es", name: "Spanish" },
-      { code: "fr", name: "French" },
-      { code: "de", name: "German" },
+      { code: "es", name: "Español" },
+      { code: "fr", name: "Français" },
+      { code: "de", name: "Deutsch" },
     ];
     const createdLanguages = await Language.insertMany(languages);
     const ukrainianLang = createdLanguages.find((lang) => lang.code === "uk");
@@ -44,7 +44,7 @@ async function initDB() {
       .filter((lang) => lang.code !== "uk")
       .map((lang) => lang._id);
 
-    // Create Users with hashed passwords
+    // Create Users with hashed passwords and different interface languages
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash("password123", saltRounds);
     const users = [
@@ -53,45 +53,55 @@ async function initDB() {
         username: "test_admin",
         password: hashedPassword,
         role: "admin",
-        isVerified: true,
+        interfaceLanguageId: createdLanguages.find((lang) => lang.code === "uk")
+          ._id,
         nativeLanguageId: ukrainianLang._id,
         learningLanguagesIds: otherLangIds,
+        isVerified: true,
       },
       {
         email: "user1@example.com",
         username: "test_user1",
         password: hashedPassword,
         role: "user",
-        isVerified: true,
+        interfaceLanguageId: createdLanguages.find((lang) => lang.code === "en")
+          ._id,
         nativeLanguageId: ukrainianLang._id,
         learningLanguagesIds: otherLangIds,
+        isVerified: true,
       },
       {
         email: "user2@example.com",
         username: "test_user2",
         password: hashedPassword,
         role: "user",
-        isVerified: true,
+        interfaceLanguageId: createdLanguages.find((lang) => lang.code === "es")
+          ._id,
         nativeLanguageId: ukrainianLang._id,
         learningLanguagesIds: otherLangIds,
+        isVerified: true,
       },
       {
         email: "user3@example.com",
         username: "test_user3",
         password: hashedPassword,
         role: "user",
-        isVerified: true,
+        interfaceLanguageId: createdLanguages.find((lang) => lang.code === "fr")
+          ._id,
         nativeLanguageId: ukrainianLang._id,
         learningLanguagesIds: otherLangIds,
+        isVerified: true,
       },
       {
         email: "user4@example.com",
         username: "test_user4",
         password: hashedPassword,
         role: "user",
-        isVerified: true,
+        interfaceLanguageId: createdLanguages.find((lang) => lang.code === "de")
+          ._id,
         nativeLanguageId: ukrainianLang._id,
         learningLanguagesIds: otherLangIds,
+        isVerified: true,
       },
     ];
     const createdUsers = await User.insertMany(users);
