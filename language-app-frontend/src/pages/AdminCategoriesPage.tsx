@@ -13,8 +13,10 @@ import { ArrowPathIcon } from "@heroicons/react/24/solid";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import type { DropResult } from "@hello-pangea/dnd";
 import { AxiosError } from "axios";
+import { useTranslation } from "react-i18next";
 
 const AdminCategoriesPage: React.FC = () => {
+  const { t } = useTranslation();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -39,25 +41,28 @@ const AdminCategoriesPage: React.FC = () => {
         setCategories(data.sort((a, b) => a.order - b.order));
       } catch (error: unknown) {
         if (error instanceof AxiosError) {
-          setError(error.response?.data?.error || "Failed to load categories");
+          setError(
+            error.response?.data?.error ||
+              t("adminCategoriesPage.failedToLoadCategories")
+          );
         } else {
-          setError("Failed to load categories");
+          setError(t("adminCategoriesPage.failedToLoadCategories"));
         }
       } finally {
         setLoading(false);
       }
     };
     fetchCategories();
-  }, []);
+  }, [t]);
 
   const validateField = useCallback(
     (field: keyof typeof formData, value: string): string | null => {
       if (field === "name") {
-        if (!value.trim()) return "Name is required";
+        if (!value.trim()) return t("adminCategoriesPage.nameRequired");
       }
       if (field === "order") {
         if (!value || isNaN(Number(value)) || Number(value) < 1) {
-          return "Order must be a positive integer";
+          return t("adminCategoriesPage.orderRequired");
         }
         if (
           categories.some(
@@ -65,17 +70,17 @@ const AdminCategoriesPage: React.FC = () => {
               cat.order === Number(value) && cat._id !== currentCategory?._id
           )
         ) {
-          return "Order is already taken";
+          return t("adminCategoriesPage.orderTaken");
         }
       }
       if (field === "requiredScore") {
         if (!value || isNaN(Number(value)) || Number(value) < 0) {
-          return "Required score must be a non-negative integer";
+          return t("adminCategoriesPage.requiredScoreInvalid");
         }
       }
       return null;
     },
-    [categories, currentCategory]
+    [categories, currentCategory, t]
   );
 
   const validateForm = useCallback(() => {
@@ -135,10 +140,11 @@ const AdminCategoriesPage: React.FC = () => {
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
         setServerError(
-          error.response?.data?.error || "Failed to create Category"
+          error.response?.data?.error ||
+            t("adminCategoriesPage.failedToCreateCategory")
         );
       } else {
-        setServerError("Failed to create Category");
+        setServerError(t("adminCategoriesPage.failedToCreateCategory"));
       }
     }
   };
@@ -184,10 +190,11 @@ const AdminCategoriesPage: React.FC = () => {
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
         setServerError(
-          error.response?.data?.error || "Failed to update Category"
+          error.response?.data?.error ||
+            t("adminCategoriesPage.failedToUpdateCategory")
         );
       } else {
-        setServerError("Failed to update Category");
+        setServerError(t("adminCategoriesPage.failedToUpdateCategory"));
       }
     }
   };
@@ -207,10 +214,11 @@ const AdminCategoriesPage: React.FC = () => {
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
         setServerError(
-          error.response?.data?.error || "Failed to delete Category"
+          error.response?.data?.error ||
+            t("adminCategoriesPage.failedToDeleteCategory")
         );
       } else {
-        setServerError("Failed to delete Category");
+        setServerError(t("adminCategoriesPage.failedToDeleteCategory"));
       }
     }
   };
@@ -242,10 +250,11 @@ const AdminCategoriesPage: React.FC = () => {
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
         setError(
-          error.response?.data?.error || "Failed to update Category order"
+          error.response?.data?.error ||
+            t("adminCategoriesPage.failedToUpdateCategoryOrder")
         );
       } else {
-        setError("Failed to update Category order");
+        setError(t("adminCategoriesPage.failedToUpdateCategoryOrder"));
       }
       const data = await getCategories();
       setCategories(data.sort((a, b) => a.order - b.order));
@@ -256,7 +265,7 @@ const AdminCategoriesPage: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex justify-center p-4">
       <div className="w-full max-w-4xl">
         <h2 className="text-3xl font-bold text-center text-indigo-700">
-          Admin Panel
+          {t("adminCategoriesPage.adminPanel")}
         </h2>
         <div className="flex justify-center mt-4 mb-6">
           <button
@@ -273,13 +282,15 @@ const AdminCategoriesPage: React.FC = () => {
             }}
             className="bg-indigo-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-indigo-700 transition-colors duration-200 cursor-pointer"
           >
-            Add Category
+            {t("adminCategoriesPage.addCategory")}
           </button>
         </div>
         {loading && (
           <div className="flex items-center mb-4">
             <ArrowPathIcon className="h-5 w-5 text-indigo-600 animate-spin" />
-            <span className="ml-2 text-gray-600">Loading categories...</span>
+            <span className="ml-2 text-gray-600">
+              {t("adminCategoriesPage.loadingCategories")}
+            </span>
           </div>
         )}
         {error && (
@@ -289,7 +300,7 @@ const AdminCategoriesPage: React.FC = () => {
         )}
         {!loading && !error && categories.length === 0 && (
           <div className="text-center text-gray-600">
-            No categories available.
+            {t("adminCategoriesPage.noCategoriesAvailable")}
           </div>
         )}
         {!loading && !error && categories.length > 0 && (
@@ -305,19 +316,19 @@ const AdminCategoriesPage: React.FC = () => {
                     <thead>
                       <tr className="bg-indigo-50">
                         <th className="p-4 font-semibold text-indigo-700">
-                          Order
+                          {t("adminCategoriesPage.order")}
                         </th>
                         <th className="p-4 font-semibold text-indigo-700">
-                          Name
+                          {t("adminCategoriesPage.name")}
                         </th>
                         <th className="p-4 font-semibold text-indigo-700">
-                          Description
+                          {t("adminCategoriesPage.description")}
                         </th>
                         <th className="p-4 font-semibold text-indigo-700">
-                          Required Score
+                          {t("adminCategoriesPage.requiredScore")}
                         </th>
                         <th className="p-4 font-semibold text-indigo-700">
-                          Actions
+                          {t("adminCategoriesPage.actions")}
                         </th>
                       </tr>
                     </thead>
@@ -376,7 +387,7 @@ const AdminCategoriesPage: React.FC = () => {
                                   }}
                                   className="text-indigo-600 hover:text-indigo-800 mr-4 cursor-pointer"
                                 >
-                                  Edit
+                                  {t("adminCategoriesPage.edit")}
                                 </button>
                                 <button
                                   onClick={() => {
@@ -385,7 +396,7 @@ const AdminCategoriesPage: React.FC = () => {
                                   }}
                                   className="text-red-600 hover:text-red-800 cursor-pointer"
                                 >
-                                  Delete
+                                  {t("adminCategoriesPage.delete")}
                                 </button>
                               </td>
                             </tr>
@@ -419,7 +430,7 @@ const AdminCategoriesPage: React.FC = () => {
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <DialogPanel className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md">
             <DialogTitle className="text-lg font-bold text-indigo-700">
-              Add Category
+              {t("adminCategoriesPage.addCategoryModalTitle")}
             </DialogTitle>
             {serverError && (
               <div className="mb-3 mt-3 p-3 bg-red-100 text-red-700 text-sm rounded-lg text-center animate-fade-in">
@@ -429,36 +440,38 @@ const AdminCategoriesPage: React.FC = () => {
             <form onSubmit={handleAddCategory} className="space-y-2">
               <div className="mt-2 space-y-4">
                 <FormInput
-                  label="Name"
+                  label={t("adminCategoriesPage.name")}
                   value={formData.name}
                   onChange={(e) => handleChange("name", e.target.value)}
                   error={errors.name}
-                  placeholder="Greetings"
+                  placeholder={t("adminCategoriesPage.namePlaceholder")}
                 />
                 <FormInput
-                  label="Description"
+                  label={t("adminCategoriesPage.description")}
                   value={formData.description}
                   onChange={(e) => handleChange("description", e.target.value)}
                   error={errors.description}
-                  placeholder="Words for greetings and introductions"
+                  placeholder={t("adminCategoriesPage.descriptionPlaceholder")}
                 />
                 <FormInput
-                  label="Order"
+                  label={t("adminCategoriesPage.order")}
                   type="number"
                   value={formData.order}
                   onChange={(e) => handleChange("order", e.target.value)}
                   error={errors.order}
-                  placeholder="1"
+                  placeholder={t("adminCategoriesPage.orderPlaceholder")}
                 />
                 <FormInput
-                  label="Required Score"
+                  label={t("adminCategoriesPage.requiredScore")}
                   type="number"
                   value={formData.requiredScore}
                   onChange={(e) =>
                     handleChange("requiredScore", e.target.value)
                   }
                   error={errors.requiredScore}
-                  placeholder="80"
+                  placeholder={t(
+                    "adminCategoriesPage.requiredScorePlaceholder"
+                  )}
                 />
               </div>
               <div className="mt-6 flex justify-center space-x-2">
@@ -476,14 +489,14 @@ const AdminCategoriesPage: React.FC = () => {
                   }}
                   className="px-4 py-2 text-gray-600 rounded-lg hover:bg-gray-100 cursor-pointer"
                 >
-                  Cancel
+                  {t("adminCategoriesPage.cancel")}
                 </button>
                 <button
                   type="submit"
                   disabled={Object.keys(errors).length > 0}
                   className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 cursor-pointer transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
-                  Add
+                  {t("adminCategoriesPage.add")}
                 </button>
               </div>
             </form>
@@ -509,7 +522,7 @@ const AdminCategoriesPage: React.FC = () => {
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <DialogPanel className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md">
             <DialogTitle className="text-lg font-bold text-indigo-700">
-              Edit Category
+              {t("adminCategoriesPage.editCategoryModalTitle")}
             </DialogTitle>
             {serverError && (
               <div className="mb-3 mt-3 p-3 bg-red-100 text-red-700 text-sm rounded-lg text-center animate-fade-in">
@@ -519,36 +532,38 @@ const AdminCategoriesPage: React.FC = () => {
             <form onSubmit={handleEditCategory} className="space-y-2">
               <div className="mt-2 space-y-4">
                 <FormInput
-                  label="Name"
+                  label={t("adminCategoriesPage.name")}
                   value={formData.name}
                   onChange={(e) => handleChange("name", e.target.value)}
                   error={errors.name}
-                  placeholder="Greetings"
+                  placeholder={t("adminCategoriesPage.namePlaceholder")}
                 />
                 <FormInput
-                  label="Description"
+                  label={t("adminCategoriesPage.description")}
                   value={formData.description}
                   onChange={(e) => handleChange("description", e.target.value)}
                   error={errors.description}
-                  placeholder="Words for greetings and introductions"
+                  placeholder={t("adminCategoriesPage.descriptionPlaceholder")}
                 />
                 <FormInput
-                  label="Order"
+                  label={t("adminCategoriesPage.order")}
                   type="number"
                   value={formData.order}
                   onChange={(e) => handleChange("order", e.target.value)}
                   error={errors.order}
-                  placeholder="1"
+                  placeholder={t("adminCategoriesPage.orderPlaceholder")}
                 />
                 <FormInput
-                  label="Required Score"
+                  label={t("adminCategoriesPage.requiredScore")}
                   type="number"
                   value={formData.requiredScore}
                   onChange={(e) =>
                     handleChange("requiredScore", e.target.value)
                   }
                   error={errors.requiredScore}
-                  placeholder="80"
+                  placeholder={t(
+                    "adminCategoriesPage.requiredScorePlaceholder"
+                  )}
                 />
               </div>
               <div className="mt-6 flex justify-center space-x-2">
@@ -567,14 +582,14 @@ const AdminCategoriesPage: React.FC = () => {
                   }}
                   className="px-4 py-2 text-gray-600 rounded-lg hover:bg-gray-100 cursor-pointer"
                 >
-                  Cancel
+                  {t("adminCategoriesPage.cancel")}
                 </button>
                 <button
                   type="submit"
                   disabled={Object.keys(errors).length > 0}
                   className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 cursor-pointer transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
-                  Save
+                  {t("adminCategoriesPage.save")}
                 </button>
               </div>
             </form>
@@ -593,11 +608,12 @@ const AdminCategoriesPage: React.FC = () => {
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <DialogPanel className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md">
             <DialogTitle className="text-lg font-bold text-indigo-700">
-              Confirm Deletion
+              {t("adminCategoriesPage.confirmDeletionTitle")}
             </DialogTitle>
             <p className="mt-2 text-gray-600">
-              Are you sure you want to delete the category "
-              {currentCategory?.name}"? This will also remove related cards.
+              {t("adminCategoriesPage.confirmDeletionMessage", {
+                name: currentCategory?.name,
+              })}
             </p>
             {serverError && (
               <div className="mb-3 mt-3 p-3 bg-red-100 text-red-700 text-sm rounded-lg text-center animate-fade-in">
@@ -614,13 +630,13 @@ const AdminCategoriesPage: React.FC = () => {
                   }}
                   className="px-4 py-2 text-gray-600 rounded-lg hover:bg-gray-100 cursor-pointer"
                 >
-                  Cancel
+                  {t("adminCategoriesPage.cancel")}
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 cursor-pointer"
                 >
-                  Delete
+                  {t("adminCategoriesPage.delete")}
                 </button>
               </div>
             </form>

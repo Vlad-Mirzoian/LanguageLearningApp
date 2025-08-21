@@ -10,8 +10,10 @@ import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
 import FormInput from "../components/ui/FormInput";
 import { ArrowPathIcon } from "@heroicons/react/24/solid";
 import { AxiosError } from "axios";
+import { useTranslation } from "react-i18next";
 
 const AdminLanguagesPage: React.FC = () => {
+  const { t } = useTranslation();
   const [languages, setLanguages] = useState<Language[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -34,28 +36,31 @@ const AdminLanguagesPage: React.FC = () => {
         setLanguages(data);
       } catch (error: unknown) {
         if (error instanceof AxiosError) {
-          setError(error.response?.data?.error || "Failed to load languages");
+          setError(
+            error.response?.data?.error ||
+              t("adminLanguagesPage.failedToLoadLanguages")
+          );
         } else {
-          setError("Failed to load languages");
+          setError(t("adminLanguagesPage.failedToLoadLanguages"));
         }
       } finally {
         setLoading(false);
       }
     };
     fetchLanguages();
-  }, []);
+  }, [t]);
 
   const validateField = useCallback(
     (field: keyof typeof formData, value: string): string | null => {
       if (field === "code") {
-        if (!value.trim()) return "Code is required";
+        if (!value.trim()) return t("adminLanguagesPage.codeRequired");
       }
       if (field === "name") {
-        if (!value.trim()) return "Name is required";
+        if (!value.trim()) return t("adminLanguagesPage.nameRequired");
       }
       return null;
     },
-    []
+    [t]
   );
 
   const validateForm = useCallback(() => {
@@ -103,10 +108,11 @@ const AdminLanguagesPage: React.FC = () => {
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
         setServerError(
-          error.response?.data?.error || "Failed to create Language"
+          error.response?.data?.error ||
+            t("adminLanguagesPage.failedToCreateLanguage")
         );
       } else {
-        setServerError("Failed to create Language");
+        setServerError(t("adminLanguagesPage.failedToCreateLanguage"));
       }
     }
   };
@@ -144,10 +150,11 @@ const AdminLanguagesPage: React.FC = () => {
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
         setServerError(
-          error.response?.data?.error || "Failed to update Language"
+          error.response?.data?.error ||
+            t("adminLanguagesPage.failedToUpdateLanguage")
         );
       } else {
-        setServerError("Failed to update Language");
+        setServerError(t("adminLanguagesPage.failedToUpdateLanguage"));
       }
     }
   };
@@ -167,10 +174,11 @@ const AdminLanguagesPage: React.FC = () => {
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
         setServerError(
-          error.response?.data?.error || "Failed to delete Language"
+          error.response?.data?.error ||
+            t("adminLanguagesPage.failedToDeleteLanguage")
         );
       } else {
-        setServerError("Failed to delete Language");
+        setServerError(t("adminLanguagesPage.failedToDeleteLanguage"));
       }
     }
   };
@@ -179,7 +187,7 @@ const AdminLanguagesPage: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex justify-center p-4">
       <div className="w-full max-w-4xl">
         <h2 className="text-3xl font-bold text-center text-indigo-700">
-          Admin Panel
+          {t("adminLanguagesPage.adminPanel")}
         </h2>
         <div className="flex justify-center mt-4 mb-6">
           <button
@@ -191,13 +199,15 @@ const AdminLanguagesPage: React.FC = () => {
             }}
             className="bg-indigo-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-indigo-700 transition-colors duration-200 cursor-pointer"
           >
-            Add Language
+            {t("adminLanguagesPage.addLanguage")}
           </button>
         </div>
         {loading && (
           <div className="flex items-center mb-4">
             <ArrowPathIcon className="h-5 w-5 text-indigo-600 animate-spin" />
-            <span className="ml-2 text-gray-600">Loading languages...</span>
+            <span className="ml-2 text-gray-600">
+              {t("adminLanguagesPage.loadingLanguages")}
+            </span>
           </div>
         )}
         {error && (
@@ -207,7 +217,7 @@ const AdminLanguagesPage: React.FC = () => {
         )}
         {!loading && !error && languages.length === 0 && (
           <div className="text-center text-gray-600">
-            No languages available.
+            {t("adminLanguagesPage.noLanguagesAvailable")}
           </div>
         )}
         {!loading && !error && languages.length > 0 && (
@@ -215,9 +225,15 @@ const AdminLanguagesPage: React.FC = () => {
             <table className="w-full text-left">
               <thead>
                 <tr className="bg-indigo-50">
-                  <th className="p-4 font-semibold text-indigo-700">Name</th>
-                  <th className="p-4 font-semibold text-indigo-700">Code</th>
-                  <th className="p-4 font-semibold text-indigo-700">Actions</th>
+                  <th className="p-4 font-semibold text-indigo-700">
+                    {t("adminLanguagesPage.name")}
+                  </th>
+                  <th className="p-4 font-semibold text-indigo-700">
+                    {t("adminLanguagesPage.code")}
+                  </th>
+                  <th className="p-4 font-semibold text-indigo-700">
+                    {t("adminLanguagesPage.actions")}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -236,7 +252,7 @@ const AdminLanguagesPage: React.FC = () => {
                         }}
                         className="text-indigo-600 hover:text-indigo-800 mr-4 cursor-pointer"
                       >
-                        Edit
+                        {t("adminLanguagesPage.edit")}
                       </button>
                       <button
                         onClick={() => {
@@ -245,7 +261,7 @@ const AdminLanguagesPage: React.FC = () => {
                         }}
                         className="text-red-600 hover:text-red-800 cursor-pointer"
                       >
-                        Delete
+                        {t("adminLanguagesPage.delete")}
                       </button>
                     </td>
                   </tr>
@@ -268,7 +284,7 @@ const AdminLanguagesPage: React.FC = () => {
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <DialogPanel className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md">
             <DialogTitle className="text-lg font-bold text-indigo-700">
-              Add Language
+              {t("adminLanguagesPage.addLanguageModalTitle")}
             </DialogTitle>
             {serverError && (
               <div className="mb-3 mt-3 p-3 bg-red-100 text-red-700 text-sm rounded-lg text-center animate-fade-in">
@@ -278,18 +294,18 @@ const AdminLanguagesPage: React.FC = () => {
             <form onSubmit={handleAddLanguage} className="space-y-2">
               <div className="mt-2 space-y-4">
                 <FormInput
-                  label="Code"
+                  label={t("adminLanguagesPage.code")}
                   value={formData.code}
                   onChange={(e) => handleChange("code", e.target.value)}
                   error={errors.code}
-                  placeholder="e.g., en"
+                  placeholder={t("adminLanguagesPage.codePlaceholder")}
                 />
                 <FormInput
-                  label="Name"
+                  label={t("adminLanguagesPage.name")}
                   value={formData.name}
                   onChange={(e) => handleChange("name", e.target.value)}
                   error={errors.name}
-                  placeholder="e.g., English"
+                  placeholder={t("adminLanguagesPage.namePlaceholder")}
                 />
               </div>
               <div className="mt-6 flex justify-center space-x-2">
@@ -302,14 +318,14 @@ const AdminLanguagesPage: React.FC = () => {
                   }}
                   className="px-4 py-2 text-gray-600 rounded-lg hover:bg-gray-100 cursor-pointer"
                 >
-                  Cancel
+                  {t("adminLanguagesPage.cancel")}
                 </button>
                 <button
                   type="submit"
                   disabled={Object.keys(errors).length > 0}
                   className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 cursor-pointer transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
-                  Add
+                  {t("adminLanguagesPage.add")}
                 </button>
               </div>
             </form>
@@ -330,7 +346,7 @@ const AdminLanguagesPage: React.FC = () => {
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <DialogPanel className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md">
             <DialogTitle className="text-lg font-bold text-indigo-700">
-              Edit Language
+              {t("adminLanguagesPage.editLanguageModalTitle")}
             </DialogTitle>
             {serverError && (
               <div className="mb-3 mt-3 p-3 bg-red-100 text-red-700 text-sm rounded-lg text-center animate-fade-in">
@@ -340,18 +356,18 @@ const AdminLanguagesPage: React.FC = () => {
             <form onSubmit={handleEditLanguage} className="space-y-2">
               <div className="mt-2 space-y-4">
                 <FormInput
-                  label="Code"
+                  label={t("adminLanguagesPage.code")}
                   value={formData.code}
                   onChange={(e) => handleChange("code", e.target.value)}
                   error={errors.code}
-                  placeholder="e.g., en"
+                  placeholder={t("adminLanguagesPage.codePlaceholder")}
                 />
                 <FormInput
-                  label="Name"
+                  label={t("adminLanguagesPage.name")}
                   value={formData.name}
                   onChange={(e) => handleChange("name", e.target.value)}
                   error={errors.name}
-                  placeholder="e.g., English"
+                  placeholder={t("adminLanguagesPage.namePlaceholder")}
                 />
               </div>
               <div className="mt-6 flex justify-center space-x-2">
@@ -365,14 +381,14 @@ const AdminLanguagesPage: React.FC = () => {
                   }}
                   className="px-4 py-2 text-gray-600 rounded-lg hover:bg-gray-100 cursor-pointer"
                 >
-                  Cancel
+                  {t("adminLanguagesPage.cancel")}
                 </button>
                 <button
                   type="submit"
                   disabled={Object.keys(errors).length > 0}
                   className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 cursor-pointer transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
-                  Save
+                  {t("adminLanguagesPage.save")}
                 </button>
               </div>
             </form>
@@ -391,12 +407,12 @@ const AdminLanguagesPage: React.FC = () => {
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <DialogPanel className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md">
             <DialogTitle className="text-lg font-bold text-indigo-700">
-              Confirm Deletion
+              {t("adminLanguagesPage.confirmDeletionTitle")}
             </DialogTitle>
             <p className="mt-2 text-gray-600">
-              Are you sure you want to delete the language "
-              {currentLanguage?.name}"? This will also remove related words,
-              cards, and user associations.
+              {t("adminLanguagesPage.confirmDeletionMessage", {
+                name: currentLanguage?.name,
+              })}
             </p>
             {serverError && (
               <div className="mb-3 mt-3 p-3 bg-red-100 text-red-700 text-sm rounded-lg text-center animate-fade-in">
@@ -413,13 +429,13 @@ const AdminLanguagesPage: React.FC = () => {
                   }}
                   className="px-4 py-2 text-gray-600 rounded-lg hover:bg-gray-100 cursor-pointer"
                 >
-                  Cancel
+                  {t("adminLanguagesPage.cancel")}
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 cursor-pointer"
                 >
-                  Delete
+                  {t("adminLanguagesPage.delete")}
                 </button>
               </div>
             </form>

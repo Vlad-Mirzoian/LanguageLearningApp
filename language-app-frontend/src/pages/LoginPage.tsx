@@ -3,11 +3,12 @@ import { useNavigate } from "react-router-dom";
 import FormInput from "../components/ui/FormInput";
 import { useAuth } from "../hooks/useAuth";
 import { AxiosError } from "axios";
+import { useTranslation } from "react-i18next";
 
 const LoginPage: React.FC = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { login } = useAuth();
-
   const [formData, setFormData] = useState({
     identifier: "",
     password: "",
@@ -18,22 +19,22 @@ const LoginPage: React.FC = () => {
   const validateField = useCallback(
     (field: keyof typeof formData, value: string): string | null => {
       if (field === "identifier" && typeof value === "string") {
-        if (!value.trim()) return "Email or username is required";
+        if (!value.trim()) return t("loginPage.identifierRequired");
         if (
           !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) &&
           !/^[a-z0-9_]{6,}$/.test(value)
         )
-          return "Invalid email or username format";
+          return t("loginPage.identifierInvalid");
       }
       if (field === "password" && typeof value === "string") {
-        if (!value.trim()) return "Password is required";
+        if (!value.trim()) return t("loginPage.passwordRequired");
         if (!/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(value)) {
-          return "Password must be at least 8 characters and contain a letter and a number";
+          return t("loginPage.passwordInvalid");
         }
       }
       return null;
     },
-    []
+    [t]
   );
 
   const validateForm = useCallback(() => {
@@ -76,12 +77,14 @@ const LoginPage: React.FC = () => {
 
     try {
       await login(formData.identifier, formData.password);
-      navigate("/review");
+      navigate("/dashboard");
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
-        setServerError(error.response?.data?.error || "Logging in failed");
+        setServerError(
+          error.response?.data?.error || t("loginPage.loggingInFailed")
+        );
       } else {
-        setServerError("Logging in failed");
+        setServerError(t("loginPage.loggingInFailed"));
       }
     }
   };
@@ -90,7 +93,7 @@ const LoginPage: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
         <h2 className="text-3xl font-bold text-center text-indigo-700 mb-6">
-          Welcome Back
+          {t("loginPage.welcomeBack")}
         </h2>
         {serverError && (
           <div className="mb-6 p-3 bg-red-100 text-red-700 text-sm rounded-lg text-center animate-fade-in">
@@ -99,46 +102,46 @@ const LoginPage: React.FC = () => {
         )}
         <form onSubmit={handleSubmit} className="space-y-2">
           <FormInput
-            label="Email or username"
+            label={t("loginPage.emailOrUsername")}
             type="text"
             value={formData.identifier}
             onChange={(e) => handleChange("identifier", e.target.value)}
             error={errors.identifier}
-            placeholder="Enter your email or username"
+            placeholder={t("loginPage.enterEmailOrUsername")}
           />
           <FormInput
-            label="Password"
+            label={t("loginPage.password")}
             type="password"
             value={formData.password}
             onChange={(e) => handleChange("password", e.target.value)}
             error={errors.password}
             autoComplete="current-password"
-            placeholder="Enter your password"
+            placeholder={t("loginPage.enterYourPassword")}
           />
           <button
             type="submit"
             disabled={Object.keys(errors).length > 0}
             className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-indigo-700 transition-colors duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
-            Login
+            {t("loginPage.login")}
           </button>
         </form>
         <p className="mt-6 text-center text-sm text-gray-600">
-          Don't have an account?{" "}
+          {t("loginPage.dontHaveAccount")}{" "}
           <a
             href="/register"
             className="text-indigo-600 hover:text-indigo-800 font-semibold hover:underline transition-colors duration-200"
           >
-            Register
+            {t("loginPage.register")}
           </a>
         </p>
         <p className="mt-2 text-center text-sm text-gray-600">
-          Forgot password?{" "}
+          {t("loginPage.forgotPassword")}{" "}
           <a
             href="/forgot-password"
             className="text-indigo-600 hover:text-indigo-800 font-semibold hover:underline transition-colors duration-200"
           >
-            Reset
+            {t("loginPage.reset")}
           </a>
         </p>
       </div>

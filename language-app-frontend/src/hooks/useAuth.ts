@@ -1,6 +1,15 @@
-import { loginAPI, logoutAPI, refreshAPI } from "../services/api";
+import { AxiosError } from "axios";
+import {
+  loginAPI,
+  logoutAPI,
+  refreshAPI,
+  updateUserAPI,
+  uploadAvatarAPI,
+} from "../services/api";
 import { useAuthStore } from "../store/authStore";
+import { useInterfaceLanguageStore } from "../store/interfaceLanguageStore";
 import type { User } from "../types";
+import i18next from "i18next";
 
 interface AuthHook {
   user: User | null;
@@ -12,6 +21,8 @@ interface AuthHook {
   login: (idenitifier: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshToken: () => Promise<string>;
+  updateUser: (data: Partial<User>) => Promise<void>;
+  uploadAvatar: (file: File) => Promise<void>;
 }
 
 export const useAuth = (): AuthHook => {
@@ -20,6 +31,11 @@ export const useAuth = (): AuthHook => {
   const login = async (identifier: string, password: string) => {
     const data = await loginAPI({ identifier, password });
     setAuth(data.user, data.token);
+    if (data.user?.interfaceLanguage) {
+      const lang = data.user.interfaceLanguage;
+      useInterfaceLanguageStore.getState().setLocale(lang.code, lang._id);
+      await i18next.changeLanguage(lang.code);
+    }
   };
 
   const logout = async () => {
@@ -41,6 +57,40 @@ export const useAuth = (): AuthHook => {
     }
   };
 
+  const updateUser = async (data: Partial<User>) => {
+    try {
+      const updatedUser = await updateUserAPI(data);
+      const authStore = useAuthStore.getState();
+      authStore.setUser({
+        ...authStore.user,
+        ...updatedUser,
+      });
+    } catch (error: unknown) {
+      if (error instanceof AxiosError && error.response?.status === 401) {
+        clearAuth();
+      }
+      throw error;
+    }
+  };
+
+  const uploadAvatar = async (file: File) => {
+    try {
+      const response = await uploadAvatarAPI(file);
+      const authStore = useAuthStore.getState();
+      if (authStore.user) {
+        authStore.setUser({
+          ...authStore.user,
+          avatar: response.avatar,
+        });
+      }
+    } catch (error: unknown) {
+      if (error instanceof AxiosError && error.response?.status === 401) {
+        clearAuth();
+      }
+      throw error;
+    }
+  };
+
   return {
     user,
     token,
@@ -51,5 +101,7 @@ export const useAuth = (): AuthHook => {
     login,
     logout,
     refreshToken,
+    updateUser,
+    uploadAvatar,
   };
 };

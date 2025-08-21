@@ -12,8 +12,10 @@ import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
 import FormInput from "../components/ui/FormInput";
 import { ArrowPathIcon } from "@heroicons/react/24/solid";
 import { AxiosError } from "axios";
+import { useTranslation } from "react-i18next";
 
 const AdminCardsPage: React.FC = () => {
+  const { t } = useTranslation();
   const [cards, setCards] = useState<Card[]>([]);
   const [totalCards, setTotalCards] = useState(0);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -61,34 +63,36 @@ const AdminCardsPage: React.FC = () => {
         setCategories(catData);
       } catch (error: unknown) {
         if (error instanceof AxiosError) {
-          setError(error.response?.data?.error || "Failed to load cards");
+          setError(
+            error.response?.data?.error || t("adminCardsPage.failedToLoadCards")
+          );
         } else {
-          setError("Failed to load cards");
+          setError(t("adminCardsPage.failedToLoadCards"));
         }
       } finally {
         setLoading(false);
       }
     };
     fetchData();
-  }, [filters]);
+  }, [filters, t]);
 
   const validateField = useCallback(
     (field: keyof typeof formData, value: string): string | null => {
       if (!value.trim()) {
         switch (field) {
           case "wordId":
-            return "Original word is required";
+            return t("adminCardsPage.wordRequired");
           case "translationId":
-            return "Translation word is required";
+            return t("adminCardsPage.translationRequired");
           case "categoryId":
-            return "Category is required";
+            return t("adminCardsPage.categoryRequired");
           default:
             return null;
         }
       }
       return null;
     },
-    []
+    [t]
   );
 
   const validateForm = useCallback(() => {
@@ -155,9 +159,11 @@ const AdminCardsPage: React.FC = () => {
       setServerError("");
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
-        setServerError(error.response?.data?.error || "Failed to create Card");
+        setServerError(
+          error.response?.data?.error || t("adminCardsPage.failedToCreateCard")
+        );
       } else {
-        setServerError("Failed to create Card");
+        setServerError(t("adminCardsPage.failedToCreateCard"));
       }
     }
   };
@@ -200,9 +206,11 @@ const AdminCardsPage: React.FC = () => {
       setServerError("");
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
-        setServerError(error.response?.data?.error || "Failed to update Card");
+        setServerError(
+          error.response?.data?.error || t("adminCardsPage.failedToUpdateCard")
+        );
       } else {
-        setServerError("Failed to update Card");
+        setServerError(t("adminCardsPage.failedToUpdateCard"));
       }
     }
   };
@@ -214,38 +222,38 @@ const AdminCardsPage: React.FC = () => {
 
     try {
       await deleteCard(currentCard._id);
-      setCards(cards.filter((Card) => Card._id !== currentCard._id));
+      setCards(cards.filter((card) => card._id !== currentCard._id));
       setTotalCards(totalCards - 1);
       setIsDeleteModalOpen(false);
       setCurrentCard(null);
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
-        setServerError(error.response?.data?.error || "Failed to delete Card");
+        setServerError(
+          error.response?.data?.error || t("adminCardsPage.failedToDeleteCard")
+        );
       } else {
-        setServerError("Failed to delete Card");
+        setServerError(t("adminCardsPage.failedToDeleteCard"));
       }
     }
   };
-
-  console.log(totalCards);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex justify-center p-4">
       <div className="w-full max-w-4xl">
         <h2 className="text-3xl font-bold text-center text-indigo-700">
-          Admin Panel
+          {t("adminCardsPage.adminPanel")}
         </h2>
         <div className="flex flex-col sm:flex-row justify-center items-end gap-8 mt-4 mb-6 space-y-4 sm:space-y-0 sm:space-x-4">
           <div className="flex flex-col items-center w-full sm:w-auto">
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Filter by Category
+              {t("adminCardsPage.filterByCategory")}
             </label>
             <select
               value={filters.categoryId}
               onChange={(e) => handleFilterChange("categoryId", e.target.value)}
               className="w-full py-2.5 px-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300"
             >
-              <option value="">All Categories</option>
+              <option value="">{t("adminCardsPage.allCategories")}</option>
               {categories.map((cat) => (
                 <option key={cat._id} value={cat._id}>
                   {cat.name}
@@ -255,15 +263,15 @@ const AdminCardsPage: React.FC = () => {
           </div>
           <div className="flex flex-col items-center w-full sm:w-auto">
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Filter by Example
+              {t("adminCardsPage.filterByExample")}
             </label>
             <input
               type="text"
               value={filters.example}
               onChange={(e) => handleFilterChange("example", e.target.value)}
-              placeholder="Search by example..."
+              placeholder={t("adminCardsPage.searchByExamplePlaceholder")}
               className="w-full py-2.5 px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300"
-            ></input>
+            />
           </div>
           <button
             onClick={() => {
@@ -279,13 +287,15 @@ const AdminCardsPage: React.FC = () => {
             }}
             className="bg-indigo-600 text-white py-2.5 px-8 rounded-lg font-semibold hover:bg-indigo-700 transition-colors duration-200 cursor-pointer"
           >
-            Add Card
+            {t("adminCardsPage.addCard")}
           </button>
         </div>
         {loading && (
           <div className="flex items-center mb-4">
             <ArrowPathIcon className="h-5 w-5 text-indigo-600 animate-spin" />
-            <span className="ml-2 text-gray-600">Loading cards...</span>
+            <span className="ml-2 text-gray-600">
+              {t("adminCardsPage.loadingCards")}
+            </span>
           </div>
         )}
         {error && (
@@ -294,7 +304,9 @@ const AdminCardsPage: React.FC = () => {
           </div>
         )}
         {!loading && !error && cards.length === 0 && (
-          <div className="text-center text-gray-600">No cards available.</div>
+          <div className="text-center text-gray-600">
+            {t("adminCardsPage.noCardsAvailable")}
+          </div>
         )}
         {!loading && !error && cards.length > 0 && (
           <>
@@ -302,41 +314,43 @@ const AdminCardsPage: React.FC = () => {
               <table className="w-full text-left">
                 <thead>
                   <tr className="bg-indigo-50">
-                    <th className="p-4 font-semibold text-indigo-700">Word</th>
                     <th className="p-4 font-semibold text-indigo-700">
-                      Translation
+                      {t("adminCardsPage.word")}
                     </th>
                     <th className="p-4 font-semibold text-indigo-700">
-                      Category
+                      {t("adminCardsPage.translation")}
                     </th>
                     <th className="p-4 font-semibold text-indigo-700">
-                      Example
+                      {t("adminCardsPage.category")}
                     </th>
                     <th className="p-4 font-semibold text-indigo-700">
-                      Actions
+                      {t("adminCardsPage.example")}
+                    </th>
+                    <th className="p-4 font-semibold text-indigo-700">
+                      {t("adminCardsPage.actions")}
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {cards.map((Card) => (
-                    <tr key={Card._id} className="border-t hover:bg-gray-50">
-                      <td className="p-4 text-gray-800">{Card.wordId.text}</td>
+                  {cards.map((card) => (
+                    <tr key={card._id} className="border-t hover:bg-gray-50">
+                      <td className="p-4 text-gray-800">{card.wordId.text}</td>
                       <td className="p-4 text-gray-800">
-                        {Card.translationId.text}
+                        {card.translationId.text}
                       </td>
                       <td className="p-4 text-gray-800">
-                        {Card.categoryId.name}
+                        {card.categoryId.name}
                       </td>
-                      <td className="p-4 text-gray-800">{Card.example}</td>
+                      <td className="p-4 text-gray-800">{card.example}</td>
                       <td className="p-4">
                         <button
                           onClick={() => {
-                            setCurrentCard(Card);
+                            setCurrentCard(card);
                             setFormData({
-                              wordId: Card.wordId._id,
-                              translationId: Card.translationId._id,
-                              categoryId: Card.categoryId._id,
-                              example: Card.example ?? "",
+                              wordId: card.wordId._id,
+                              translationId: card.translationId._id,
+                              categoryId: card.categoryId._id,
+                              example: card.example ?? "",
                             });
                             setErrors({});
                             setServerError("");
@@ -344,16 +358,16 @@ const AdminCardsPage: React.FC = () => {
                           }}
                           className="text-indigo-600 hover:text-indigo-800 mr-4 cursor-pointer"
                         >
-                          Edit
+                          {t("adminCardsPage.edit")}
                         </button>
                         <button
                           onClick={() => {
-                            setCurrentCard(Card);
+                            setCurrentCard(card);
                             setIsDeleteModalOpen(true);
                           }}
                           className="text-red-600 hover:text-red-800 cursor-pointer"
                         >
-                          Delete
+                          {t("adminCardsPage.delete")}
                         </button>
                       </td>
                     </tr>
@@ -367,17 +381,20 @@ const AdminCardsPage: React.FC = () => {
                 disabled={filters.page === 1}
                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
-                Previous
+                {t("adminCardsPage.previous")}
               </button>
               <span>
-                Page {filters.page} of {totalPages}
+                {t("adminCardsPage.pageInfo", {
+                  currentPage: filters.page,
+                  totalPages,
+                })}
               </span>
               <button
                 onClick={() => handlePageChange(filters.page + 1)}
                 disabled={filters.page === totalPages}
                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
-                Next
+                {t("adminCardsPage.next")}
               </button>
             </div>
           </>
@@ -401,7 +418,7 @@ const AdminCardsPage: React.FC = () => {
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <DialogPanel className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md">
             <DialogTitle className="text-lg font-bold text-indigo-700">
-              Add Card
+              {t("adminCardsPage.addCardModalTitle")}
             </DialogTitle>
             {serverError && (
               <div className="mb-3 mt-3 p-3 bg-red-100 text-red-700 text-sm rounded-lg text-center animate-fade-in">
@@ -412,14 +429,14 @@ const AdminCardsPage: React.FC = () => {
               <div className="mt-2 space-y-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-800 mb-1.5">
-                    Word
+                    {t("adminCardsPage.word")}
                   </label>
                   <select
                     value={formData.wordId}
                     onChange={(e) => handleChange("wordId", e.target.value)}
                     className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
                   >
-                    <option value="">Select Word</option>
+                    <option value="">{t("adminCardsPage.selectWord")}</option>
                     {words.map((word) => (
                       <option key={word._id} value={word._id}>
                         {word.text}
@@ -434,7 +451,7 @@ const AdminCardsPage: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-800 mb-1.5">
-                    Translation
+                    {t("adminCardsPage.translation")}
                   </label>
                   <select
                     value={formData.translationId}
@@ -443,7 +460,9 @@ const AdminCardsPage: React.FC = () => {
                     }
                     className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
                   >
-                    <option value="">Select Translation</option>
+                    <option value="">
+                      {t("adminCardsPage.selectTranslation")}
+                    </option>
                     {words.map((word) => (
                       <option key={word._id} value={word._id}>
                         {word.text}
@@ -458,14 +477,16 @@ const AdminCardsPage: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-800 mb-1.5">
-                    Category
+                    {t("adminCardsPage.category")}
                   </label>
                   <select
                     value={formData.categoryId}
                     onChange={(e) => handleChange("categoryId", e.target.value)}
                     className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
                   >
-                    <option value="">Select Category</option>
+                    <option value="">
+                      {t("adminCardsPage.selectCategory")}
+                    </option>
                     {categories.map((cat) => (
                       <option key={cat._id} value={cat._id}>
                         {cat.name}
@@ -479,11 +500,11 @@ const AdminCardsPage: React.FC = () => {
                   )}
                 </div>
                 <FormInput
-                  label="Example"
+                  label={t("adminCardsPage.example")}
                   value={formData.example}
                   onChange={(e) => handleChange("example", e.target.value)}
                   error={errors.example}
-                  placeholder="e.g., A greeting"
+                  placeholder={t("adminCardsPage.examplePlaceholder")}
                 />
               </div>
               <div className="mt-6 flex justify-center space-x-2">
@@ -501,14 +522,14 @@ const AdminCardsPage: React.FC = () => {
                   }}
                   className="px-4 py-2 text-gray-600 rounded-lg hover:bg-gray-100 cursor-pointer"
                 >
-                  Cancel
+                  {t("adminCardsPage.cancel")}
                 </button>
                 <button
                   type="submit"
                   disabled={Object.keys(errors).length > 0}
                   className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 cursor-pointer transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
-                  Add
+                  {t("adminCardsPage.add")}
                 </button>
               </div>
             </form>
@@ -534,7 +555,7 @@ const AdminCardsPage: React.FC = () => {
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <DialogPanel className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md">
             <DialogTitle className="text-lg font-bold text-indigo-700">
-              Edit Card
+              {t("adminCardsPage.editCardModalTitle")}
             </DialogTitle>
             {serverError && (
               <div className="mb-3 mt-3 p-3 bg-red-100 text-red-700 text-sm rounded-lg text-center animate-fade-in">
@@ -545,14 +566,14 @@ const AdminCardsPage: React.FC = () => {
               <div className="mt-2 space-y-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-800 mb-1.5">
-                    Word
+                    {t("adminCardsPage.word")}
                   </label>
                   <select
                     value={formData.wordId}
                     onChange={(e) => handleChange("wordId", e.target.value)}
                     className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
                   >
-                    <option value="">Select Word</option>
+                    <option value="">{t("adminCardsPage.selectWord")}</option>
                     {words.map((word) => (
                       <option key={word._id} value={word._id}>
                         {word.text}
@@ -567,7 +588,7 @@ const AdminCardsPage: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-800 mb-1.5">
-                    Translation
+                    {t("adminCardsPage.translation")}
                   </label>
                   <select
                     value={formData.translationId}
@@ -576,7 +597,9 @@ const AdminCardsPage: React.FC = () => {
                     }
                     className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
                   >
-                    <option value="">Select Translation</option>
+                    <option value="">
+                      {t("adminCardsPage.selectTranslation")}
+                    </option>
                     {words.map((word) => (
                       <option key={word._id} value={word._id}>
                         {word.text}
@@ -591,14 +614,16 @@ const AdminCardsPage: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-800 mb-1.5">
-                    Category
+                    {t("adminCardsPage.category")}
                   </label>
                   <select
                     value={formData.categoryId}
                     onChange={(e) => handleChange("categoryId", e.target.value)}
                     className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
                   >
-                    <option value="">Select Category</option>
+                    <option value="">
+                      {t("adminCardsPage.selectCategory")}
+                    </option>
                     {categories.map((cat) => (
                       <option key={cat._id} value={cat._id}>
                         {cat.name}
@@ -612,11 +637,11 @@ const AdminCardsPage: React.FC = () => {
                   )}
                 </div>
                 <FormInput
-                  label="Example"
+                  label={t("adminCardsPage.example")}
                   value={formData.example}
                   onChange={(e) => handleChange("example", e.target.value)}
                   error={errors.example}
-                  placeholder="e.g., A greeting"
+                  placeholder={t("adminCardsPage.examplePlaceholder")}
                 />
               </div>
               <div className="mt-6 flex justify-center space-x-2">
@@ -635,14 +660,14 @@ const AdminCardsPage: React.FC = () => {
                   }}
                   className="px-4 py-2 text-gray-600 rounded-lg hover:bg-gray-100 cursor-pointer"
                 >
-                  Cancel
+                  {t("adminCardsPage.cancel")}
                 </button>
                 <button
                   type="submit"
                   disabled={Object.keys(errors).length > 0}
                   className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 cursor-pointer transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
-                  Save
+                  {t("adminCardsPage.save")}
                 </button>
               </div>
             </form>
@@ -661,11 +686,13 @@ const AdminCardsPage: React.FC = () => {
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <DialogPanel className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md">
             <DialogTitle className="text-lg font-bold text-indigo-700">
-              Confirm Deletion
+              {t("adminCardsPage.confirmDeletionTitle")}
             </DialogTitle>
             <p className="mt-2 text-gray-600">
-              Are you sure you want to delete the Card "
-              {currentCard?.wordId.text} | {currentCard?.translationId.text}"?
+              {t("adminCardsPage.confirmDeletionMessage", {
+                word: currentCard?.wordId.text,
+                translation: currentCard?.translationId.text,
+              })}
             </p>
             {serverError && (
               <div className="mb-3 mt-3 p-3 bg-red-100 text-red-700 text-sm rounded-lg text-center animate-fade-in">
@@ -682,13 +709,13 @@ const AdminCardsPage: React.FC = () => {
                   }}
                   className="px-4 py-2 text-gray-600 rounded-lg hover:bg-gray-100 cursor-pointer"
                 >
-                  Cancel
+                  {t("adminCardsPage.cancel")}
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 cursor-pointer"
                 >
-                  Delete
+                  {t("adminCardsPage.delete")}
                 </button>
               </div>
             </form>

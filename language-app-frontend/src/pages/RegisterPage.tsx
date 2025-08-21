@@ -7,14 +7,16 @@ import { useQuery } from "@tanstack/react-query";
 import api from "../services/api";
 import type { Language } from "../types";
 import { AxiosError } from "axios";
+import { useTranslation } from "react-i18next";
 
 const RegisterPage: React.FC = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
-
   const [formData, setFormData] = useState({
     email: "",
     username: "",
     password: "",
+    interfaceLanguageId: "",
     nativeLanguageId: "",
     learningLanguagesIds: [] as string[],
   });
@@ -34,36 +36,41 @@ const RegisterPage: React.FC = () => {
   const validateField = useCallback(
     (field: keyof typeof formData, value: string | string[]): string | null => {
       if (field === "email" && typeof value === "string") {
-        if (!value.trim()) return "Email is required";
+        if (!value.trim()) return t("registerPage.emailRequired");
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))
-          return "Invalid email format";
+          return t("registerPage.emailInvalid");
       }
       if (field === "username" && typeof value === "string") {
-        if (!value.trim()) return "Username is required";
+        if (!value.trim()) return t("registerPage.usernameRequired");
         if (!/^[a-z0-9_]{6,}$/.test(value)) {
-          return "Username must be at least 6 characters and contain only lowercase letters, numbers, or underscores";
+          return t("registerPage.usernameInvalid");
         }
       }
       if (field === "password" && typeof value === "string") {
-        if (!value.trim()) return "Password is required";
+        if (!value.trim()) return t("registerPage.passwordRequired");
         if (!/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(value)) {
-          return "Password must be at least 8 characters and contain a letter and a number";
+          return t("registerPage.passwordInvalid");
         }
+      }
+      if (field === "interfaceLanguageId" && typeof value === "string") {
+        if (!value.trim()) return t("registerPage.interfaceLanguageRequired");
       }
       return null;
     },
-    []
+    [t]
   );
 
   const validateForm = useCallback(() => {
     const newErrors: Record<string, string> = {};
 
-    (["email", "username", "password"] as const).forEach((field) => {
-      const error = validateField(field, formData[field]);
-      if (error) {
-        newErrors[field] = error;
+    (["email", "username", "password", "interfaceLanguageId"] as const).forEach(
+      (field) => {
+        const error = validateField(field, formData[field]);
+        if (error) {
+          newErrors[field] = error;
+        }
       }
-    });
+    );
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -104,17 +111,17 @@ const RegisterPage: React.FC = () => {
           ? formData.learningLanguagesIds
           : undefined,
       });
-      setSuccessMessage("Registration successful! Please verify your email.");
+      setSuccessMessage(t("registerPage.registrationSuccessful"));
       setTimeout(() => {
         navigate("/login");
       }, 3000);
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
         setServerError(
-          error.response?.data?.error || "Failed to register new profile"
+          error.response?.data?.error || t("registerPage.failedToRegister")
         );
       } else {
-        setServerError("Failed to register new profile");
+        setServerError(t("registerPage.failedToRegister"));
       }
     }
   };
@@ -133,7 +140,7 @@ const RegisterPage: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
         <h2 className="text-3xl font-bold text-center text-indigo-700 mb-6">
-          Create Your Account
+          {t("registerPage.createYourAccount")}
         </h2>
         {serverError && (
           <div className="mb-6 p-3 bg-red-100 text-red-700 text-sm rounded-lg text-center animate-fade-in">
@@ -147,40 +154,52 @@ const RegisterPage: React.FC = () => {
         )}
         <form onSubmit={handleSubmit}>
           <FormInput
-            label="Email"
+            label={t("registerPage.email")}
             type="email"
             value={formData.email}
             onChange={(e) => handleChange("email", e.target.value)}
             error={errors.email}
             autoComplete="email"
-            placeholder="Enter your email"
+            placeholder={t("registerPage.enterYourEmail")}
           />
           <FormInput
-            label="Username"
+            label={t("registerPage.username")}
             type="text"
             value={formData.username}
             onChange={(e) => handleChange("username", e.target.value)}
             error={errors.username}
-            placeholder="Enter your username"
+            placeholder={t("registerPage.enterYourUsername")}
           />
           <FormInput
-            label="Password"
+            label={t("registerPage.password")}
             type="password"
             value={formData.password}
             onChange={(e) => handleChange("password", e.target.value)}
             error={errors.password}
             autoComplete="new-password"
-            placeholder="Enter your password"
+            placeholder={t("registerPage.enterYourPassword")}
           />
           <FormSelect
-            label="Native Language"
+            label={t("registerPage.interfaceLanguage")}
+            value={formData.interfaceLanguageId}
+            onChange={(e) =>
+              handleChange("interfaceLanguageId", e.target.value)
+            }
+            options={languageOptions}
+            error={errors.interfaceLanguageId}
+          />
+          <FormSelect
+            label={t("registerPage.nativeLanguage")}
             value={formData.nativeLanguageId}
             onChange={(e) => handleChange("nativeLanguageId", e.target.value)}
-            options={[{ value: "", label: "None" }, ...languageOptions]}
+            options={[
+              { value: "", label: t("registerPage.none") },
+              ...languageOptions,
+            ]}
             error={errors.nativeLanguageId}
           />
           <FormSelect
-            label="Learning Languages"
+            label={t("registerPage.learningLanguages")}
             multiple
             value={formData.learningLanguagesIds}
             onChange={(e) =>
@@ -189,7 +208,10 @@ const RegisterPage: React.FC = () => {
                 Array.from(e.target.selectedOptions, (option) => option.value)
               )
             }
-            options={[{ value: "", label: "None" }, ...filteredLearningOptions]}
+            options={[
+              { value: "", label: t("registerPage.none") },
+              ...filteredLearningOptions,
+            ]}
             error={errors.learningLanguagesIds}
           />
           <button
@@ -197,16 +219,16 @@ const RegisterPage: React.FC = () => {
             disabled={Object.keys(errors).length > 0}
             className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-indigo-700 transition-colors duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
-            Register
+            {t("registerPage.register")}
           </button>
         </form>
         <p className="mt-6 text-center text-sm text-gray-600">
-          Already have an account?{" "}
+          {t("registerPage.alreadyHaveAccount")}{" "}
           <a
             href="/login"
             className="text-indigo-600 hover:text-indigo-800 font-semibold hover:underline transition-colors duration-200"
           >
-            Login
+            {t("registerPage.login")}
           </a>
         </p>
       </div>

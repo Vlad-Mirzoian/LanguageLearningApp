@@ -20,8 +20,10 @@ import {
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import toast from "react-hot-toast";
+import { useTranslation } from "react-i18next";
 
 const StatisticsPage: React.FC = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { selectedLanguageId, setSelectedLanguageId } = useLanguage();
   const [progress, setProgress] = useState<UserProgress[]>([]);
@@ -62,16 +64,19 @@ const StatisticsPage: React.FC = () => {
         }
       } catch (error: unknown) {
         if (error instanceof AxiosError) {
-          setError(error.response?.data?.error || "Failed to load statistics");
+          setError(
+            error.response?.data?.error ||
+              t("statisticsPage.failedToLoadStatistics")
+          );
         } else {
-          setError("Failed to load statistics");
+          setError(t("statisticsPage.failedToLoadStatistics"));
         }
       } finally {
         setLoading(false);
       }
     };
     fetchStatistics();
-  }, [user, selectedLanguageId, setSelectedLanguageId]);
+  }, [user, selectedLanguageId, setSelectedLanguageId, t]);
 
   const filterByDate = (attempts: Attempt[]): Attempt[] => {
     if (dateFilter === "all") return attempts;
@@ -154,7 +159,7 @@ const StatisticsPage: React.FC = () => {
         ? (stats.correctAnswers / stats.totalAnswers) * 100
         : 0;
     return {
-      type: type.charAt(0).toUpperCase() + type.slice(1),
+      type: t(`statisticsPage.${type}`),
       accuracy: Number(accuracy.toFixed(1)),
       correctAnswers: stats.correctAnswers,
       totalAnswers: stats.totalAnswers,
@@ -165,28 +170,38 @@ const StatisticsPage: React.FC = () => {
 
   const handleExportToPDF = () => {
     if (!selectedLanguageId) {
-      setError("Please select a language");
+      setError(t("statisticsPage.selectLanguagePrompt"));
       return;
     }
     try {
       const doc = new jsPDF();
       const languageName =
         languages.find((lang) => lang._id === selectedLanguageId)?.name ||
-        "Selected language";
+        t("statisticsPage.selectLanguage");
 
       let yOffset = 15;
       doc.setFontSize(16);
-      doc.text(`Language Learning Statistics - ${languageName}`, 10, yOffset);
+      doc.text(
+        `${t("statisticsPage.languageLearningStatistics")} - ${languageName}`,
+        10,
+        yOffset
+      );
 
       doc.setFontSize(12);
       yOffset += 10;
-      doc.text(`Date Filter: ${dateFilter}`, 10, yOffset);
+      doc.text(
+        `${t("statisticsPage.filterByDate")}: ${t(
+          `statisticsPage.${dateFilter.replace(" ", "")}`
+        )}`,
+        10,
+        yOffset
+      );
       yOffset += 10;
       doc.text(
-        `Type Filter: ${
+        `${t("statisticsPage.filterByType")}: ${
           typeFilter === "all"
-            ? "All Types"
-            : typeFilter.charAt(0).toUpperCase() + typeFilter.slice(1)
+            ? t("statisticsPage.allTypes")
+            : t(`statisticsPage.${typeFilter}`)
         }`,
         10,
         yOffset
@@ -194,11 +209,18 @@ const StatisticsPage: React.FC = () => {
       yOffset += 20;
 
       doc.setFontSize(14);
-      doc.text(`Progress By Category`, 10, yOffset);
+      doc.text(t("statisticsPage.dailyProgressByCategory"), 10, yOffset);
       yOffset += 10;
       autoTable(doc, {
         startY: yOffset,
-        head: [["Level", "Category", "Max Score (%)", "Total Cards"]],
+        head: [
+          [
+            t("statisticsPage.level"),
+            t("statisticsPage.category"),
+            t("statisticsPage.maxScore"),
+            t("statisticsPage.totalCards"),
+          ],
+        ],
         body: languageProgress.map((p) => [
           p.categoryId.order,
           p.categoryId.name,
@@ -212,16 +234,23 @@ const StatisticsPage: React.FC = () => {
       yOffset = (doc as any).lastAutoTable.finalY + 20;
 
       doc.setFontSize(14);
-      doc.text("Accuracy By Exercise Type", 10, yOffset);
+      doc.text(t("statisticsPage.accuracyByExerciseType"), 10, yOffset);
       yOffset += 10;
       autoTable(doc, {
         startY: yOffset,
         head: [
-          ["Exercise Type", "Correct Answers", "Total Answers", "Accuracy (%)"],
+          [
+            t("statisticsPage.exerciseType"),
+            t("statisticsPage.correctAnswers"),
+            t("statisticsPage.totalAnswers"),
+            t("statisticsPage.accuracy"),
+          ],
         ],
         body: accuracyData
           .filter(
-            (d) => typeFilter === "all" || d.type.toLowerCase() === typeFilter
+            (d) =>
+              typeFilter === "all" ||
+              d.type.toLowerCase() === t(`statisticsPage.${typeFilter}`)
           )
           .map((d) => [
             d.type,
@@ -239,14 +268,14 @@ const StatisticsPage: React.FC = () => {
           new Date().toISOString().split("T")[0]
         }.pdf`
       );
-      toast("Statistics exported to PDF!");
+      toast(t("statisticsPage.exportedToPDF"));
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
         setError(
-          error.response?.data?.error || "Failed to export statistics to PDF"
+          error.response?.data?.error || t("statisticsPage.failedToExportPDF")
         );
       } else {
-        setError("Failed to export statistics to PDF");
+        setError(t("statisticsPage.failedToExportPDF"));
       }
     }
   };
@@ -255,14 +284,16 @@ const StatisticsPage: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex flex-col items-center p-4">
       <div className="w-full max-w-4xl">
         <h2 className="text-3xl font-bold text-center text-indigo-700 mb-6">
-          Statistics:{" "}
+          {t("statisticsPage.statistics")}:{" "}
           {languages.find((lang) => lang._id === selectedLanguageId)?.name ||
-            "Select a Language"}
+            t("statisticsPage.selectLanguage")}
         </h2>
         {loading && (
           <div className="flex items-center mb-4">
             <ArrowPathIcon className="h-5 w-5 text-indigo-600 animate-spin" />
-            <span className="ml-2 text-gray-600">Loading statistics...</span>
+            <span className="ml-2 text-gray-600">
+              {t("statisticsPage.loading")}
+            </span>
           </div>
         )}
         {error && (
@@ -278,7 +309,7 @@ const StatisticsPage: React.FC = () => {
                   htmlFor="dateFilter"
                   className="mr-2 text-gray-700 font-medium"
                 >
-                  Filter by date:
+                  {t("statisticsPage.filterByDate")}:
                 </label>
                 <select
                   id="dateFilter"
@@ -290,9 +321,13 @@ const StatisticsPage: React.FC = () => {
                   }
                   className="p-2 border rounded-md bg-white shadow-sm focus:ring-2 focus:ring-indigo-500"
                 >
-                  <option value="7 days">Last 7 days</option>
-                  <option value="30 days">Last 30 days</option>
-                  <option value="all">All time</option>
+                  <option value="7 days">
+                    {t("statisticsPage.last7Days")}
+                  </option>
+                  <option value="30 days">
+                    {t("statisticsPage.last30Days")}
+                  </option>
+                  <option value="all">{t("statisticsPage.allTime")}</option>
                 </select>
               </div>
               <div>
@@ -300,7 +335,7 @@ const StatisticsPage: React.FC = () => {
                   htmlFor="typeFilter"
                   className="mr-2 text-gray-700 font-medium"
                 >
-                  Filter by type:
+                  {t("statisticsPage.filterByType")}:
                 </label>
                 <select
                   id="typeFilter"
@@ -312,10 +347,12 @@ const StatisticsPage: React.FC = () => {
                   }
                   className="p-2 border rounded-md bg-white shadow-sm focus:ring-2 focus:ring-indigo-500"
                 >
-                  <option value="all">All types</option>
-                  <option value="flash">Flash</option>
-                  <option value="test">Test</option>
-                  <option value="dictation">Dictation</option>
+                  <option value="all">{t("statisticsPage.allTypes")}</option>
+                  <option value="flash">{t("statisticsPage.flash")}</option>
+                  <option value="test">{t("statisticsPage.test")}</option>
+                  <option value="dictation">
+                    {t("statisticsPage.dictation")}
+                  </option>
                 </select>
               </div>
               <button
@@ -325,26 +362,24 @@ const StatisticsPage: React.FC = () => {
                 }}
                 className="p-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
               >
-                Reset Filters
+                {t("statisticsPage.resetFilters")}
               </button>
               <button
                 onClick={handleExportToPDF}
                 className="p-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors duration-200"
               >
-                Export to PDF
+                {t("statisticsPage.exportToPDF")}
               </button>
             </div>
             <div className="mb-6 bg-white p-6 rounded-lg shadow-lg">
               <h3 className="text-xl font-semibold text-gray-800 mb-4">
-                Daily Progress by Category
+                {t("statisticsPage.dailyProgressByCategory")}
               </h3>
               {attemptData.length === 0 || languageProgress.length === 0 ? (
                 <div className="text-center text-gray-600 py-8">
-                  <p className="mb-2">
-                    No attempt data available for the selected filters.
-                  </p>
+                  <p className="mb-2">{t("statisticsPage.noAttemptData")}</p>
                   <p className="text-sm">
-                    Try completing some exercises or resetting the filters!
+                    {t("statisticsPage.completeExercisesPrompt")}
                   </p>
                 </div>
               ) : (
@@ -367,7 +402,7 @@ const StatisticsPage: React.FC = () => {
                         tickLine={false}
                         axisLine={{ stroke: "#D1D5DB" }}
                         label={{
-                          value: "Score (%)",
+                          value: t("statisticsPage.score"),
                           angle: -90,
                           position: "insideLeft",
                           offset: -5,
@@ -398,8 +433,14 @@ const StatisticsPage: React.FC = () => {
                               (p) => p.categoryId._id === categoryId
                             )?.maxScore || 0;
                           return [
-                            `${value}% (Attempts: ${attemptCount}, Type: ${type}, Max: ${maxScore}%)`,
-                            `Level ${
+                            `${value}% (${t(
+                              "statisticsPage.attempts"
+                            )}: ${attemptCount}, ${t(
+                              "statisticsPage.type"
+                            )}: ${t(`statisticsPage.${type}`)}, ${t(
+                              "statisticsPage.max"
+                            )}: ${maxScore}%)`,
+                            `${t("statisticsPage.level")} ${
                               languageProgress.find(
                                 (p) => p.categoryId._id === categoryId
                               )?.categoryId.order || 0
@@ -417,7 +458,7 @@ const StatisticsPage: React.FC = () => {
                           const categoryProgress = languageProgress.find(
                             (p) => p.categoryId.name === value
                           );
-                          return `Level ${
+                          return `${t("statisticsPage.level")} ${
                             categoryProgress?.categoryId.order || 0
                           }: ${value.replace(/Category /, "")}`;
                         }}
@@ -446,10 +487,12 @@ const StatisticsPage: React.FC = () => {
             </div>
             <div className="mb-6 bg-white p-6 rounded-lg shadow-lg">
               <h3 className="text-xl font-semibold text-gray-800 mb-4">
-                Accuracy by Exercise Type
+                {t("statisticsPage.accuracyByExerciseType")}
               </h3>
               {accuracyData.every((d) => d.accuracy === 0) ? (
-                <p className="text-gray-600">No accuracy data available</p>
+                <p className="text-gray-600">
+                  {t("statisticsPage.noAccuracyData")}
+                </p>
               ) : (
                 <div className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
@@ -470,7 +513,7 @@ const StatisticsPage: React.FC = () => {
                         tickLine={false}
                         axisLine={{ stroke: "#D1D5DB" }}
                         label={{
-                          value: "Accuracy (%)",
+                          value: t("statisticsPage.accuracy"),
                           angle: -90,
                           position: "insideLeft",
                           offset: -5,
@@ -485,7 +528,10 @@ const StatisticsPage: React.FC = () => {
                           borderRadius: "8px",
                           boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
                         }}
-                        formatter={(value) => [`${value}%`, "Accuracy"]}
+                        formatter={(value) => [
+                          `${value}%`,
+                          t("statisticsPage.accuracy"),
+                        ]}
                       />
                       <Legend
                         wrapperStyle={{
@@ -494,7 +540,11 @@ const StatisticsPage: React.FC = () => {
                           color: "#1F2937",
                         }}
                       />
-                      <Bar dataKey="accuracy" fill="#4B0082" name="Accuracy" />
+                      <Bar
+                        dataKey="accuracy"
+                        fill="#4B0082"
+                        name={t("statisticsPage.accuracy")}
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>

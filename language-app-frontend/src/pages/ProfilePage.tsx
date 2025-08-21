@@ -2,12 +2,12 @@ import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import FormInput from "../components/ui/FormInput";
 import FormSelect from "../components/ui/FormSelect";
-import { updateUser, uploadAvatar } from "../services/api";
 import { useQuery } from "@tanstack/react-query";
 import api from "../services/api";
 import type { Language } from "../types";
 import { useAuth } from "../hooks/useAuth";
 import { AxiosError } from "axios";
+import { useTranslation } from "react-i18next";
 
 interface FormData {
   email: string;
@@ -21,9 +21,9 @@ interface FormData {
 const baseUrl = import.meta.env.VITE_BASE_URL || "";
 
 const ProfilePage: React.FC = () => {
-  const { user, setUser } = useAuth();
+  const { t } = useTranslation();
+  const { user, updateUser, uploadAvatar } = useAuth();
   const navigate = useNavigate();
-
   const [formData, setFormData] = useState<FormData>({
     email: user?.email || "",
     username: user?.username || "",
@@ -53,24 +53,24 @@ const ProfilePage: React.FC = () => {
   const validateField = useCallback(
     (field: keyof typeof formData, value: string | string[]): string | null => {
       if (field === "email" && typeof value === "string") {
-        if (!value.trim()) return "Email is required";
+        if (!value.trim()) return t("profilePage.emailRequired");
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))
-          return "Invalid email format";
+          return t("profilePage.emailInvalid");
       }
       if (field === "username" && typeof value === "string") {
-        if (!value.trim()) return "Username is required";
+        if (!value.trim()) return t("profilePage.usernameRequired");
         if (!/^[a-z0-9_]{6,}$/.test(value)) {
-          return "Username must be at least 6 characters and contain only lowercase letters, numbers, or underscores";
+          return t("profilePage.usernameInvalid");
         }
       }
       if (field === "password" && typeof value === "string" && value.trim()) {
         if (!/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(value)) {
-          return "Password must be at least 8 characters and contain a letter and a number";
+          return t("profilePage.passwordInvalid");
         }
       }
       return null;
     },
-    []
+    [t]
   );
 
   const validateForm = useCallback(() => {
@@ -140,25 +140,24 @@ const ProfilePage: React.FC = () => {
       let avatarChanged = false;
       if (avatarFile) {
         if (avatarFile.size > 5 * 1024 * 1024) {
-          setAvatarError("File size must be less than 5MB");
+          setAvatarError(t("profilePage.fileSizeError"));
           return;
         }
         if (!["image/jpeg", "image/png"].includes(avatarFile.type)) {
-          setAvatarError("Only JPEG and PNG images are allowed");
+          setAvatarError(t("profilePage.fileTypeError"));
           return;
         }
         await uploadAvatar(avatarFile);
         avatarChanged = true;
       }
       if (Object.keys(updateData).length > 0) {
-        const response = await updateUser(updateData);
-        setUser(response.user);
+        await updateUser(updateData);
       }
       if (!avatarChanged && Object.keys(updateData).length === 0) {
-        setServerError("No changes to save");
+        setServerError(t("profilePage.noChangesToSave"));
         return;
       }
-      setSuccessMessage("Profile updated successfully");
+      setSuccessMessage(t("profilePage.profileUpdatedSuccessfully"));
       setTimeout(() => {
         setSuccessMessage("");
         navigate("/dashboard");
@@ -166,10 +165,10 @@ const ProfilePage: React.FC = () => {
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
         setServerError(
-          error.response?.data?.error || "Failed to update profile"
+          error.response?.data?.error || t("profilePage.failedToUpdateProfile")
         );
       } else {
-        setServerError("Failed to update profile");
+        setServerError(t("profilePage.failedToUpdateProfile"));
       }
     }
   };
@@ -218,7 +217,7 @@ const ProfilePage: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
         <h2 className="text-3xl font-bold text-center text-indigo-700 mb-6">
-          Edit Profile
+          {t("profilePage.editProfile")}
         </h2>
         {serverError && (
           <div className="mb-6 p-3 bg-red-100 text-red-700 text-sm rounded-lg text-center animate-fade-in">
@@ -235,20 +234,20 @@ const ProfilePage: React.FC = () => {
             {avatarPreview ? (
               <img
                 src={avatarPreview}
-                alt="Avatar Preview"
+                alt={t("profilePage.profilePicture")}
                 className="h-24 w-24 rounded-full object-cover border-2 border-indigo-300"
               />
             ) : (
               <img
                 src="/images/default-avatar.png"
-                alt="Avatar Preview"
+                alt={t("profilePage.profilePicture")}
                 className="h-24 w-24 rounded-full object-cover border-2 border-indigo-300"
               />
             )}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Profile Picture
+              {t("profilePage.profilePicture")}
             </label>
             <input
               type="file"
@@ -261,40 +260,43 @@ const ProfilePage: React.FC = () => {
             )}
           </div>
           <FormInput
-            label="Email"
+            label={t("profilePage.email")}
             type="email"
             value={formData.email}
             onChange={(e) => handleChange("email", e.target.value)}
             error={errors.email}
             autoComplete="email"
-            placeholder="Enter your email"
+            placeholder={t("profilePage.enterYourEmail")}
           />
           <FormInput
-            label="Username"
+            label={t("profilePage.username")}
             type="text"
             value={formData.username}
             onChange={(e) => handleChange("username", e.target.value)}
             error={errors.username}
-            placeholder="Enter your username"
+            placeholder={t("profilePage.enterYourUsername")}
           />
           <FormInput
-            label="Password (leave blank to keep current)"
+            label={t("profilePage.passwordLeaveBlank")}
             type="password"
             value={formData.password}
             onChange={(e) => handleChange("password", e.target.value)}
             error={errors.password}
             autoComplete="new-password"
-            placeholder="Enter new password"
+            placeholder={t("profilePage.enterNewPassword")}
           />
           <FormSelect
-            label="Native Language"
+            label={t("profilePage.nativeLanguage")}
             value={formData.nativeLanguageId}
             onChange={(e) => handleChange("nativeLanguageId", e.target.value)}
-            options={[{ value: "", label: "None" }, ...languageOptions]}
+            options={[
+              { value: "", label: t("profilePage.none") },
+              ...languageOptions,
+            ]}
             error={errors.nativeLanguageId}
           />
           <FormSelect
-            label="Learning Languages"
+            label={t("profilePage.learningLanguages")}
             multiple
             value={formData.learningLanguagesIds}
             onChange={(e) =>
@@ -303,7 +305,10 @@ const ProfilePage: React.FC = () => {
                 Array.from(e.target.selectedOptions, (option) => option.value)
               )
             }
-            options={[{ value: "", label: "None" }, ...filteredLearningOptions]}
+            options={[
+              { value: "", label: t("profilePage.none") },
+              ...filteredLearningOptions,
+            ]}
             error={errors.learningLanguagesIds}
           />
           <button
@@ -311,16 +316,16 @@ const ProfilePage: React.FC = () => {
             disabled={Object.keys(errors).length > 0}
             className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-indigo-700 transition-colors duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
-            Save Changes
+            {t("profilePage.saveChanges")}
           </button>
         </form>
         <p className="mt-6 text-center text-sm text-gray-600">
-          Back to{" "}
+          {t("profilePage.backToDashboard")}{" "}
           <a
             href="/dashboard"
             className="text-indigo-600 hover:text-indigo-800 font-semibold hover:underline transition-colors duration-200"
           >
-            Dashboard
+            {t("navbar.dashboard")}
           </a>
         </p>
       </div>

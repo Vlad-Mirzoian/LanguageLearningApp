@@ -1,4 +1,5 @@
 import type { SelectHTMLAttributes } from "react";
+import { useTranslation } from "react-i18next";
 
 interface FormSelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label: string;
@@ -13,6 +14,8 @@ const FormSelect: React.FC<FormSelectProps> = ({
   multiple,
   ...props
 }) => {
+  const { t } = useTranslation();
+
   return (
     <div className="mb-5">
       <label className="block text-sm font-semibold text-gray-800 mb-1.5">
@@ -31,7 +34,7 @@ const FormSelect: React.FC<FormSelectProps> = ({
       >
         {!multiple && (
           <option value="" disabled>
-            Select an option
+            {t("formSelect.selectOption")}
           </option>
         )}
         {options.map((option) => (

@@ -9,6 +9,8 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
 } from "@heroicons/react/24/solid";
+import { useTranslation } from "react-i18next";
+import { AxiosError } from "axios";
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -16,6 +18,7 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { selectedLanguageId, setSelectedLanguageId } = useLanguage();
   const [languages, setLanguages] = useState<Language[]>([]);
@@ -31,14 +34,20 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
         if (!selectedLanguageId && user?.learningLanguagesIds?.length) {
           setSelectedLanguageId(user.learningLanguagesIds[0]);
         }
-      } catch (err: any) {
-        setError(err.response?.data?.error || "Failed to load languages");
+      } catch (error: unknown) {
+        if (error instanceof AxiosError) {
+          setError(
+            error.response?.data?.error || t("sidebar.failedToLoadLanguages")
+          );
+        } else {
+          setError(t("sidebar.failedToLoadLanguages"));
+        }
       } finally {
         setLoading(false);
       }
     };
     fetchLanguages();
-  }, [selectedLanguageId, setSelectedLanguageId, user]);
+  }, [selectedLanguageId, setSelectedLanguageId, t, user]);
 
   const handleLanguageSelect = (languageId: string) => {
     setSelectedLanguageId(languageId);
@@ -57,11 +66,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
     >
       <div className="flex items-center justify-between mb-6">
         {!isCollapsed && (
-          <h2 className="text-xl font-bold">Language Courses</h2>
+          <h2 className="text-xl font-bold">{t("sidebar.languageCourses")}</h2>
         )}
         <button
           onClick={toggleSidebar}
-          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-label={
+            isCollapsed
+              ? t("sidebar.expandSidebar")
+              : t("sidebar.collapseSidebar")
+          }
           className="p-2 rounded-full hover:bg-indigo-700 transition-colors duration-200"
         >
           {isCollapsed ? (
@@ -76,7 +89,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
           {loading && (
             <div className="flex items-center mb-4">
               <ArrowPathIcon className="h-5 w-5 text-white animate-spin" />
-              <span className="ml-2 text-white">Loading...</span>
+              <span className="ml-2 text-white">{t("sidebar.loading")}</span>
             </div>
           )}
           {error && (

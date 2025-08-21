@@ -9,6 +9,7 @@ import type {
   LeaderboardEntry,
   StatsByType,
   TestCard,
+  User,
   UserProgress,
   Word,
   WordResponse,
@@ -59,10 +60,11 @@ export const register = async (data: {
   email: string;
   username: string;
   password: string;
+  interfaceLanguageId: string;
   nativeLanguageId?: string;
   learningLanguagesIds?: string[];
-}): Promise<AuthResponse> => {
-  const response = await api.post<AuthResponse>("/auth/register", data);
+}): Promise<User> => {
+  const response = await api.post<User>("/auth/register", data);
   return response.data;
 };
 
@@ -88,7 +90,7 @@ export const verifyEmail = async (token: string) => {
   return response.data;
 };
 
-export const updateUser = async (
+export const updateUserAPI = async (
   data: Partial<{
     email: string;
     username: string;
@@ -96,27 +98,28 @@ export const updateUser = async (
     nativeLanguageId?: string;
     learningLanguagesIds?: string[];
   }>
-): Promise<AuthResponse> => {
-  const response = await api.put<AuthResponse>("/auth/user", data);
-  const { setAuth, token } = useAuthStore.getState();
-  setAuth(response.data.user, token);
+): Promise<User> => {
+  const response = await api.put<User>("/auth/user", data);
   return response.data;
 };
 
-export const uploadAvatar = async (file: File): Promise<AuthResponse> => {
+export const updateInterfaceLanguage = async (
+  interfaceLanguageId: string
+): Promise<Language> => {
+  const response = await api.put("/auth/interface-language", {
+    interfaceLanguageId,
+  });
+  return response.data;
+};
+
+export const uploadAvatarAPI = async (file: File): Promise<User> => {
   const formData = new FormData();
   formData.append("avatar", file);
-  const response = await api.post<AuthResponse>(
-    "/auth/upload-avatar",
-    formData,
-    {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    }
-  );
-  const { token, setAuth } = useAuthStore.getState();
-  setAuth(response.data.user, token);
+  const response = await api.post<User>("/auth/upload-avatar", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
   return response.data;
 };
 

@@ -5,14 +5,24 @@ import {
   DisclosurePanel,
 } from "@headlessui/react";
 import { useAuth } from "../../hooks/useAuth";
-import { XMarkIcon } from "@heroicons/react/24/solid";
+import { ChevronDownIcon, XMarkIcon } from "@heroicons/react/24/solid";
 import { Bars3Icon } from "@heroicons/react/24/solid";
+import { useTranslation } from "react-i18next";
+import { useInterfaceLanguage } from "../../hooks/useInterfaceLanguage";
+import { useEffect } from "react";
 
 const baseUrl = import.meta.env.VITE_BASE_URL || "";
 
 const Navbar: React.FC = () => {
+  const { t } = useTranslation();
   const { user, logout } = useAuth();
+  const { locale, availableLanguages, changeLanguage, loadAvailableLanguages } =
+    useInterfaceLanguage();
   const location = useLocation();
+
+  useEffect(() => {
+    loadAvailableLanguages();
+  }, [loadAvailableLanguages]);
 
   const getFullAvatarUrl = (
     avatar: string | null | undefined
@@ -22,20 +32,32 @@ const Navbar: React.FC = () => {
   };
 
   const navigation = [
-    { name: "Dashboard", href: "/dashboard", current: false },
+    { name: t("navbar.dashboard"), href: "/dashboard", current: false },
     ...(user?.role === "user"
       ? [
-          { name: "Review", href: "/review", current: false },
-          { name: "Statistics", href: "/stats", current: false },
-          { name: "Leaderboard", href: "/leaderboard", current: false },
+          { name: t("navbar.review"), href: "/review", current: false },
+          { name: t("navbar.statistics"), href: "/stats", current: false },
+          {
+            name: t("navbar.leaderboard"),
+            href: "/leaderboard",
+            current: false,
+          },
         ]
       : []),
     ...(user?.role === "admin"
       ? [
-          { name: "Languages", href: "/admin/languages", current: false },
-          { name: "Categories", href: "/admin/categories", current: false },
-          { name: "Words", href: "/admin/words", current: false },
-          { name: "Cards", href: "/admin/cards", current: false },
+          {
+            name: t("navbar.languages"),
+            href: "/admin/languages",
+            current: false,
+          },
+          {
+            name: t("navbar.categories"),
+            href: "/admin/categories",
+            current: false,
+          },
+          { name: t("navbar.words"), href: "/admin/words", current: false },
+          { name: t("navbar.cards"), href: "/admin/cards", current: false },
         ]
       : []),
   ];
@@ -81,7 +103,30 @@ const Navbar: React.FC = () => {
                   })}
                 </div>
               </div>
-              <div className="hidden sm:ml-6 sm:flex sm:items-center">
+              <div className="hidden sm:ml-6 sm:flex sm:items-center space-x-4">
+                <div className="relative">
+                  <select
+                    value={locale || ""}
+                    onChange={(e) => {
+                      const selectedLang = availableLanguages.find(
+                        (l) => l.code === e.target.value
+                      );
+                      if (selectedLang) {
+                        changeLanguage(selectedLang.code, selectedLang._id);
+                      }
+                    }}
+                    className="appearance-none bg-indigo-600 text-white py-2 px-4 pr-8 rounded-lg font-semibold hover:bg-indigo-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    {availableLanguages.map((lang) => (
+                      <option key={lang._id} value={lang.code}>
+                        {lang.name}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-white">
+                    <ChevronDownIcon className="h-4 w-4" aria-hidden="true" />
+                  </div>
+                </div>
                 {user ? (
                   <div className="flex items-center space-x-4">
                     <Link to="/profile" className="flex items-center">
@@ -103,7 +148,7 @@ const Navbar: React.FC = () => {
                       onClick={logout}
                       className="text-indigo-100 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
                     >
-                      Logout
+                      {t("navbar.logout")}
                     </button>
                   </div>
                 ) : (
@@ -111,7 +156,7 @@ const Navbar: React.FC = () => {
                     to="/login"
                     className="text-indigo-100 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
                   >
-                    Login
+                    {t("navbar.login")}
                   </Link>
                 )}
               </div>
@@ -146,6 +191,26 @@ const Navbar: React.FC = () => {
                   </DisclosureButton>
                 );
               })}
+              <div className="block pl-3 pr-4 py-2 border-l-4 border-transparent">
+                <select
+                  value={locale || ""}
+                  onChange={(e) => {
+                    const selectedLang = availableLanguages.find(
+                      (l) => l.code === e.target.value
+                    );
+                    if (selectedLang) {
+                      changeLanguage(selectedLang.code, selectedLang._id);
+                    }
+                  }}
+                  className="w-full bg-indigo-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-indigo-700 transition-colors duration-200"
+                >
+                  {availableLanguages.map((lang) => (
+                    <option key={lang._id} value={lang._id}>
+                      {lang.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
               {user && (
                 <>
                   <DisclosureButton
@@ -160,14 +225,14 @@ const Navbar: React.FC = () => {
                       location.pathname === "/profile" ? "page" : undefined
                     }
                   >
-                    Profile
+                    {t("navbar.profile")}
                   </DisclosureButton>
                   <DisclosureButton
                     as="button"
                     onClick={logout}
                     className="block w-full text-left pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-indigo-100 hover:bg-indigo-700 hover:border-indigo-200 hover:text-white"
                   >
-                    Logout
+                    {t("navbar.logout")}
                   </DisclosureButton>
                 </>
               )}

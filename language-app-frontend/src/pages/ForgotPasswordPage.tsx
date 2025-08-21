@@ -3,10 +3,11 @@ import { useNavigate } from "react-router-dom";
 import FormInput from "../components/ui/FormInput";
 import { forgotPassword } from "../services/api";
 import { AxiosError } from "axios";
+import { useTranslation } from "react-i18next";
 
 const ForgotPasswordPage: React.FC = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
-
   const [formData, setFormData] = useState({
     email: "",
   });
@@ -24,13 +25,13 @@ const ForgotPasswordPage: React.FC = () => {
     const newErrors: Record<string, string> = {};
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!formData.email.trim()) {
-      newErrors.email = "Email is required";
+      newErrors.email = t("forgotPasswordPage.emailRequired");
     } else if (!emailRegex.test(formData.email)) {
-      newErrors.email = "Invalid email format";
+      newErrors.email = t("forgotPasswordPage.emailInvalid");
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [formData]);
+  }, [formData, t]);
 
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({
@@ -42,9 +43,9 @@ const ForgotPasswordPage: React.FC = () => {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (field === "email") {
         if (!value.trim()) {
-          newErrors.email = "Email is required";
+          newErrors.email = t("forgotPasswordPage.emailRequired");
         } else if (!emailRegex.test(value)) {
-          newErrors.email = "Invalid email format";
+          newErrors.email = t("forgotPasswordPage.emailInvalid");
         } else {
           delete newErrors.email;
         }
@@ -62,17 +63,18 @@ const ForgotPasswordPage: React.FC = () => {
 
     try {
       await forgotPassword(formData);
-      setSuccessMessage("Reset password email sent! Redirecting to login...");
+      setSuccessMessage(t("forgotPasswordPage.resetEmailSent"));
       setTimeout(() => {
         navigate("/login");
       }, 3000);
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
         setServerError(
-          error.response?.data?.error || "Failed to send reset password email"
+          error.response?.data?.error ||
+            t("forgotPasswordPage.failedToSendResetEmail")
         );
       } else {
-        setServerError("Failed to send reset password email");
+        setServerError(t("forgotPasswordPage.failedToSendResetEmail"));
       }
     }
   };
@@ -81,7 +83,7 @@ const ForgotPasswordPage: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
         <h2 className="text-3xl font-bold text-center text-indigo-700 mb-6">
-          Forgot Password
+          {t("forgotPasswordPage.forgotPassword")}
         </h2>
         {serverError && (
           <div className="mb-6 p-3 bg-red-100 text-red-700 text-sm rounded-lg text-center animate-fade-in">
@@ -95,29 +97,29 @@ const ForgotPasswordPage: React.FC = () => {
         )}
         <form onSubmit={handleSubmit} className="space-y-2">
           <FormInput
-            label="Email"
+            label={t("forgotPasswordPage.email")}
             type="email"
             value={formData.email}
             onChange={(e) => handleChange("email", e.target.value)}
             error={errors.email}
             autoComplete="email"
-            placeholder="Enter your email"
+            placeholder={t("forgotPasswordPage.enterYourEmail")}
           />
           <button
             type="submit"
             disabled={Object.keys(errors).length > 0}
             className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-indigo-700 transition-colors duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
-            Forgot
+            {t("forgotPasswordPage.forgot")}
           </button>
         </form>
         <p className="mt-6 text-center text-sm text-gray-600">
-          Remembered your password?{" "}
+          {t("forgotPasswordPage.rememberedPassword")}{" "}
           <a
             href="/login"
             className="text-indigo-600 hover:text-indigo-800 font-semibold hover:underline transition-colors duration-200"
           >
-            Login
+            {t("forgotPasswordPage.login")}
           </a>
         </p>
       </div>

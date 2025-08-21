@@ -6,8 +6,10 @@ import { getLeaderboard } from "../services/api";
 import { AxiosError } from "axios";
 import { ArrowPathIcon } from "@heroicons/react/24/solid";
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 
 const LeaderboardPage: React.FC = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { selectedLanguageId, setSelectedLanguageId } = useLanguage();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -27,27 +29,32 @@ const LeaderboardPage: React.FC = () => {
         }
       } catch (error: unknown) {
         if (error instanceof AxiosError) {
-          setError(error.response?.data?.error || "Failed to load leaderboard");
+          setError(
+            error.response?.data?.error ||
+              t("leaderboardPage.failedToLoadLeaderboard")
+          );
         } else {
-          setError("Failed to load leaderboard");
+          setError(t("leaderboardPage.failedToLoadLeaderboard"));
         }
       } finally {
         setLoading(false);
       }
     };
     fetchData();
-  }, [selectedLanguageId, setSelectedLanguageId, user]);
+  }, [selectedLanguageId, setSelectedLanguageId, t, user]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex flex-col items-center p-4">
       <div className="w-full max-w-4xl">
         <h2 className="text-3xl font-bold text-center text-indigo-700 mb-6">
-          Leaderboard
+          {t("leaderboardPage.leaderboard")}
         </h2>
         {loading && (
           <div className="flex items-center mb-4">
             <ArrowPathIcon className="h-5 w-5 text-indigo-600 animate-spin" />
-            <span className="ml-2 text-gray-600">Loading statistics...</span>
+            <span className="ml-2 text-gray-600">
+              {t("leaderboardPage.loadingLeaderboard")}
+            </span>
           </div>
         )}
         {error && (
@@ -63,7 +70,7 @@ const LeaderboardPage: React.FC = () => {
             className="bg-gray-50 p-4 rounded-lg shadow-md"
           >
             <h3 className="text-lg font-semibold text-gray-800 mb-2">
-              Top Learners
+              {t("leaderboardPage.topLearners")}
             </h3>
             {leaderboard.length > 0 ? (
               <div className="overflow-x-auto">
@@ -71,16 +78,19 @@ const LeaderboardPage: React.FC = () => {
                   <thead>
                     <tr>
                       <th className="px-4 py-2 text-left text-sm font-semibold text-gray-800">
-                        Rank
+                        {t("leaderboardPage.rank")}
                       </th>
                       <th className="px-4 py-2 text-left text-sm font-semibold text-gray-800">
-                        User
+                        {t("leaderboardPage.user")}
                       </th>
                       <th className="px-4 py-2 text-left text-sm font-semibold text-gray-800">
-                        Average Max Score (%)
+                        {t("leaderboardPage.totalScore")}
                       </th>
                       <th className="px-4 py-2 text-left text-sm font-semibold text-gray-800">
-                        Total Score
+                        {t("leaderboardPage.averageScore")}
+                      </th>
+                      <th className="px-4 py-2 text-left text-sm font-semibold text-gray-800">
+                        {t("leaderboardPage.averageCorrectPercentage")}
                       </th>
                     </tr>
                   </thead>
@@ -95,13 +105,16 @@ const LeaderboardPage: React.FC = () => {
                       >
                         <td className="px-4 py-2 text-gray-600">{index + 1}</td>
                         <td className="px-4 py-2 text-gray-600">
-                          {entry.userName}
-                        </td>
-                        <td className="px-4 py-2 text-gray-600">
-                          {entry.maxScore.toFixed(2)}
+                          {entry.username}
                         </td>
                         <td className="px-4 py-2 text-gray-600">
                           {entry.totalScore.toFixed(2)}
+                        </td>
+                        <td className="px-4 py-2 text-gray-600">
+                          {entry.avgAttemptScore.toFixed(2)}
+                        </td>
+                        <td className="px-4 py-2 text-gray-600">
+                          {entry.avgCorrectPercentage.toFixed(2)}
                         </td>
                       </motion.tr>
                     ))}
@@ -109,7 +122,9 @@ const LeaderboardPage: React.FC = () => {
                 </table>
               </div>
             ) : (
-              <p className="text-gray-600">No leaderboard data available.</p>
+              <p className="text-gray-600">
+                {t("leaderboardPage.noLeaderboardData")}
+              </p>
             )}
           </motion.div>
         )}

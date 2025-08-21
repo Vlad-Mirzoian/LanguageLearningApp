@@ -5,8 +5,10 @@ import { viewAttempt } from "../services/api";
 import { AxiosError } from "axios";
 import { motion } from "framer-motion";
 import { ArrowPathIcon } from "@heroicons/react/24/solid";
+import { useTranslation } from "react-i18next";
 
 const ViewAttemptPage: React.FC = () => {
+  const { t } = useTranslation();
   const { token } = useParams<{ token: string }>();
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [loading, setLoading] = useState(true);
@@ -15,7 +17,7 @@ const ViewAttemptPage: React.FC = () => {
   useEffect(() => {
     const fetchAttempt = async () => {
       if (!token) {
-        setError("Invalid attempt token");
+        setError(t("viewAttemptPage.invalidAttemptToken"));
         setLoading(false);
         return;
       }
@@ -26,16 +28,19 @@ const ViewAttemptPage: React.FC = () => {
         setAttempt(data);
       } catch (error: unknown) {
         if (error instanceof AxiosError) {
-          setError(error.response?.data?.error || "Failed to load attempt");
+          setError(
+            error.response?.data?.error ||
+              t("viewAttemptPage.failedToLoadAttempt")
+          );
         } else {
-          setError("Failed to load attempt");
+          setError(t("viewAttemptPage.failedToLoadAttempt"));
         }
       } finally {
         setLoading(false);
       }
     };
     fetchAttempt();
-  }, [token, setAttempt]);
+  }, [token, setAttempt, t]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex items-center justify-center p-4">
@@ -46,12 +51,14 @@ const ViewAttemptPage: React.FC = () => {
         className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8"
       >
         <h2 className="text-3xl font-bold text-center text-indigo-700 mb-6">
-          Attempt Details
+          {t("viewAttemptPage.attemptDetails")}
         </h2>
         {loading && (
           <div className="flex items-center mb-4">
             <ArrowPathIcon className="h-5 w-5 text-indigo-600 animate-spin" />
-            <span className="ml-2 text-gray-600">Loading cards...</span>
+            <span className="ml-2 text-gray-600">
+              {t("viewAttemptPage.loadingAttemptData")}
+            </span>
           </div>
         )}
         {error && (
@@ -67,32 +74,46 @@ const ViewAttemptPage: React.FC = () => {
             className="space-y-4"
           >
             <p className="text-gray-600">
-              <span className="font-semibold">User:</span> {attempt.userId.username}
+              <span className="font-semibold">
+                {t("viewAttemptPage.user")}:
+              </span>{" "}
+              {attempt.userId.username}
             </p>
             <p className="text-gray-600">
-              <span className="font-semibold">Language:</span>{" "}
+              <span className="font-semibold">
+                {t("viewAttemptPage.language")}:
+              </span>{" "}
               {attempt.languageId.name}
             </p>
             <p className="text-gray-600">
-              <span className="font-semibold">Level:</span> {attempt.categoryId.order} (
-              {attempt.categoryId.name})
+              <span className="font-semibold">
+                {t("viewAttemptPage.level")}:
+              </span>{" "}
+              {attempt.categoryId.order} ({attempt.categoryId.name})
             </p>
             <p className="text-gray-600">
-              <span className="font-semibold">Exercise Type:</span>{" "}
-              {attempt.type.charAt(0).toUpperCase() + attempt.type.slice(1)}
+              <span className="font-semibold">
+                {t("viewAttemptPage.exerciseType")}:
+              </span>{" "}
+              {t(`statisticsPage.${attempt.type}`)}
             </p>
             <p className="text-gray-600">
-              <span className="font-semibold">Score:</span> {attempt.score}%
+              <span className="font-semibold">
+                {t("viewAttemptPage.score")}:
+              </span>{" "}
+              {attempt.score}%
             </p>
             <p className="text-gray-600">
-              <span className="font-semibold">Date:</span>{" "}
+              <span className="font-semibold">
+                {t("viewAttemptPage.date")}:
+              </span>{" "}
               {new Date(attempt.date).toLocaleDateString()}
             </p>
             <a
               href="/register"
               className="block text-center mt-4 text-indigo-600 hover:text-indigo-800 font-semibold hover:underline transition-colors duration-200"
             >
-              Join Langster to try it!
+              {t("viewAttemptPage.joinLangster")}
             </a>
           </motion.div>
         )}

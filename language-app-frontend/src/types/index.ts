@@ -2,9 +2,10 @@ export interface User {
   email: string;
   username: string;
   role: "user" | "admin";
+  interfaceLanguage: Language;
   nativeLanguageId?: string;
   learningLanguagesIds?: string[];
-  avatar?: string | null;
+  avatar?: string;
 }
 
 export interface Language {
@@ -90,9 +91,10 @@ export interface StatsByType {
 }
 
 export interface LeaderboardEntry {
-  userName: string;
-  maxScore: number;
+  username: string;
   totalScore: number;
+  avgAttemptScore: number;
+  avgCorrectPercentage: number;
 }
 
 export interface AuthResponse {
