@@ -2,8 +2,8 @@ import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import FormInput from "../components/ui/FormInput";
 import { useAuth } from "../hooks/useAuth";
-import { AxiosError } from "axios";
 import { useTranslation } from "react-i18next";
+import type { ApiError } from "../types/index";
 
 const LoginPage: React.FC = () => {
   const { t } = useTranslation();
@@ -78,14 +78,9 @@ const LoginPage: React.FC = () => {
     try {
       await login(formData.identifier, formData.password);
       navigate("/dashboard");
-    } catch (error: unknown) {
-      if (error instanceof AxiosError) {
-        setServerError(
-          error.response?.data?.error || t("loginPage.loggingInFailed")
-        );
-      } else {
-        setServerError(t("loginPage.loggingInFailed"));
-      }
+    } catch (err) {
+      const error = err as ApiError;
+      setServerError(error.message || t("loginPage.loggingInFailed"));
     }
   };
 

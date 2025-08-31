@@ -1,12 +1,18 @@
 const mongoose = require("mongoose");
-const UserProgress = require("../models/UserProgress");
+const ModuleProgress = require("../models/ModuleProgress");
+const Language = require("../models/Language");
 const Attempt = require("../models/Attempt");
 
 const leaderboardController = {
   async getLeaderboard(req, res) {
     try {
       const { languageId } = req.query;
-      const progressAggregation = await UserProgress.aggregate([
+      const language = await Language.findById(languageId).lean();
+      if (!language) {
+        return res.status(404).json({ error: "Language not found" });
+      }
+
+      const moduleProgressAggregation = await ModuleProgress.aggregate([
         {
           $match: {
             languageId: mongoose.Types.ObjectId.createFromHexString(languageId),
@@ -26,7 +32,7 @@ const leaderboardController = {
           $group: {
             _id: "$userId",
             username: { $first: "$user.username" },
-            totalScore: { $sum: "$maxScore" },
+            totalScore: { $sum: "$totalScore" },
           },
         },
       ]);
@@ -56,12 +62,12 @@ const leaderboardController = {
       const attemptMap = new Map(
         attemptAggregation.map((a) => [String(a._id), a])
       );
-      const leaderboard = progressAggregation
+      const leaderboard = moduleProgressAggregation
         .map((p) => {
           const attempt = attemptMap.get(String(p._id)) || {};
           return {
             username: p.username,
-            totalScore: p.totalScore,
+            totalScore: p.totalScore || 0,
             avgAttemptScore: attempt.avgAttemptScore || 0,
             avgCorrectPercentage: (attempt.avgCorrectPercentage || 0) * 100,
           };

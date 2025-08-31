@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import type { Language } from "../../types";
-import { getLanguages } from "../../services/api";
+import type { ApiError, Language } from "../../types/index";
+import { LanguageAPI } from "../../services/index";
 import { useAuth } from "../../hooks/useAuth";
 import { motion } from "framer-motion";
 import { useLanguage } from "../../hooks/useLanguage";
@@ -10,7 +10,6 @@ import {
   ChevronRightIcon,
 } from "@heroicons/react/24/solid";
 import { useTranslation } from "react-i18next";
-import { AxiosError } from "axios";
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -29,19 +28,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
     const fetchLanguages = async () => {
       try {
         setLoading(true);
-        const data = await getLanguages();
+        const data = await LanguageAPI.getLanguages();
         setLanguages(data);
         if (!selectedLanguageId && user?.learningLanguagesIds?.length) {
           setSelectedLanguageId(user.learningLanguagesIds[0]);
         }
-      } catch (error: unknown) {
-        if (error instanceof AxiosError) {
-          setError(
-            error.response?.data?.error || t("sidebar.failedToLoadLanguages")
-          );
-        } else {
-          setError(t("sidebar.failedToLoadLanguages"));
-        }
+      } catch (err) {
+        const error = err as ApiError;
+        setError(error.message || t("sidebar.failedToLoadLanguages"));
       } finally {
         setLoading(false);
       }

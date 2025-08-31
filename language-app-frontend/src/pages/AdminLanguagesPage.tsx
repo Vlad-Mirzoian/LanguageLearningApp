@@ -1,15 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import type { Language } from "../types";
-import {
-  createLanguage,
-  deleteLanguage,
-  getLanguages,
-  updateLanguage,
-} from "../services/api";
+import type { ApiError, Language } from "../types/index";
+import { LanguageAPI } from "../services/index";
 import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
 import FormInput from "../components/ui/FormInput";
 import { ArrowPathIcon } from "@heroicons/react/24/solid";
-import { AxiosError } from "axios";
 import { useTranslation } from "react-i18next";
 
 const AdminLanguagesPage: React.FC = () => {
@@ -32,17 +26,13 @@ const AdminLanguagesPage: React.FC = () => {
     const fetchLanguages = async () => {
       try {
         setLoading(true);
-        const data = await getLanguages();
+        const data = await LanguageAPI.getLanguages();
         setLanguages(data);
-      } catch (error: unknown) {
-        if (error instanceof AxiosError) {
-          setError(
-            error.response?.data?.error ||
-              t("adminLanguagesPage.failedToLoadLanguages")
-          );
-        } else {
-          setError(t("adminLanguagesPage.failedToLoadLanguages"));
-        }
+      } catch (err) {
+        const error = err as ApiError;
+        setError(
+          error.message || t("adminLanguagesPage.failedToLoadLanguages")
+        );
       } finally {
         setLoading(false);
       }
@@ -99,21 +89,17 @@ const AdminLanguagesPage: React.FC = () => {
     }
 
     try {
-      const newLanguage = await createLanguage(formData);
+      const newLanguage = await LanguageAPI.createLanguage(formData);
       setLanguages([...languages, newLanguage]);
       setIsAddModalOpen(false);
       setFormData({ code: "", name: "" });
       setErrors({});
       setServerError("");
-    } catch (error: unknown) {
-      if (error instanceof AxiosError) {
-        setServerError(
-          error.response?.data?.error ||
-            t("adminLanguagesPage.failedToCreateLanguage")
-        );
-      } else {
-        setServerError(t("adminLanguagesPage.failedToCreateLanguage"));
-      }
+    } catch (err) {
+      const error = err as ApiError;
+      setServerError(
+        error.message || t("adminLanguagesPage.failedToCreateLanguage")
+      );
     }
   };
 
@@ -132,7 +118,7 @@ const AdminLanguagesPage: React.FC = () => {
         updateData.name = formData.name;
 
       if (Object.keys(updateData).length > 0) {
-        const updatedLanguage = await updateLanguage(
+        const updatedLanguage = await LanguageAPI.updateLanguage(
           currentLanguage._id,
           updateData
         );
@@ -147,15 +133,11 @@ const AdminLanguagesPage: React.FC = () => {
       setFormData({ code: "", name: "" });
       setErrors({});
       setServerError("");
-    } catch (error: unknown) {
-      if (error instanceof AxiosError) {
-        setServerError(
-          error.response?.data?.error ||
-            t("adminLanguagesPage.failedToUpdateLanguage")
-        );
-      } else {
-        setServerError(t("adminLanguagesPage.failedToUpdateLanguage"));
-      }
+    } catch (err) {
+      const error = err as ApiError;
+      setServerError(
+        error.message || t("adminLanguagesPage.failedToUpdateLanguage")
+      );
     }
   };
 
@@ -165,21 +147,17 @@ const AdminLanguagesPage: React.FC = () => {
     if (!currentLanguage) return;
 
     try {
-      await deleteLanguage(currentLanguage._id);
+      await LanguageAPI.deleteLanguage(currentLanguage._id);
       setLanguages(
         languages.filter((lang) => lang._id !== currentLanguage._id)
       );
       setIsDeleteModalOpen(false);
       setCurrentLanguage(null);
-    } catch (error: unknown) {
-      if (error instanceof AxiosError) {
-        setServerError(
-          error.response?.data?.error ||
-            t("adminLanguagesPage.failedToDeleteLanguage")
-        );
-      } else {
-        setServerError(t("adminLanguagesPage.failedToDeleteLanguage"));
-      }
+    } catch (err) {
+      const error = err as ApiError;
+      setServerError(
+        error.message || t("adminLanguagesPage.failedToDeleteLanguage")
+      );
     }
   };
 

@@ -2,19 +2,51 @@ const express = require("express");
 const router = express.Router();
 const { authenticate, authorizeRoles } = require("../middleware/auth");
 const { validate } = require("../middleware/validation");
-const { body, param } = require("express-validator");
-const categoryController = require("../controllers/categoryController");
+const { body, param, query } = require("express-validator");
+const moduleController = require("../controllers/moduleController");
 
-// GET /api/categories
-router.get("/", authenticate, categoryController.getCategories);
+// GET /api/modules
+router.get(
+  "/",
+  authenticate,
+  [
+    query("languageId")
+      .optional()
+      .isMongoId()
+      .withMessage("Invalid language ID"),
+    query("name")
+      .optional()
+      .isString()
+      .trim()
+      .withMessage("Name must be a string"),
+    query("limit")
+      .optional()
+      .isInt({ min: 1, max: 100 })
+      .withMessage("Limit must be an integer between 1 and 100")
+      .toInt(),
+    query("skip")
+      .optional()
+      .isInt({ min: 0 })
+      .withMessage("Skip must be a non-negative integer")
+      .toInt(),
+  ],
+  validate,
+  moduleController.getModules
+);
 
-// POST /api/categories
+// POST /api/modules
 router.post(
   "/",
   authenticate,
   authorizeRoles(["admin"]),
   [
     body("name").isString().trim().notEmpty().withMessage("Name is required"),
+    body("languageId")
+      .notEmpty()
+      .withMessage("Language is required")
+      .bail()
+      .isMongoId()
+      .withMessage("Invalid language ID"),
     body("description")
       .optional()
       .isString()
@@ -29,10 +61,10 @@ router.post(
       .withMessage("Required score must be a non-negative integer"),
   ],
   validate,
-  categoryController.createCategory
+  moduleController.createModule
 );
 
-// PUT /api/categories/order
+// PUT /api/modules/order
 router.put(
   "/order",
   authenticate,
@@ -43,28 +75,35 @@ router.put(
       .withMessage("Orders must be a non-empty array"),
     body("orders.*.id")
       .isMongoId()
-      .withMessage("Each order must contain a valid category ID"),
+      .withMessage("Each order must contain a valid module ID"),
     body("orders.*.order")
       .isInt({ min: 1 })
       .withMessage("Each order must be a positive integer"),
   ],
   validate,
-  categoryController.updateCategoryOrders
+  moduleController.updateModuleOrders
 );
 
-// PUT /api/categories/:id
+// PUT /api/modules/:id
 router.put(
   "/:id",
   authenticate,
   authorizeRoles(["admin"]),
   [
-    param("id").isMongoId().withMessage("Invalid category ID"),
+    param("id").isMongoId().withMessage("Invalid module ID"),
     body("name")
       .optional()
       .isString()
       .trim()
       .notEmpty()
       .withMessage("Name cannot be empty if provided"),
+    body("languageId")
+      .optional()
+      .notEmpty()
+      .withMessage("Language cannot be empty if provided")
+      .bail()
+      .isMongoId()
+      .withMessage("Invalid language ID"),
     body("description").optional({ checkFalsy: false }).isString().trim(),
     body("order")
       .optional()
@@ -76,17 +115,17 @@ router.put(
       .withMessage("Required score must be a non-negative integer"),
   ],
   validate,
-  categoryController.updateCategory
+  moduleController.updateModule
 );
 
-// DELETE /api/categories/:id
+// DELETE /api/modules/:id
 router.delete(
   "/:id",
   authenticate,
   authorizeRoles(["admin"]),
-  [param("id").isMongoId().withMessage("Invalid category ID")],
+  [param("id").isMongoId().withMessage("Invalid module ID")],
   validate,
-  categoryController.deleteCategory
+  moduleController.deleteModule
 );
 
 module.exports = router;

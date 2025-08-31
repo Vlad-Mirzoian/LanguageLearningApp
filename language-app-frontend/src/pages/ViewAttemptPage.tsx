@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import type { Attempt } from "../types";
-import { viewAttempt } from "../services/api";
-import { AxiosError } from "axios";
+import type { ApiError, Attempt } from "../types/index";
+import { AttemptAPI } from "../services/index";
 import { motion } from "framer-motion";
 import { ArrowPathIcon } from "@heroicons/react/24/solid";
 import { useTranslation } from "react-i18next";
@@ -24,17 +23,11 @@ const ViewAttemptPage: React.FC = () => {
       setLoading(true);
       setError("");
       try {
-        const data = await viewAttempt(token);
+        const data = await AttemptAPI.viewAttempt(token);
         setAttempt(data);
-      } catch (error: unknown) {
-        if (error instanceof AxiosError) {
-          setError(
-            error.response?.data?.error ||
-              t("viewAttemptPage.failedToLoadAttempt")
-          );
-        } else {
-          setError(t("viewAttemptPage.failedToLoadAttempt"));
-        }
+      } catch (err) {
+        const error = err as ApiError;
+        setError(error.message || t("viewAttemptPage.failedToLoadAttempt"));
       } finally {
         setLoading(false);
       }
@@ -87,9 +80,9 @@ const ViewAttemptPage: React.FC = () => {
             </p>
             <p className="text-gray-600">
               <span className="font-semibold">
-                {t("viewAttemptPage.level")}:
+                {t("viewAttemptPage.module")}:
               </span>{" "}
-              {attempt.categoryId.order} ({attempt.categoryId.name})
+              {attempt.moduleId?.name}
             </p>
             <p className="text-gray-600">
               <span className="font-semibold">

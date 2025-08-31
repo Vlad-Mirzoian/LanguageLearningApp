@@ -4,6 +4,10 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const User = require("../models/User");
 const Language = require("../models/Language");
+const Module = require("../models/Module");
+const Level = require("../models/Level");
+const ModuleProgress = require("../models/ModuleProgress");
+const LevelProgress = require("../models/LevelProgress");
 const {
   sendVerificationEmail,
   sendResetPasswordEmail,
@@ -357,68 +361,99 @@ const authController = {
         learningLanguagesIds,
       } = req.body;
 
-      const conditions = [
-        email ? { email, _id: { $ne: req.userId } } : null,
-        username
-          ? { username: username.toLowerCase(), _id: { $ne: req.userId } }
-          : null,
-      ].filter(Boolean);
-      let existingUser = null;
-      if (conditions.length > 0) {
-        existingUser = await User.findOne({ $or: conditions }).lean();
-      }
-      if (existingUser) {
-        return res.status(400).json({
-          error:
-            existingUser.email === email
-              ? "Email already exists"
-              : "Username already exists",
-        });
+      const user = await User.findById(req.userId).lean();
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
       }
 
-      if (nativeLanguageId) {
-        const lang = await Language.findById(nativeLanguageId).lean();
-        if (!lang) {
-          return res.status(400).json({ error: "Native language not found" });
-        }
-      }
-      if (learningLanguagesIds && learningLanguagesIds.length > 0) {
-        const langs = await Language.find({
-          _id: { $in: learningLanguagesIds },
-        }).lean();
-        if (langs.length !== learningLanguagesIds.length) {
-          return res
-            .status(400)
-            .json({ error: "One or more learning languages not found" });
-        }
+      const currentLearningLanguages = user.learningLanguagesIds || [];
+      const newLanguages = (learningLanguagesIds || []).filter(
+        (langId) =>
+          !currentLearningLanguages.some(
+            (currentId) => currentId.toString() === langId
+          )
+      );
+      const removedLanguages = currentLearningLanguages.filter(
+        (langId) =>
+          !(learningLanguagesIds || []).some(
+            (newId) => newId === langId.toString()
+          )
+      );
+
+      if (removedLanguages.length > 0) {
+        await ModuleProgress.deleteMany({
+          userId: req.userId,
+          languageId: { $in: removedLanguages },
+        });
+        await LevelProgress.deleteMany({
+          userId: req.userId,
+          languageId: { $in: removedLanguages },
+        });
       }
 
       const updateData = {
         ...(email && { email }),
         ...(username && { username: username.toLowerCase() }),
         ...(password && { password: await bcrypt.hash(password, 10) }),
-        ...(nativeLanguageId && { nativeLanguageId }),
+        ...(nativeLanguageId !== undefined && { nativeLanguageId }),
         ...(learningLanguagesIds && { learningLanguagesIds }),
       };
 
-      const user = await User.findOneAndUpdate(
+      const updatedUser = await User.findOneAndUpdate(
         { _id: req.userId },
         updateData,
         { new: true, lean: true }
       );
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
+
+      for (const langId of newLanguages) {
+        const firstModule = await Module.findOne({ languageId: langId })
+          .sort({ order: 1 })
+          .lean();
+        if (!firstModule) {
+          console.warn(`No modules found for language ID: ${langId}`);
+          continue;
+        }
+
+        await ModuleProgress.create({
+          userId: req.userId,
+          languageId: langId,
+          moduleId: firstModule._id,
+          totalLevels: firstModule.totalLevels,
+          completedLevels: 0,
+          bestScore: 0,
+          unlocked: firstModule.order === 1,
+          achievements: [],
+        });
+
+        const levels = await Level.find({ moduleId: firstModule._id })
+          .sort({ order: 1 })
+          .lean();
+        if (levels.length === 0) {
+          console.warn(`No levels found for module ID: ${firstModule._id}`);
+          continue;
+        }
+
+        const levelProgresses = levels.map((level, index) => ({
+          userId: req.userId,
+          languageId: langId,
+          moduleId: firstModule._id,
+          levelId: level._id,
+          bestScore: 0,
+          unlocked: index === 0,
+        }));
+
+        await LevelProgress.insertMany(levelProgresses);
       }
 
       res.json({
         message: "User updated",
         user: {
-          email: user.email,
-          username: user.username,
-          role: user.role,
-          nativeLanguageId: user.nativeLanguageId,
-          learningLanguagesIds: user.learningLanguagesIds,
-          avatar: user.avatar,
+          email: updatedUser.email,
+          username: updatedUser.username,
+          role: updatedUser.role,
+          nativeLanguageId: updatedUser.nativeLanguageId,
+          learningLanguagesIds: updatedUser.learningLanguagesIds,
+          avatar: updatedUser.avatar,
         },
       });
     } catch (error) {

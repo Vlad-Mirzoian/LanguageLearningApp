@@ -77,7 +77,7 @@ function App() {
           }
         />
         <Route
-          path="/admin/categories"
+          path="/admin/modules"
           element={
             <ProtectedRoute>
               <AdminCategoriesPage />

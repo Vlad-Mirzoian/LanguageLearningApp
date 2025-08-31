@@ -11,6 +11,7 @@ i18next
   .use(initReactI18next)
   .use(LanguageDetector)
   .init({
+    // resources: {},
     resources: {
       en: { translation: en },
       es: { translation: es },

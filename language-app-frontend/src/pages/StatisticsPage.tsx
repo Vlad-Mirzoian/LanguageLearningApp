@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { useLanguage } from "../hooks/useLanguage";
-import type { Attempt, Language, StatsByType, UserProgress } from "../types";
-import { AxiosError } from "axios";
-import { getLanguages, getStats } from "../services/api";
+import type {
+  ApiError,
+  Attempt,
+  Language,
+  StatsResponse,
+} from "../types/index";
+import { LanguageAPI, StatsAPI } from "../services/index";
 import { ArrowPathIcon } from "@heroicons/react/24/solid";
 import {
   LineChart,
@@ -26,18 +30,13 @@ const StatisticsPage: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { selectedLanguageId, setSelectedLanguageId } = useLanguage();
-  const [progress, setProgress] = useState<UserProgress[]>([]);
-  const [statsByType, setStatsByType] = useState<StatsByType>({});
-  const [attempts, setAttempts] = useState<Attempt[]>([]);
+  const [stats, setStats] = useState<StatsResponse | null>(null);
   const [languages, setLanguages] = useState<Language[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [dateFilter, setDateFilter] = useState<"7 days" | "30 days" | "all">(
+  const [dateFilter, setDateFilter] = useState<"7days" | "30days" | "all">(
     "all"
   );
-  const [typeFilter, setTypeFilter] = useState<
-    "flash" | "test" | "dictation" | "all"
-  >("all");
 
   useEffect(() => {
     const fetchStatistics = async () => {
@@ -45,32 +44,19 @@ const StatisticsPage: React.FC = () => {
         setLoading(true);
         setError("");
         const [statsData, langData] = await Promise.all([
-          getStats(
+          StatsAPI.getStats(
             selectedLanguageId ? { languageId: selectedLanguageId } : {}
           ),
-          getLanguages(),
+          LanguageAPI.getLanguages(),
         ]);
-        setProgress(statsData.progress || []);
-        setStatsByType(statsData.statsByType || {});
-        setAttempts(
-          statsData.attempts?.map((a: Attempt) => ({
-            ...a,
-            date: a.date,
-          })) || []
-        );
+        setStats(statsData);
         setLanguages(langData || []);
         if (user?.learningLanguagesIds?.length && !selectedLanguageId) {
           setSelectedLanguageId(user.learningLanguagesIds[0]);
         }
-      } catch (error: unknown) {
-        if (error instanceof AxiosError) {
-          setError(
-            error.response?.data?.error ||
-              t("statisticsPage.failedToLoadStatistics")
-          );
-        } else {
-          setError(t("statisticsPage.failedToLoadStatistics"));
-        }
+      } catch (err) {
+        const error = err as ApiError;
+        setError(error.message || t("statisticsPage.failedToLoadStatistics"));
       } finally {
         setLoading(false);
       }
@@ -82,17 +68,16 @@ const StatisticsPage: React.FC = () => {
     if (dateFilter === "all") return attempts;
     const now = new Date();
     const cutoffDate =
-      dateFilter === "7 days"
+      dateFilter === "7days"
         ? new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
         : new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     return attempts.filter((a) => new Date(a.date) >= cutoffDate);
   };
 
-  const filteredAttempts = filterByDate(attempts).filter((a) => {
+  const filteredAttempts = filterByDate(stats?.attempts || []).filter((a) => {
     const languageMatch =
       String(a.languageId?._id || a.languageId) === selectedLanguageId;
-    const typeMatch = typeFilter === "all" || a.type === typeFilter;
-    return languageMatch && typeMatch;
+    return languageMatch;
   });
 
   const attemptData = filteredAttempts
@@ -103,8 +88,10 @@ const StatisticsPage: React.FC = () => {
         year: "numeric",
       }),
       score: a.score,
-      categoryId: a.categoryId._id,
-      categoryName: a.categoryId.name,
+      moduleId: a.moduleId?._id,
+      moduleName: a.moduleId?.name || "Unknown Module",
+      levelId: a.levelId?._id,
+      levelOrder: a.levelId?.order || 0,
       type: a.type,
       attemptCount: 1,
     }))
@@ -117,52 +104,46 @@ const StatisticsPage: React.FC = () => {
       date: string;
       [key: string]: number | string | undefined;
     } = { date };
-    const categories = Array.from(
-      new Set(attemptData.map((a) => a.categoryId))
-    );
-    categories.forEach((categoryId) => {
-      const categoryAttempts = attemptData
-        .filter((a) => a.date === date && a.categoryId === categoryId)
+    const modules = Array.from(new Set(attemptData.map((a) => a.moduleId)));
+    modules.forEach((moduleId) => {
+      const moduleAttempts = attemptData
+        .filter((a) => a.date === date && a.moduleId === moduleId)
         .sort(
           (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
         );
-      const categoryProgress = progress.find(
-        (p) => p.categoryId._id === categoryId
-      );
-      const categoryName =
-        categoryProgress?.categoryId.name || `Category ${categoryId}`;
-      if (categoryAttempts.length > 0) {
-        dataPoint[categoryName] =
-          categoryAttempts[categoryAttempts.length - 1].score;
-        dataPoint[`${categoryName}_attempts`] = categoryAttempts.length;
-        dataPoint[`${categoryName}_type`] =
-          categoryAttempts[categoryAttempts.length - 1].type;
-        dataPoint[`${categoryName}_categoryId`] = categoryId;
+      const moduleStats = stats?.statsByModule[moduleId || ""] || null;
+      const moduleName =
+        moduleStats?.moduleName || `Module ${moduleId || "Unknown"}`;
+      if (moduleAttempts.length > 0) {
+        dataPoint[moduleName] = moduleAttempts[moduleAttempts.length - 1].score;
+        dataPoint[`${moduleName}_attempts`] = moduleAttempts.length;
+        dataPoint[`${moduleName}_type`] =
+          moduleAttempts[moduleAttempts.length - 1].type;
+        dataPoint[`${moduleName}_moduleId`] = moduleId;
       } else {
-        dataPoint[categoryName] = undefined;
-        dataPoint[`${categoryName}_attempts`] = undefined;
-        dataPoint[`${categoryName}_type`] = undefined;
-        dataPoint[`${categoryName}_categoryId`] = undefined;
+        dataPoint[moduleName] = undefined;
+        dataPoint[`${moduleName}_attempts`] = undefined;
+        dataPoint[`${moduleName}_type`] = undefined;
+        dataPoint[`${moduleName}_moduleId`] = undefined;
       }
     });
     return dataPoint;
   });
 
-  const languageProgress = progress.filter(
-    (p) => String(p.languageId) === selectedLanguageId
-  );
-
   const accuracyData = ["flash", "test", "dictation"].map((type) => {
-    const stats = statsByType[type] || { correctAnswers: 0, totalAnswers: 0 };
+    const statsType = stats?.statsByType[type] || {
+      correctAnswers: 0,
+      totalAnswers: 0,
+    };
     const accuracy =
-      stats.totalAnswers > 0
-        ? (stats.correctAnswers / stats.totalAnswers) * 100
+      statsType.totalAnswers > 0
+        ? (statsType.correctAnswers / statsType.totalAnswers) * 100
         : 0;
     return {
       type: t(`statisticsPage.${type}`),
       accuracy: Number(accuracy.toFixed(1)),
-      correctAnswers: stats.correctAnswers,
-      totalAnswers: stats.totalAnswers,
+      correctAnswers: statsType.correctAnswers,
+      totalAnswers: statsType.totalAnswers,
     };
   });
 
@@ -196,36 +177,51 @@ const StatisticsPage: React.FC = () => {
         10,
         yOffset
       );
-      yOffset += 10;
-      doc.text(
-        `${t("statisticsPage.filterByType")}: ${
-          typeFilter === "all"
-            ? t("statisticsPage.allTypes")
-            : t(`statisticsPage.${typeFilter}`)
-        }`,
-        10,
-        yOffset
-      );
       yOffset += 20;
 
       doc.setFontSize(14);
-      doc.text(t("statisticsPage.dailyProgressByCategory"), 10, yOffset);
+      doc.text(t("statisticsPage.moduleProgress"), 10, yOffset);
+      yOffset += 10;
+      autoTable(doc, {
+        startY: yOffset,
+        head: [
+          [
+            t("statisticsPage.module"),
+            t("statisticsPage.totalScore"),
+            t("statisticsPage.completedLevels"),
+            t("statisticsPage.totalLevels"),
+          ],
+        ],
+        body: Object.values(stats?.statsByModule || {}).map((m) => [
+          `${m.moduleName} (${t("statisticsPage.module")} ${m.order})`,
+          m.totalScore.toFixed(2),
+          m.completedLevels,
+          m.totalLevels,
+        ]),
+        styles: { fontSize: 10 },
+        headStyles: { fillColor: [79, 70, 229] },
+        margin: { top: 10 },
+      });
+      yOffset = (doc as any).lastAutoTable.finalY + 20;
+
+      doc.setFontSize(14);
+      doc.text(t("statisticsPage.levelProgress"), 10, yOffset);
       yOffset += 10;
       autoTable(doc, {
         startY: yOffset,
         head: [
           [
             t("statisticsPage.level"),
-            t("statisticsPage.category"),
-            t("statisticsPage.maxScore"),
-            t("statisticsPage.totalCards"),
+            t("statisticsPage.module"),
+            t("statisticsPage.taskType"),
+            t("statisticsPage.bestScore"),
           ],
         ],
-        body: languageProgress.map((p) => [
-          p.categoryId.order,
-          p.categoryId.name,
-          p.maxScore.toFixed(2),
-          p.totalCards,
+        body: Object.values(stats?.statsByLevel || {}).map((l) => [
+          l.levelOrder,
+          l.moduleName,
+          l.task || "Unknown",
+          l.bestScore.toFixed(2),
         ]),
         styles: { fontSize: 10 },
         headStyles: { fillColor: [79, 70, 229] },
@@ -246,18 +242,12 @@ const StatisticsPage: React.FC = () => {
             t("statisticsPage.accuracy"),
           ],
         ],
-        body: accuracyData
-          .filter(
-            (d) =>
-              typeFilter === "all" ||
-              d.type.toLowerCase() === t(`statisticsPage.${typeFilter}`)
-          )
-          .map((d) => [
-            d.type,
-            d.correctAnswers,
-            d.totalAnswers,
-            d.accuracy.toFixed(1),
-          ]),
+        body: accuracyData.map((d) => [
+          d.type,
+          d.correctAnswers,
+          d.totalAnswers,
+          d.accuracy.toFixed(1),
+        ]),
         styles: { fontSize: 10 },
         headStyles: { fillColor: [79, 70, 229] },
         margin: { top: 10 },
@@ -269,14 +259,9 @@ const StatisticsPage: React.FC = () => {
         }.pdf`
       );
       toast(t("statisticsPage.exportedToPDF"));
-    } catch (error: unknown) {
-      if (error instanceof AxiosError) {
-        setError(
-          error.response?.data?.error || t("statisticsPage.failedToExportPDF")
-        );
-      } else {
-        setError(t("statisticsPage.failedToExportPDF"));
-      }
+    } catch (err) {
+      const error = err as ApiError;
+      setError(error.message || t("statisticsPage.failedToExportPDF"));
     }
   };
 
@@ -301,7 +286,7 @@ const StatisticsPage: React.FC = () => {
             {error}
           </div>
         )}
-        {!loading && !error && selectedLanguageId && (
+        {!loading && !error && selectedLanguageId && stats && (
           <>
             <div className="mb-4 flex flex-col sm:flex-row gap-4">
               <div>
@@ -315,50 +300,18 @@ const StatisticsPage: React.FC = () => {
                   id="dateFilter"
                   value={dateFilter}
                   onChange={(e) =>
-                    setDateFilter(
-                      e.target.value as "7 days" | "30 days" | "all"
-                    )
+                    setDateFilter(e.target.value as "7days" | "30days" | "all")
                   }
                   className="p-2 border rounded-md bg-white shadow-sm focus:ring-2 focus:ring-indigo-500"
                 >
-                  <option value="7 days">
-                    {t("statisticsPage.last7Days")}
-                  </option>
-                  <option value="30 days">
-                    {t("statisticsPage.last30Days")}
-                  </option>
-                  <option value="all">{t("statisticsPage.allTime")}</option>
-                </select>
-              </div>
-              <div>
-                <label
-                  htmlFor="typeFilter"
-                  className="mr-2 text-gray-700 font-medium"
-                >
-                  {t("statisticsPage.filterByType")}:
-                </label>
-                <select
-                  id="typeFilter"
-                  value={typeFilter}
-                  onChange={(e) =>
-                    setTypeFilter(
-                      e.target.value as "flash" | "test" | "dictation" | "all"
-                    )
-                  }
-                  className="p-2 border rounded-md bg-white shadow-sm focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="all">{t("statisticsPage.allTypes")}</option>
-                  <option value="flash">{t("statisticsPage.flash")}</option>
-                  <option value="test">{t("statisticsPage.test")}</option>
-                  <option value="dictation">
-                    {t("statisticsPage.dictation")}
-                  </option>
+                  <option value="7 days">{t("statisticsPage.7days")}</option>
+                  <option value="30 days">{t("statisticsPage.30days")}</option>
+                  <option value="all">{t("statisticsPage.all")}</option>
                 </select>
               </div>
               <button
                 onClick={() => {
                   setDateFilter("all");
-                  setTypeFilter("all");
                 }}
                 className="p-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
               >
@@ -373,9 +326,42 @@ const StatisticsPage: React.FC = () => {
             </div>
             <div className="mb-6 bg-white p-6 rounded-lg shadow-lg">
               <h3 className="text-xl font-semibold text-gray-800 mb-4">
-                {t("statisticsPage.dailyProgressByCategory")}
+                {t("statisticsPage.summary")}
               </h3>
-              {attemptData.length === 0 || languageProgress.length === 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <p className="text-gray-600">
+                    {t("statisticsPage.totalModules")}:{" "}
+                    {stats.summary.totalModules}
+                  </p>
+                  <p className="text-gray-600">
+                    {t("statisticsPage.completedModules")}:{" "}
+                    {stats.summary.completedModules}
+                  </p>
+                </div>
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <p className="text-gray-600">
+                    {t("statisticsPage.totalLevels")}:{" "}
+                    {stats.summary.totalLevels}
+                  </p>
+                  <p className="text-gray-600">
+                    {t("statisticsPage.completedLevels")}:{" "}
+                    {stats.summary.completedLevels}
+                  </p>
+                </div>
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <p className="text-gray-600">
+                    {t("statisticsPage.totalAchievements")}:{" "}
+                    {stats.summary.totalAchievements}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="mb-6 bg-white p-6 rounded-lg shadow-lg">
+              <h3 className="text-xl font-semibold text-gray-800 mb-4">
+                {t("statisticsPage.moduleProgress")}
+              </h3>
+              {Object.values(stats.statsByModule).length === 0 ? (
                 <div className="text-center text-gray-600 py-8">
                   <p className="mb-2">{t("statisticsPage.noAttemptData")}</p>
                   <p className="text-sm">
@@ -418,33 +404,28 @@ const StatisticsPage: React.FC = () => {
                           boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
                         }}
                         formatter={(value, name, props) => {
-                          const categoryName = String(name).replace(
-                            /Category /,
+                          const moduleName = String(name).replace(
+                            /Module /,
                             ""
                           );
                           const attemptCount =
                             props.payload[`${name}_attempts`] || 0;
                           const type =
                             props.payload[`${name}_type`] || "Unknown";
-                          const categoryId =
-                            props.payload[`${name}_categoryId`];
-                          const maxScore =
-                            languageProgress.find(
-                              (p) => p.categoryId._id === categoryId
-                            )?.maxScore || 0;
+                          const moduleId = props.payload[`${name}_moduleId`];
+                          const totalScore =
+                            stats.statsByModule[moduleId]?.totalScore.toFixed(2) || 0;
                           return [
-                            `${value}% (${t(
+                            `${value} (${t(
                               "statisticsPage.attempts"
                             )}: ${attemptCount}, ${t(
                               "statisticsPage.type"
                             )}: ${t(`statisticsPage.${type}`)}, ${t(
-                              "statisticsPage.max"
-                            )}: ${maxScore}%)`,
-                            `${t("statisticsPage.level")} ${
-                              languageProgress.find(
-                                (p) => p.categoryId._id === categoryId
-                              )?.categoryId.order || 0
-                            }: ${categoryName}`,
+                              "statisticsPage.totalScore"
+                            )}: ${totalScore})`,
+                            `${t("statisticsPage.module")} ${
+                              stats.statsByModule[moduleId]?.order || 0
+                            }: ${moduleName}`,
                           ];
                         }}
                       />
@@ -455,31 +436,27 @@ const StatisticsPage: React.FC = () => {
                           color: "#1F2937",
                         }}
                         formatter={(value) => {
-                          const categoryProgress = languageProgress.find(
-                            (p) => p.categoryId.name === value
-                          );
-                          return `${t("statisticsPage.level")} ${
-                            categoryProgress?.categoryId.order || 0
-                          }: ${value.replace(/Category /, "")}`;
+                          const moduleStats = Object.values(
+                            stats.statsByModule
+                          ).find((m) => m.moduleName === value);
+                          return `${t("statisticsPage.module")} ${
+                            moduleStats?.order || 0
+                          }: ${value.replace(/Module /, "")}`;
                         }}
                       />
-                      {languageProgress.map((p, index) => {
-                        const categoryName =
-                          p.categoryId.name || `Category ${p.categoryId._id}`;
-                        return (
-                          <Line
-                            key={p.categoryId._id}
-                            type="monotone"
-                            dataKey={categoryName}
-                            name={categoryName}
-                            stroke={colors[index % colors.length]}
-                            strokeWidth={2}
-                            dot={{ r: 4, fill: colors[index % colors.length] }}
-                            activeDot={{ r: 6, stroke: "#FFF", strokeWidth: 2 }}
-                            connectNulls={false}
-                          />
-                        );
-                      })}
+                      {Object.values(stats.statsByModule).map((m, index) => (
+                        <Line
+                          key={m.moduleName}
+                          type="monotone"
+                          dataKey={m.moduleName}
+                          name={m.moduleName}
+                          stroke={colors[index % colors.length]}
+                          strokeWidth={2}
+                          dot={{ r: 4, fill: colors[index % colors.length] }}
+                          activeDot={{ r: 6, stroke: "#FFF", strokeWidth: 2 }}
+                          connectNulls={false}
+                        />
+                      ))}
                     </LineChart>
                   </ResponsiveContainer>
                 </div>

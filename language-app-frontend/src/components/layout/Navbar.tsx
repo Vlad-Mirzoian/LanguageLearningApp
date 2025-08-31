@@ -52,8 +52,8 @@ const Navbar: React.FC = () => {
             current: false,
           },
           {
-            name: t("navbar.categories"),
-            href: "/admin/categories",
+            name: t("navbar.modules"),
+            href: "/admin/modules",
             current: false,
           },
           { name: t("navbar.words"), href: "/admin/words", current: false },

@@ -7,9 +7,9 @@ const cardSchema = new mongoose.Schema({
     ref: "Word",
     required: true,
   },
-  categoryId: {
+  moduleId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "Category",
+    ref: "Module",
     required: true,
   },
   example: { type: String, default: "" },
@@ -18,6 +18,6 @@ const cardSchema = new mongoose.Schema({
 cardSchema.index({ wordId: 1, translationId: 1 }, { unique: true });
 cardSchema.index({ wordId: 1 });
 cardSchema.index({ translationId: 1 });
-cardSchema.index({ categoryId: 1 });
+cardSchema.index({ moduleId: 1 });
 
 module.exports = mongoose.model("Card", cardSchema);

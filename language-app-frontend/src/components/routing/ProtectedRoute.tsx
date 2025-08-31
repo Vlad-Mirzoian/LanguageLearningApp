@@ -15,7 +15,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   const adminRoutes = [
     "/admin/languages",
-    "/admin/categories",
+    "/admin/modules",
     "/admin/words",
     "/admin/cards",
   ];

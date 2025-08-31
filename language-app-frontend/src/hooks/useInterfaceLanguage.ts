@@ -1,6 +1,6 @@
 import { useInterfaceLanguageStore } from "../store/interfaceLanguageStore";
 import i18next from "i18next";
-import { getLanguages, updateInterfaceLanguage } from "../services/api";
+import { LanguageAPI, UserAPI } from "../services/index";
 import { useCallback, useEffect } from "react";
 import { useAuthStore } from "../store/authStore";
 
@@ -22,7 +22,9 @@ export const useInterfaceLanguage = () => {
       await i18next.changeLanguage(locale);
       setLocale(locale, languageId);
       if (languageId) {
-        const lang = await updateInterfaceLanguage(languageId);
+        const lang = await UserAPI.updateInterfaceLanguage({
+          interfaceLanguageId: languageId,
+        });
         const authStore = useAuthStore.getState();
         if (authStore.user) {
           authStore.setUser({
@@ -38,7 +40,7 @@ export const useInterfaceLanguage = () => {
 
   const loadAvailableLanguages = useCallback(async () => {
     try {
-      const langs = await getLanguages();
+      const langs = await LanguageAPI.getLanguages();
       setAvailableLanguages(langs);
     } catch (error) {
       console.error("Failed to fetch available languages:", error);

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import type { Language } from "../types";
+import type { Language } from "../types/index";
 
 interface InterfaceLanguageState {
   locale: string;

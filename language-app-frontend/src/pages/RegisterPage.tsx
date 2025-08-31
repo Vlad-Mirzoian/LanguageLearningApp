@@ -2,11 +2,9 @@ import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import FormInput from "../components/ui/FormInput";
 import FormSelect from "../components/ui/FormSelect";
-import { register } from "../services/api";
+import { LanguageAPI, AuthAPI } from "../services/index";
 import { useQuery } from "@tanstack/react-query";
-import api from "../services/api";
-import type { Language } from "../types";
-import { AxiosError } from "axios";
+import type { ApiError, Language } from "../types/index";
 import { useTranslation } from "react-i18next";
 
 const RegisterPage: React.FC = () => {
@@ -27,8 +25,8 @@ const RegisterPage: React.FC = () => {
   const { data: languages } = useQuery<Language[]>({
     queryKey: ["languages"],
     queryFn: async () => {
-      const response = await api.get("/languages");
-      return response.data;
+      const response = await LanguageAPI.getLanguages();
+      return response;
     },
     enabled: true,
   });
@@ -104,7 +102,7 @@ const RegisterPage: React.FC = () => {
     }
 
     try {
-      await register({
+      await AuthAPI.register({
         ...formData,
         nativeLanguageId: formData.nativeLanguageId || undefined,
         learningLanguagesIds: formData.learningLanguagesIds.length
@@ -115,14 +113,9 @@ const RegisterPage: React.FC = () => {
       setTimeout(() => {
         navigate("/login");
       }, 3000);
-    } catch (error: unknown) {
-      if (error instanceof AxiosError) {
-        setServerError(
-          error.response?.data?.error || t("registerPage.failedToRegister")
-        );
-      } else {
-        setServerError(t("registerPage.failedToRegister"));
-      }
+    } catch (err) {
+      const error = err as ApiError;
+      setServerError(error.message || t("registerPage.failedToRegister"));
     }
   };
 

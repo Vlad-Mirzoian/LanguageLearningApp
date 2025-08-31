@@ -10,10 +10,7 @@ router.get(
   "/",
   authenticate,
   [
-    query("categoryId")
-      .optional()
-      .isMongoId()
-      .withMessage("Invalid category ID"),
+    query("moduleId").optional().isMongoId().withMessage("Invalid module ID"),
     query("example")
       .optional()
       .isString()
@@ -46,10 +43,7 @@ router.get(
       .bail()
       .isMongoId()
       .withMessage("Invalid language ID"),
-    query("categoryId")
-      .optional()
-      .isMongoId()
-      .withMessage("Invalid category ID"),
+    query("moduleId").optional().isMongoId().withMessage("Invalid module ID"),
   ],
   validate,
   cardController.getReviewCards
@@ -67,10 +61,7 @@ router.get(
       .bail()
       .isMongoId()
       .withMessage("Invalid language ID"),
-    query("categoryId")
-      .optional()
-      .isMongoId()
-      .withMessage("Invalid category ID"),
+    query("moduleId").optional().isMongoId().withMessage("Invalid module ID"),
   ],
   validate,
   cardController.getTestCards
@@ -89,6 +80,12 @@ router.post(
       .bail()
       .isMongoId()
       .withMessage("Invalid language ID"),
+    body("levelId")
+      .notEmpty()
+      .withMessage("Level is required")
+      .bail()
+      .isMongoId()
+      .withMessage("Invalid level ID"),
     body("type")
       .isIn(["flash", "test", "dictation"])
       .withMessage("Type must be on of: 'flash', 'test', 'dictation'"),
@@ -121,12 +118,12 @@ router.post(
       .bail()
       .isMongoId()
       .withMessage("Invalid translation ID"),
-    body("categoryId")
+    body("moduleId")
       .notEmpty()
-      .withMessage("Category is required")
+      .withMessage("Module is required")
       .bail()
       .isMongoId()
-      .withMessage("Invalid category ID"),
+      .withMessage("Invalid module ID"),
     body("example")
       .optional()
       .isString()
@@ -159,13 +156,13 @@ router.put(
       .bail()
       .isMongoId()
       .withMessage("Invalid translation ID"),
-    body("categoryId")
+    body("moduleId")
       .optional()
       .notEmpty()
-      .withMessage("Category cannot be empty if provided")
+      .withMessage("Module cannot be empty if provided")
       .bail()
       .isMongoId()
-      .withMessage("Invalid category ID"),
+      .withMessage("Invalid module ID"),
     body("example").optional({ checkFalsy: false }).isString().trim(),
   ],
   validate,

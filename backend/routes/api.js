@@ -3,21 +3,21 @@ const router = express.Router();
 const authRoutes = require("./authRoutes");
 const attemptRoutes = require("./attemptRoutes");
 const cardRoutes = require("./cardRoutes");
-const categoryRoutes = require("./categoryRoutes");
+const moduleRoutes = require("./moduleRoutes");
 const languageRoutes = require("./languageRoutes");
 const leaderboardRoutes = require("./leaderboardRoutes");
 const statsRoutes = require("./statsRoutes");
-const userProgressRoutes = require("./userProgressRoutes");
+const languageProgressRoutes = require("./languageProgressRoutes");
 const wordRoutes = require("./wordRoutes");
 
 router.use("/attempts", attemptRoutes);
 router.use("/auth", authRoutes);
 router.use("/cards", cardRoutes);
-router.use("/categories", categoryRoutes);
+router.use("/modules", moduleRoutes);
 router.use("/languages", languageRoutes);
 router.use("/leaderboard", leaderboardRoutes);
 router.use("/stats", statsRoutes);
-router.use("/user-progress", userProgressRoutes);
+router.use("/language-progress", languageProgressRoutes);
 router.use("/words", wordRoutes);
 
 module.exports = router;

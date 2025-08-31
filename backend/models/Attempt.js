@@ -12,9 +12,14 @@ const attemptSchema = new mongoose.Schema({
     ref: "Language",
     required: true,
   },
-  categoryId: {
+  moduleId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "Category",
+    ref: "Module",
+    required: true,
+  },
+  levelId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Level",
     required: true,
   },
   type: { type: String, enum: ["flash", "test", "dictation"], required: true },
@@ -30,5 +35,7 @@ attemptSchema.index(
   { shareToken: 1 },
   { unique: true, partialFilterExpression: { shareToken: { $type: "string" } } }
 );
+attemptSchema.index({ moduleId: 1 });
+attemptSchema.index({ levelId: 1 });
 
 module.exports = mongoose.model("Attempt", attemptSchema);

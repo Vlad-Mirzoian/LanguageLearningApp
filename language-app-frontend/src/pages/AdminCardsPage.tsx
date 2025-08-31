@@ -1,24 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
-import type { Category, Card, Word } from "../types";
-import {
-  createCard,
-  deleteCard,
-  getCards,
-  updateCard,
-  getCategories,
-  getWords,
-} from "../services/api";
+import type { Module, Card, Word, ApiError } from "../types/index";
+import { CardAPI, ModuleAPI, WordAPI } from "../services/index";
 import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
 import FormInput from "../components/ui/FormInput";
 import { ArrowPathIcon } from "@heroicons/react/24/solid";
-import { AxiosError } from "axios";
 import { useTranslation } from "react-i18next";
 
 const AdminCardsPage: React.FC = () => {
   const { t } = useTranslation();
   const [cards, setCards] = useState<Card[]>([]);
   const [totalCards, setTotalCards] = useState(0);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [modules, setModules] = useState<Module[]>([]);
   const [words, setWords] = useState<Word[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -29,11 +21,11 @@ const AdminCardsPage: React.FC = () => {
   const [formData, setFormData] = useState({
     wordId: "",
     translationId: "",
-    categoryId: "",
+    moduleId: "",
     example: "",
   });
   const [filters, setFilters] = useState({
-    categoryId: "",
+    moduleId: "",
     example: "",
     page: 1,
     limit: 20,
@@ -48,27 +40,22 @@ const AdminCardsPage: React.FC = () => {
       try {
         setLoading(true);
         const [cardResponse, wordData, catData] = await Promise.all([
-          getCards({
-            categoryId: filters.categoryId || undefined,
+          CardAPI.getCards({
+            moduleId: filters.moduleId || undefined,
             example: filters.example || undefined,
             limit: filters.limit,
             skip: (filters.page - 1) * filters.limit,
           }),
-          getWords(),
-          getCategories(),
+          WordAPI.getWords(),
+          ModuleAPI.getModules(),
         ]);
         setCards(cardResponse.cards);
         setTotalCards(cardResponse.total);
         setWords(wordData.words);
-        setCategories(catData);
-      } catch (error: unknown) {
-        if (error instanceof AxiosError) {
-          setError(
-            error.response?.data?.error || t("adminCardsPage.failedToLoadCards")
-          );
-        } else {
-          setError(t("adminCardsPage.failedToLoadCards"));
-        }
+        setModules(catData.modules);
+      } catch (err) {
+        const error = err as ApiError;
+        setError(error.message || t("adminCardsPage.failedToLoadCards"));
       } finally {
         setLoading(false);
       }
@@ -84,8 +71,8 @@ const AdminCardsPage: React.FC = () => {
             return t("adminCardsPage.wordRequired");
           case "translationId":
             return t("adminCardsPage.translationRequired");
-          case "categoryId":
-            return t("adminCardsPage.categoryRequired");
+          case "moduleId":
+            return t("adminCardsPage.moduleRequired");
           default:
             return null;
         }
@@ -97,7 +84,7 @@ const AdminCardsPage: React.FC = () => {
 
   const validateForm = useCallback(() => {
     const newErrors: Record<string, string> = {};
-    (["wordId", "translationId", "categoryId"] as const).forEach((field) => {
+    (["wordId", "translationId", "moduleId"] as const).forEach((field) => {
       const error = validateField(field, formData[field]);
       if (error) newErrors[field] = error;
     });
@@ -107,7 +94,7 @@ const AdminCardsPage: React.FC = () => {
 
   const handleChange = (field: keyof typeof formData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-    if (["wordId", "translationId", "categoryId"].includes(field)) {
+    if (["wordId", "translationId", "moduleId"].includes(field)) {
       const error = validateField(field, value);
       setErrors((prev) => {
         const newErrors = { ...prev };
@@ -122,7 +109,7 @@ const AdminCardsPage: React.FC = () => {
   };
 
   const handleFilterChange = (
-    field: "categoryId" | "example",
+    field: "moduleId" | "example",
     value: string
   ) => {
     setFilters((prev) => ({ ...prev, [field]: value, page: 1 }));
@@ -142,7 +129,7 @@ const AdminCardsPage: React.FC = () => {
     }
 
     try {
-      const newCard = await createCard({
+      const newCard = await CardAPI.createCard({
         ...formData,
         example: formData.example || undefined,
       });
@@ -152,19 +139,14 @@ const AdminCardsPage: React.FC = () => {
       setFormData({
         wordId: "",
         translationId: "",
-        categoryId: "",
+        moduleId: "",
         example: "",
       });
       setErrors({});
       setServerError("");
-    } catch (error: unknown) {
-      if (error instanceof AxiosError) {
-        setServerError(
-          error.response?.data?.error || t("adminCardsPage.failedToCreateCard")
-        );
-      } else {
-        setServerError(t("adminCardsPage.failedToCreateCard"));
-      }
+    } catch (err) {
+      const error = err as ApiError;
+      setServerError(error.message || t("adminCardsPage.failedToCreateCard"));
     }
   };
 
@@ -181,13 +163,16 @@ const AdminCardsPage: React.FC = () => {
         updateData.wordId = formData.wordId;
       if (formData.translationId !== currentCard.translationId._id)
         updateData.translationId = formData.translationId;
-      if (formData.categoryId !== currentCard.categoryId._id)
-        updateData.categoryId = formData.categoryId;
+      if (formData.moduleId !== currentCard.moduleId._id)
+        updateData.moduleId = formData.moduleId;
       if ((formData.example || "") !== (currentCard.example || ""))
         updateData.example = formData.example || undefined;
 
       if (Object.keys(updateData).length > 0) {
-        const updatedCard = await updateCard(currentCard._id, updateData);
+        const updatedCard = await CardAPI.updateCard(
+          currentCard._id,
+          updateData
+        );
         setCards(
           cards.map((card) =>
             card._id === updatedCard._id ? updatedCard : card
@@ -199,19 +184,14 @@ const AdminCardsPage: React.FC = () => {
       setFormData({
         wordId: "",
         translationId: "",
-        categoryId: "",
+        moduleId: "",
         example: "",
       });
       setErrors({});
       setServerError("");
-    } catch (error: unknown) {
-      if (error instanceof AxiosError) {
-        setServerError(
-          error.response?.data?.error || t("adminCardsPage.failedToUpdateCard")
-        );
-      } else {
-        setServerError(t("adminCardsPage.failedToUpdateCard"));
-      }
+    } catch (err) {
+      const error = err as ApiError;
+      setServerError(error.message || t("adminCardsPage.failedToUpdateCard"));
     }
   };
 
@@ -221,19 +201,14 @@ const AdminCardsPage: React.FC = () => {
     if (!currentCard) return;
 
     try {
-      await deleteCard(currentCard._id);
+      await CardAPI.deleteCard(currentCard._id);
       setCards(cards.filter((card) => card._id !== currentCard._id));
       setTotalCards(totalCards - 1);
       setIsDeleteModalOpen(false);
       setCurrentCard(null);
-    } catch (error: unknown) {
-      if (error instanceof AxiosError) {
-        setServerError(
-          error.response?.data?.error || t("adminCardsPage.failedToDeleteCard")
-        );
-      } else {
-        setServerError(t("adminCardsPage.failedToDeleteCard"));
-      }
+    } catch (err) {
+      const error = err as ApiError;
+      setServerError(error.message || t("adminCardsPage.failedToDeleteCard"));
     }
   };
 
@@ -246,17 +221,17 @@ const AdminCardsPage: React.FC = () => {
         <div className="flex flex-col sm:flex-row justify-center items-end gap-8 mt-4 mb-6 space-y-4 sm:space-y-0 sm:space-x-4">
           <div className="flex flex-col items-center w-full sm:w-auto">
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t("adminCardsPage.filterByCategory")}
+              {t("adminCardsPage.filterByModule")}
             </label>
             <select
-              value={filters.categoryId}
-              onChange={(e) => handleFilterChange("categoryId", e.target.value)}
+              value={filters.moduleId}
+              onChange={(e) => handleFilterChange("moduleId", e.target.value)}
               className="w-full py-2.5 px-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300"
             >
-              <option value="">{t("adminCardsPage.allCategories")}</option>
-              {categories.map((cat) => (
-                <option key={cat._id} value={cat._id}>
-                  {cat.name}
+              <option value="">{t("adminCardsPage.allModules")}</option>
+              {modules.map((mod) => (
+                <option key={mod._id} value={mod._id}>
+                  {mod.name}
                 </option>
               ))}
             </select>
@@ -278,7 +253,7 @@ const AdminCardsPage: React.FC = () => {
               setFormData({
                 wordId: "",
                 translationId: "",
-                categoryId: "",
+                moduleId: "",
                 example: "",
               });
               setErrors({});
@@ -321,7 +296,7 @@ const AdminCardsPage: React.FC = () => {
                       {t("adminCardsPage.translation")}
                     </th>
                     <th className="p-4 font-semibold text-indigo-700">
-                      {t("adminCardsPage.category")}
+                      {t("adminCardsPage.module")}
                     </th>
                     <th className="p-4 font-semibold text-indigo-700">
                       {t("adminCardsPage.example")}
@@ -339,7 +314,7 @@ const AdminCardsPage: React.FC = () => {
                         {card.translationId.text}
                       </td>
                       <td className="p-4 text-gray-800">
-                        {card.categoryId.name}
+                        {card.moduleId.name}
                       </td>
                       <td className="p-4 text-gray-800">{card.example}</td>
                       <td className="p-4">
@@ -349,7 +324,7 @@ const AdminCardsPage: React.FC = () => {
                             setFormData({
                               wordId: card.wordId._id,
                               translationId: card.translationId._id,
-                              categoryId: card.categoryId._id,
+                              moduleId: card.moduleId._id,
                               example: card.example ?? "",
                             });
                             setErrors({});
@@ -407,7 +382,7 @@ const AdminCardsPage: React.FC = () => {
           setFormData({
             wordId: "",
             translationId: "",
-            categoryId: "",
+            moduleId: "",
             example: "",
           });
           setErrors({});
@@ -477,25 +452,25 @@ const AdminCardsPage: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-800 mb-1.5">
-                    {t("adminCardsPage.category")}
+                    {t("adminCardsPage.module")}
                   </label>
                   <select
-                    value={formData.categoryId}
-                    onChange={(e) => handleChange("categoryId", e.target.value)}
+                    value={formData.moduleId}
+                    onChange={(e) => handleChange("moduleId", e.target.value)}
                     className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
                   >
                     <option value="">
-                      {t("adminCardsPage.selectCategory")}
+                      {t("adminCardsPage.selectModule")}
                     </option>
-                    {categories.map((cat) => (
-                      <option key={cat._id} value={cat._id}>
-                        {cat.name}
+                    {modules.map((mod) => (
+                      <option key={mod._id} value={mod._id}>
+                        {mod.name}
                       </option>
                     ))}
                   </select>
-                  {errors.categoryId && (
+                  {errors.moduleId && (
                     <p className="mt-1.5 text-xs text-red-500 animate-fade-in">
-                      {errors.categoryId}
+                      {errors.moduleId}
                     </p>
                   )}
                 </div>
@@ -514,7 +489,7 @@ const AdminCardsPage: React.FC = () => {
                     setFormData({
                       wordId: "",
                       translationId: "",
-                      categoryId: "",
+                      moduleId: "",
                       example: "",
                     });
                     setErrors({});
@@ -544,7 +519,7 @@ const AdminCardsPage: React.FC = () => {
           setFormData({
             wordId: "",
             translationId: "",
-            categoryId: "",
+            moduleId: "",
             example: "",
           });
           setErrors({});
@@ -614,25 +589,25 @@ const AdminCardsPage: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-800 mb-1.5">
-                    {t("adminCardsPage.category")}
+                    {t("adminCardsPage.module")}
                   </label>
                   <select
-                    value={formData.categoryId}
-                    onChange={(e) => handleChange("categoryId", e.target.value)}
+                    value={formData.moduleId}
+                    onChange={(e) => handleChange("moduleId", e.target.value)}
                     className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
                   >
                     <option value="">
-                      {t("adminCardsPage.selectCategory")}
+                      {t("adminCardsPage.selectModule")}
                     </option>
-                    {categories.map((cat) => (
-                      <option key={cat._id} value={cat._id}>
-                        {cat.name}
+                    {modules.map((mod) => (
+                      <option key={mod._id} value={mod._id}>
+                        {mod.name}
                       </option>
                     ))}
                   </select>
-                  {errors.categoryId && (
+                  {errors.moduleId && (
                     <p className="mt-1.5 text-xs text-red-500 animate-fade-in">
-                      {errors.categoryId}
+                      {errors.moduleId}
                     </p>
                   )}
                 </div>
@@ -652,7 +627,7 @@ const AdminCardsPage: React.FC = () => {
                     setFormData({
                       wordId: "",
                       translationId: "",
-                      categoryId: "",
+                      moduleId: "",
                       example: "",
                     });
                     setErrors({});

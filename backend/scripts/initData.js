@@ -11,10 +11,12 @@ mongoose
 
 const User = require("../models/User");
 const Language = require("../models/Language");
-const Category = require("../models/Category");
+const Module = require("../models/Module");
+const Level = require("../models/Level");
 const Word = require("../models/Word");
 const Card = require("../models/Card");
-const UserProgress = require("../models/UserProgress");
+const ModuleProgress = require("../models/ModuleProgress");
+const LevelProgress = require("../models/LevelProgress");
 const Attempt = require("../models/Attempt");
 
 async function initDB() {
@@ -23,10 +25,12 @@ async function initDB() {
     await Promise.all([
       User.deleteMany({}),
       Language.deleteMany({}),
-      Category.deleteMany({}),
+      Module.deleteMany({}),
+      Level.deleteMany({}),
       Word.deleteMany({}),
       Card.deleteMany({}),
-      UserProgress.deleteMany({}),
+      ModuleProgress.deleteMany({}),
+      LevelProgress.deleteMany({}),
       Attempt.deleteMany({}),
     ]);
 
@@ -40,9 +44,9 @@ async function initDB() {
     ];
     const createdLanguages = await Language.insertMany(languages);
     const ukrainianLang = createdLanguages.find((lang) => lang.code === "uk");
-    const otherLangIds = createdLanguages
-      .filter((lang) => lang.code !== "uk")
-      .map((lang) => lang._id);
+    const learningLanguages = createdLanguages.filter(
+      (lang) => lang.code !== "uk"
+    );
 
     // Create Users with hashed passwords and different interface languages
     const saltRounds = 10;
@@ -55,8 +59,8 @@ async function initDB() {
         role: "admin",
         interfaceLanguageId: createdLanguages.find((lang) => lang.code === "uk")
           ._id,
-        nativeLanguageId: ukrainianLang._id,
-        learningLanguagesIds: otherLangIds,
+        nativeLanguageId: null,
+        learningLanguagesIds: [],
         isVerified: true,
       },
       {
@@ -66,8 +70,8 @@ async function initDB() {
         role: "user",
         interfaceLanguageId: createdLanguages.find((lang) => lang.code === "en")
           ._id,
-        nativeLanguageId: ukrainianLang._id,
-        learningLanguagesIds: otherLangIds,
+        nativeLanguageId: null,
+        learningLanguagesIds: [],
         isVerified: true,
       },
       {
@@ -77,8 +81,8 @@ async function initDB() {
         role: "user",
         interfaceLanguageId: createdLanguages.find((lang) => lang.code === "es")
           ._id,
-        nativeLanguageId: ukrainianLang._id,
-        learningLanguagesIds: otherLangIds,
+        nativeLanguageId: null,
+        learningLanguagesIds: [],
         isVerified: true,
       },
       {
@@ -88,8 +92,8 @@ async function initDB() {
         role: "user",
         interfaceLanguageId: createdLanguages.find((lang) => lang.code === "fr")
           ._id,
-        nativeLanguageId: ukrainianLang._id,
-        learningLanguagesIds: otherLangIds,
+        nativeLanguageId: null,
+        learningLanguagesIds: [],
         isVerified: true,
       },
       {
@@ -99,51 +103,238 @@ async function initDB() {
         role: "user",
         interfaceLanguageId: createdLanguages.find((lang) => lang.code === "de")
           ._id,
-        nativeLanguageId: ukrainianLang._id,
-        learningLanguagesIds: otherLangIds,
+        nativeLanguageId: null,
+        learningLanguagesIds: [],
         isVerified: true,
       },
     ];
+
     const createdUsers = await User.insertMany(users);
 
-    // Create Categories (10 general categories, shared across all languages)
-    const categories = [
-      { name: "Vocabulary", order: 1, description: "Basic everyday words" },
-      {
-        name: "Food",
-        order: 2,
-        description: "Words related to food and cooking",
-      },
-      {
-        name: "Travel",
-        order: 3,
-        description: "Travel and tourism vocabulary",
-      },
-      { name: "Family", order: 4, description: "Family and relationships" },
-      {
-        name: "Nature",
-        order: 5,
-        description: "Words about nature and environment",
-      },
-      {
-        name: "Work",
-        order: 6,
-        description: "Work and profession-related words",
-      },
-      { name: "Clothing", order: 7, description: "Clothing and fashion terms" },
-      {
-        name: "Weather",
-        order: 8,
-        description: "Weather and climate vocabulary",
-      },
-      { name: "Emotions", order: 9, description: "Words describing feelings" },
-      { name: "Technology", order: 10, description: "Tech-related vocabulary" },
-    ];
-    const createdCategories = await Category.insertMany(categories);
+    // Define module names and descriptions per language (translated)
+    const moduleDataPerLang = {
+      en: [
+        { name: "Vocabulary", description: "Basic everyday words", order: 1 },
+        {
+          name: "Food",
+          description: "Words related to food and cooking",
+          order: 2,
+        },
+        {
+          name: "Travel",
+          description: "Travel and tourism vocabulary",
+          order: 3,
+        },
+        { name: "Family", description: "Family and relationships", order: 4 },
+        {
+          name: "Nature",
+          description: "Words about nature and environment",
+          order: 5,
+        },
+        {
+          name: "Work",
+          description: "Work and profession-related words",
+          order: 6,
+        },
+        {
+          name: "Clothing",
+          description: "Clothing and fashion terms",
+          order: 7,
+        },
+        {
+          name: "Weather",
+          description: "Weather and climate vocabulary",
+          order: 8,
+        },
+        {
+          name: "Emotions",
+          description: "Words describing feelings",
+          order: 9,
+        },
+        {
+          name: "Technology",
+          description: "Tech-related vocabulary",
+          order: 10,
+        },
+      ],
+      es: [
+        {
+          name: "Vocabulario",
+          description: "Palabras básicas cotidianas",
+          order: 1,
+        },
+        {
+          name: "Comida",
+          description: "Palabras relacionadas con la comida y la cocina",
+          order: 2,
+        },
+        {
+          name: "Viajes",
+          description: "Vocabulario de viajes y turismo",
+          order: 3,
+        },
+        { name: "Familia", description: "Familia y relaciones", order: 4 },
+        {
+          name: "Naturaleza",
+          description: "Palabras sobre la naturaleza y el entorno",
+          order: 5,
+        },
+        {
+          name: "Trabajo",
+          description: "Palabras relacionadas con el trabajo y la profesión",
+          order: 6,
+        },
+        { name: "Ropa", description: "Términos de ropa y moda", order: 7 },
+        {
+          name: "Clima",
+          description: "Vocabulario de clima y tiempo",
+          order: 8,
+        },
+        {
+          name: "Emociones",
+          description: "Palabras que describen sentimientos",
+          order: 9,
+        },
+        {
+          name: "Tecnología",
+          description: "Vocabulario relacionado con la tecnología",
+          order: 10,
+        },
+      ],
+      fr: [
+        {
+          name: "Vocabulaire",
+          description: "Mots de base du quotidien",
+          order: 1,
+        },
+        {
+          name: "Nourriture",
+          description: "Mots liés à la nourriture et à la cuisine",
+          order: 2,
+        },
+        {
+          name: "Voyage",
+          description: "Vocabulaire de voyage et tourisme",
+          order: 3,
+        },
+        { name: "Famille", description: "Famille et relations", order: 4 },
+        {
+          name: "Nature",
+          description: "Mots sur la nature et l'environnement",
+          order: 5,
+        },
+        {
+          name: "Travail",
+          description: "Mots liés au travail et à la profession",
+          order: 6,
+        },
+        {
+          name: "Vêtements",
+          description: "Termes de vêtements et mode",
+          order: 7,
+        },
+        {
+          name: "Météo",
+          description: "Vocabulaire de météo et climat",
+          order: 8,
+        },
+        {
+          name: "Émotions",
+          description: "Mots décrivant les sentiments",
+          order: 9,
+        },
+        {
+          name: "Technologie",
+          description: "Vocabulaire lié à la technologie",
+          order: 10,
+        },
+      ],
+      de: [
+        {
+          name: "Vokabular",
+          description: "Grundlegende Alltagswörter",
+          order: 1,
+        },
+        {
+          name: "Essen",
+          description: "Wörter im Zusammenhang mit Essen und Kochen",
+          order: 2,
+        },
+        {
+          name: "Reisen",
+          description: "Reise- und Tourismusvokabular",
+          order: 3,
+        },
+        { name: "Familie", description: "Familie und Beziehungen", order: 4 },
+        {
+          name: "Natur",
+          description: "Wörter über Natur und Umwelt",
+          order: 5,
+        },
+        {
+          name: "Arbeit",
+          description: "Wörter im Zusammenhang mit Arbeit und Beruf",
+          order: 6,
+        },
+        {
+          name: "Kleidung",
+          description: "Begriffe für Kleidung und Mode",
+          order: 7,
+        },
+        { name: "Wetter", description: "Wetter- und Klimavokabular", order: 8 },
+        {
+          name: "Emotionen",
+          description: "Wörter, die Gefühle beschreiben",
+          order: 9,
+        },
+        {
+          name: "Technologie",
+          description: "Technikbezogenes Vokabular",
+          order: 10,
+        },
+      ],
+    };
 
-    // Define concepts per category (3 per category, 30 total concepts)
-    const conceptsPerCategory = [
-      // Vocabulary
+    // Create Modules (10 per learning language)
+    const createdModules = {};
+    for (const lang of learningLanguages) {
+      const langCode = lang.code;
+      const modules = moduleDataPerLang[langCode].map((mod) => ({
+        ...mod,
+        languageId: lang._id,
+        wordsCount: 3, // 3 concepts per module
+      }));
+      createdModules[langCode] = await Module.insertMany(modules);
+    }
+
+    const taskTypes = ["flash", "test", "dictation"];
+    const levels = [];
+    for (const lang of learningLanguages) {
+      for (const module of createdModules[lang.code]) {
+        for (let order = 1; order <= 3; order++) {
+          levels.push({
+            moduleId: module._id,
+            order,
+            tasks: taskTypes[order - 1],
+            requiredScore: 80,
+            pointsReward: 100,
+          });
+        }
+      }
+    }
+    const createdLevels = await Level.insertMany(levels);
+
+    // Map levels to modules for easy lookup
+    const levelsByModule = {};
+    createdLevels.forEach((level) => {
+      const modIdStr = level.moduleId.toString();
+      if (!levelsByModule[modIdStr]) levelsByModule[modIdStr] = [];
+      levelsByModule[modIdStr].push(level);
+    });
+
+    // Define concepts per module (3 per module, 30 total concepts)
+    const conceptsPerModule = [
+      // Module 1: Vocabulary
       [
         {
           trans: {
@@ -191,7 +382,7 @@ async function initDB() {
           },
         },
       ],
-      // Food
+      // Module 2: Food
       [
         {
           trans: {
@@ -239,7 +430,7 @@ async function initDB() {
           },
         },
       ],
-      // Travel
+      // Module 3: Travel
       [
         {
           trans: {
@@ -287,7 +478,7 @@ async function initDB() {
           },
         },
       ],
-      // Family
+      // Module 4: Family
       [
         {
           trans: {
@@ -335,7 +526,7 @@ async function initDB() {
           },
         },
       ],
-      // Nature
+      // Module 5: Nature
       [
         {
           trans: {
@@ -383,7 +574,7 @@ async function initDB() {
           },
         },
       ],
-      // Work
+      // Module 6: Work
       [
         {
           trans: {
@@ -431,7 +622,7 @@ async function initDB() {
           },
         },
       ],
-      // Clothing
+      // Module 7: Clothing
       [
         {
           trans: {
@@ -479,7 +670,7 @@ async function initDB() {
           },
         },
       ],
-      // Weather
+      // Module 8: Weather
       [
         {
           trans: {
@@ -527,7 +718,7 @@ async function initDB() {
           },
         },
       ],
-      // Emotions
+      // Module 9: Emotions
       [
         {
           trans: {
@@ -575,7 +766,7 @@ async function initDB() {
           },
         },
       ],
-      // Technology
+      // Module 10: Technology
       [
         {
           trans: {
@@ -627,9 +818,9 @@ async function initDB() {
 
     // Create Words (150 words, 30 per language)
     const words = [];
-    for (let catIdx = 0; catIdx < conceptsPerCategory.length; catIdx++) {
-      const catConcepts = conceptsPerCategory[catIdx];
-      for (const concept of catConcepts) {
+    for (let modIdx = 0; modIdx < conceptsPerModule.length; modIdx++) {
+      const modConcepts = conceptsPerModule[modIdx];
+      for (const concept of modConcepts) {
         for (const lang of createdLanguages) {
           words.push({
             text: concept.trans[lang.code],
@@ -648,23 +839,24 @@ async function initDB() {
       wordMap[langIdStr][word.text] = word._id;
     });
 
-    // Create Cards (120 cards, Ukrainian to each learning language, grouped by category)
+    // Create Cards (120 cards, Ukrainian to each learning language, grouped by module)
     const cards = [];
-    for (let catIdx = 0; catIdx < conceptsPerCategory.length; catIdx++) {
-      const categoryId = createdCategories[catIdx]._id;
-      const catConcepts = conceptsPerCategory[catIdx];
-      for (const concept of catConcepts) {
-        const ukText = concept.trans.uk;
-        const ukWordId = wordMap[ukrainianLang._id.toString()][ukText];
-        for (const targetLang of createdLanguages.filter(
-          (l) => l.code !== "uk"
-        )) {
+    for (const targetLang of learningLanguages) {
+      const ukWordMap = wordMap[ukrainianLang._id.toString()];
+      const targetWordMap = wordMap[targetLang._id.toString()];
+      const langModules = createdModules[targetLang.code];
+      for (let modIdx = 0; modIdx < langModules.length; modIdx++) {
+        const moduleId = langModules[modIdx]._id;
+        const modConcepts = conceptsPerModule[modIdx];
+        for (const concept of modConcepts) {
+          const ukText = concept.trans.uk;
           const targetText = concept.trans[targetLang.code];
-          const targetWordId = wordMap[targetLang._id.toString()][targetText];
+          const ukWordId = ukWordMap[ukText];
+          const targetWordId = targetWordMap[targetText];
           cards.push({
             wordId: ukWordId,
             translationId: targetWordId,
-            categoryId,
+            moduleId,
             example: concept.examples[targetLang.code],
           });
         }
@@ -672,30 +864,43 @@ async function initDB() {
     }
     await Card.insertMany(cards);
 
-    // Create UserProgress
-    const userProgress = [];
+    // Create ModuleProgress and LevelProgress for all users and all learning languages/modules/levels
+    /*
+    const moduleProgress = [];
+    const levelProgress = [];
     for (const user of createdUsers) {
-      for (const lang of createdLanguages.filter((l) => l.code !== "uk")) {
-        for (const category of createdCategories) {
-          const totalCards = await Card.countDocuments({
-            categoryId: category._id,
-            translationId: {
-              $in: createdWords
-                .filter((w) => w.languageId.toString() === lang._id.toString())
-                .map((w) => w._id),
-            },
-          });
-          userProgress.push({
+      for (const lang of learningLanguages) {
+        const langModules = createdModules[lang.code];
+        for (const module of langModules) {
+          moduleProgress.push({
             userId: user._id,
             languageId: lang._id,
-            categoryId: category._id,
-            totalCards,
-            unlocked: category.order === 1,
+            moduleId: module._id,
+            totalLevels: 3,
+            completedLevels: 0,
+            bestScore: 0,
+            unlocked: module.order === 1,
+            achievements: [],
           });
+
+          const modLevels = levelsByModule[module._id.toString()];
+          for (const level of modLevels) {
+            levelProgress.push({
+              userId: user._id,
+              languageId: lang._id,
+              moduleId: module._id,
+              levelId: level._id,
+              bestScore: 0,
+              unlocked: level.order === 1,
+            });
+          }
         }
       }
     }
-    await UserProgress.insertMany(userProgress);
+    await ModuleProgress.insertMany(moduleProgress);
+    await LevelProgress.insertMany(levelProgress);
+
+    */
 
     console.log("Database initialized successfully");
   } catch (error) {

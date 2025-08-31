@@ -32,7 +32,7 @@ const attemptController = {
       })
         .populate("userId", "username avatar")
         .populate("languageId", "name")
-        .populate("categoryId", "name");
+        .populate("moduleId", "name");
       if (!attempt) {
         res.status(404).json({ error: "Shared attempt not found" });
       }

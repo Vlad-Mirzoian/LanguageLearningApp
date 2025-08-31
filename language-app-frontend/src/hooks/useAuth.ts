@@ -1,14 +1,7 @@
-import { AxiosError } from "axios";
-import {
-  loginAPI,
-  logoutAPI,
-  refreshAPI,
-  updateUserAPI,
-  uploadAvatarAPI,
-} from "../services/api";
+import { AuthAPI, UserAPI } from "../services/index";
 import { useAuthStore } from "../store/authStore";
 import { useInterfaceLanguageStore } from "../store/interfaceLanguageStore";
-import type { User } from "../types";
+import type { ApiError, User } from "../types/index";
 import i18next from "i18next";
 
 interface AuthHook {
@@ -29,7 +22,7 @@ export const useAuth = (): AuthHook => {
   const { user, token, setAuth, setUser, clearAuth } = useAuthStore();
 
   const login = async (identifier: string, password: string) => {
-    const data = await loginAPI({ identifier, password });
+    const data = await AuthAPI.loginAPI({ identifier, password });
     setAuth(data.user, data.token);
     if (data.user?.interfaceLanguage) {
       const lang = data.user.interfaceLanguage;
@@ -40,7 +33,7 @@ export const useAuth = (): AuthHook => {
 
   const logout = async () => {
     try {
-      await logoutAPI();
+      await AuthAPI.logoutAPI();
     } finally {
       clearAuth();
     }
@@ -48,7 +41,7 @@ export const useAuth = (): AuthHook => {
 
   const refreshToken = async (): Promise<string> => {
     try {
-      const { token: newToken } = await refreshAPI();
+      const { token: newToken } = await AuthAPI.refreshAPI();
       setAuth(user, newToken);
       return newToken;
     } catch (error) {
@@ -59,14 +52,15 @@ export const useAuth = (): AuthHook => {
 
   const updateUser = async (data: Partial<User>) => {
     try {
-      const updatedUser = await updateUserAPI(data);
+      const response = await UserAPI.updateUserAPI(data);
       const authStore = useAuthStore.getState();
       authStore.setUser({
         ...authStore.user,
-        ...updatedUser,
+        ...response.user,
       });
-    } catch (error: unknown) {
-      if (error instanceof AxiosError && error.response?.status === 401) {
+    } catch (err) {
+      const error = err as ApiError;
+      if (error.status === 401) {
         clearAuth();
       }
       throw error;
@@ -75,7 +69,7 @@ export const useAuth = (): AuthHook => {
 
   const uploadAvatar = async (file: File) => {
     try {
-      const response = await uploadAvatarAPI(file);
+      const response = await UserAPI.uploadAvatarAPI(file);
       const authStore = useAuthStore.getState();
       if (authStore.user) {
         authStore.setUser({
@@ -83,8 +77,9 @@ export const useAuth = (): AuthHook => {
           avatar: response.avatar,
         });
       }
-    } catch (error: unknown) {
-      if (error instanceof AxiosError && error.response?.status === 401) {
+    } catch (err) {
+      const error = err as ApiError;
+      if (error.status === 401) {
         clearAuth();
       }
       throw error;

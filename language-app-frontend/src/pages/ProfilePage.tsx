@@ -3,17 +3,17 @@ import { useNavigate } from "react-router-dom";
 import FormInput from "../components/ui/FormInput";
 import FormSelect from "../components/ui/FormSelect";
 import { useQuery } from "@tanstack/react-query";
-import api from "../services/api";
-import type { Language } from "../types";
+import { LanguageAPI } from "../services/index";
+import type { ApiError, Language } from "../types/index";
 import { useAuth } from "../hooks/useAuth";
-import { AxiosError } from "axios";
 import { useTranslation } from "react-i18next";
+import { useLanguage } from "../hooks/useLanguage";
 
 interface FormData {
   email: string;
   username: string;
   password: string;
-  nativeLanguageId: string;
+  nativeLanguageId: string | null;
   learningLanguagesIds: string[];
   avatarFile: File | null;
 }
@@ -23,6 +23,7 @@ const baseUrl = import.meta.env.VITE_BASE_URL || "";
 const ProfilePage: React.FC = () => {
   const { t } = useTranslation();
   const { user, updateUser, uploadAvatar } = useAuth();
+  const { setSelectedLanguageId } = useLanguage();
   const navigate = useNavigate();
   const [formData, setFormData] = useState<FormData>({
     email: user?.email || "",
@@ -44,8 +45,8 @@ const ProfilePage: React.FC = () => {
   const { data: languages } = useQuery<Language[]>({
     queryKey: ["languages"],
     queryFn: async () => {
-      const response = await api.get("/languages");
-      return response.data;
+      const response = await LanguageAPI.getLanguages();
+      return response;
     },
     enabled: true,
   });
@@ -89,10 +90,20 @@ const ProfilePage: React.FC = () => {
     field: keyof typeof formData,
     value: string | string[]
   ) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setFormData((prev) => {
+      let newValue: string | string[] | null;
+      if (field === "nativeLanguageId" && value === "") {
+        newValue = null;
+      } else if (field === "learningLanguagesIds") {
+        newValue = Array.isArray(value) ? value.filter(Boolean) : [];
+        if (newValue.length === 0) {
+          setSelectedLanguageId(null);
+        }
+      } else {
+        newValue = value;
+      }
+      return { ...prev, [field]: newValue };
+    });
     setErrors((prev) => {
       const newErrors = { ...prev };
       const error = validateField(field, value);
@@ -129,14 +140,14 @@ const ProfilePage: React.FC = () => {
         updateData.username = formData.username;
       if (formData.password) updateData.password = formData.password;
       if (formData.nativeLanguageId !== user?.nativeLanguageId)
-        updateData.nativeLanguageId = formData.nativeLanguageId || undefined;
+        updateData.nativeLanguageId = formData.nativeLanguageId || null;
       if (
         JSON.stringify(formData.learningLanguagesIds) !==
         JSON.stringify(user?.learningLanguagesIds)
       )
         updateData.learningLanguagesIds = formData.learningLanguagesIds.length
           ? formData.learningLanguagesIds
-          : undefined;
+          : [];
       let avatarChanged = false;
       if (avatarFile) {
         if (avatarFile.size > 5 * 1024 * 1024) {
@@ -162,14 +173,9 @@ const ProfilePage: React.FC = () => {
         setSuccessMessage("");
         navigate("/dashboard");
       }, 3000);
-    } catch (error: unknown) {
-      if (error instanceof AxiosError) {
-        setServerError(
-          error.response?.data?.error || t("profilePage.failedToUpdateProfile")
-        );
-      } else {
-        setServerError(t("profilePage.failedToUpdateProfile"));
-      }
+    } catch (err) {
+      const error = err as ApiError;
+      setServerError(error.message || t("profilePage.failedToUpdateProfile"));
     }
   };
 
@@ -287,7 +293,7 @@ const ProfilePage: React.FC = () => {
           />
           <FormSelect
             label={t("profilePage.nativeLanguage")}
-            value={formData.nativeLanguageId}
+            value={formData.nativeLanguageId ?? ""}
             onChange={(e) => handleChange("nativeLanguageId", e.target.value)}
             options={[
               { value: "", label: t("profilePage.none") },

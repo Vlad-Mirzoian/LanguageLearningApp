@@ -1,27 +1,33 @@
 import { useEffect, useState } from "react";
 import type {
+  ApiError,
   Card,
-  Category,
+  Module,
   Language,
   TestCard,
-  UserProgress,
-} from "../types";
+  ModuleProgress,
+  LevelProgress,
+} from "../types/index";
 import {
-  getCategories,
-  getLanguages,
-  getReviewCards,
-  getTestCards,
-  getUserProgress,
-  shareAttempt,
-  submitCard,
-} from "../services/api";
+  ModuleAPI,
+  LanguageAPI,
+  CardAPI,
+  LanguageProgressAPI,
+  AttemptAPI,
+} from "../services/index";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "../hooks/useAuth";
 import { useLanguage } from "../hooks/useLanguage";
-import { ArrowPathIcon, XMarkIcon } from "@heroicons/react/24/solid";
+import {
+  ArrowPathIcon,
+  ArrowUpIcon,
+  CheckCircleIcon,
+  LockClosedIcon,
+  LockOpenIcon,
+  PencilIcon,
+  XMarkIcon,
+} from "@heroicons/react/24/solid";
 import toast from "react-hot-toast";
-import { AxiosError } from "axios";
-import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
 import { CheckIcon } from "@heroicons/react/24/solid";
 import { ClipboardIcon } from "@heroicons/react/24/solid";
 import { useTranslation } from "react-i18next";
@@ -42,14 +48,17 @@ const ReviewCardsPage: React.FC = () => {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [languages, setLanguages] = useState<Language[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>("");
-  const [progress, setProgress] = useState<UserProgress[]>([]);
+  const [modules, setModules] = useState<Module[]>([]);
+  const [selectedModule, setSelectedModule] = useState<string>("");
+  const [selectedLevel, setSelectedLevel] = useState<string>("");
+  const [progress, setProgress] = useState<{
+    modules: ModuleProgress[];
+    levels: LevelProgress[];
+  }>({ modules: [], levels: [] });
   const [showCardsModal, setShowCardsModal] = useState(false);
   const [totalScore, setTotalScore] = useState(0);
   const [attemptId, setAttemptId] = useState<string | null>(null);
   const [exerciseType, setExerciseType] = useState<ExerciseType>(null);
-  const [showFormatSelection, setShowFormatSelection] = useState(false);
   const [cardAnswer, setCardAnswer] = useState("");
   const [answerResult, setAnswerResult] = useState<AnswerResult>(null);
   const [shareLink, setShareLink] = useState<string | null>(null);
@@ -59,25 +68,26 @@ const ReviewCardsPage: React.FC = () => {
     const fetchFiltersAndProgress = async () => {
       try {
         setLoading(true);
-        const [langData, catData, progressData] = await Promise.all([
-          getLanguages(),
-          getCategories(),
-          getUserProgress(
+        const langData = await LanguageAPI.getLanguages();
+        setLanguages(langData);
+        if (selectedLanguageId === null) {
+          setError(t("reviewCardsPage.selectLearningLanguage"));
+          setModules([]);
+          return;
+        }
+        const [modData, progressData] = await Promise.all([
+          ModuleAPI.getModules(
+            selectedLanguageId ? { languageId: selectedLanguageId } : {}
+          ),
+          LanguageProgressAPI.getLanguageProgress(
             selectedLanguageId ? { languageId: selectedLanguageId } : {}
           ),
         ]);
-        setLanguages(langData);
-        setCategories(catData);
+        setModules(modData.modules);
         setProgress(progressData);
-      } catch (error: unknown) {
-        if (error instanceof AxiosError) {
-          setError(
-            error.response?.data?.error ||
-              t("reviewCardsPage.failedToLoadFilters")
-          );
-        } else {
-          setError(t("reviewCardsPage.failedToLoadFilters"));
-        }
+      } catch (err) {
+        const error = err as ApiError;
+        setError(error.message || t("reviewCardsPage.failedToLoadFilters"));
       } finally {
         setLoading(false);
       }
@@ -85,53 +95,65 @@ const ReviewCardsPage: React.FC = () => {
     if (user) fetchFiltersAndProgress();
   }, [user, selectedLanguageId, setSelectedLanguageId, t]);
 
-  const handleStartLevel = (categoryId: string) => {
-    setSelectedCategory(categoryId);
-    setShowFormatSelection(true);
+  const handleStartModule = (moduleId: string) => {
+    setSelectedModule(moduleId);
   };
 
-  const handleSelectFormat = (type: ExerciseType) => {
-    setExerciseType(type);
-    setShowFormatSelection(false);
-    loadCards(type);
+  const handleStartLevel = (levelId: string) => {
+    const level = progress.levels.find((lvl) => lvl.levelId._id === levelId);
+    if (!level) {
+      setError(t("reviewCardsPage.levelNotFound"));
+      return;
+    }
+    const taskType = level.levelId.tasks as ExerciseType;
+    if (!taskType) {
+      setError(t("reviewCardsPage.noTaskType"));
+      return;
+    }
+    setSelectedLevel(levelId);
+    setExerciseType(taskType);
+    loadCards(taskType, selectedLanguageId!, selectedModule, levelId);
   };
 
-  const loadCards = async (type: ExerciseType) => {
+  const loadCards = async (
+    type: ExerciseType,
+    languageId: string,
+    moduleId?: string,
+    levelId?: string
+  ) => {
     try {
-      if (!selectedLanguageId) {
+      if (!languageId) {
         setError(t("reviewCardsPage.selectLearningLanguage"));
+        return;
+      }
+      if (!levelId) {
+        setError(t("reviewCardsPage.selectLevel"));
         return;
       }
       setLoading(true);
       setError("");
       setTotalScore(0);
       setShareLink(null);
-      const filters: { languageId: string; categoryId?: string } = {
-        languageId: selectedLanguageId,
-        ...(selectedCategory && { categoryId: selectedCategory }),
-      };
+
+      const filters = { languageId, moduleId, levelId };
       let response;
       if (type === "test") {
-        response = await getTestCards(filters);
+        response = await CardAPI.getTestCards(filters);
         setTestCards(response.cards);
       } else {
-        response = await getReviewCards(filters);
+        response = await CardAPI.getReviewCards(filters);
         setCards(response.cards);
       }
+
       setAttemptId(response.attemptId);
       setCurrentCardIndex(0);
       setShowTranslation(false);
       setCardAnswer("");
       setAnswerResult(null);
       setShowCardsModal(true);
-    } catch (error: unknown) {
-      if (error instanceof AxiosError) {
-        setError(
-          error.response?.data?.error || t("reviewCardsPage.failedToLoadCards")
-        );
-      } else {
-        setError(t("reviewCardsPage.failedToLoadCards"));
-      }
+    } catch (err) {
+      const error = err as ApiError;
+      setError(error.message || t("reviewCardsPage.failedToLoadCards"));
     } finally {
       setLoading(false);
     }
@@ -139,18 +161,19 @@ const ReviewCardsPage: React.FC = () => {
 
   const handleFlashReview = async () => {
     if (!cards[currentCardIndex]) return;
-    if (selectedLanguageId === null) {
+    if (selectedLanguageId === null || !selectedLevel) {
       setError(t("reviewCardsPage.selectLearningLanguage"));
       return;
     }
     setIsSubmitting(true);
     try {
       const prevProgressData = progress;
-      const result = await submitCard(cards[currentCardIndex]._id, {
+      const result = await CardAPI.submitCard(cards[currentCardIndex]._id, {
         languageId: selectedLanguageId,
         answer: cardAnswer,
         attemptId,
         type: "flash",
+        levelId: selectedLevel,
       });
       setAnswerResult({
         isCorrect: result.isCorrect,
@@ -172,40 +195,61 @@ const ReviewCardsPage: React.FC = () => {
         setAnswerResult(null);
         setShowTranslation(false);
         if (nextIndex >= cards.length) {
-          const updatedProgress = await getUserProgress({
-            languageId: selectedLanguageId,
-          });
-          setProgress(updatedProgress);
-          const currentCategory = categories.find(
-            (cat) => cat._id === cards[currentCardIndex].categoryId._id
+          const updatedProgress = await LanguageProgressAPI.getLanguageProgress(
+            {
+              languageId: selectedLanguageId,
+            }
           );
-          const nextCategory = currentCategory
-            ? categories.find((cat) => cat.order === currentCategory.order + 1)
+          setProgress(updatedProgress);
+          const currentModule = modules.find(
+            (mod) => mod._id === selectedModule
+          );
+          const currentLevel = progress.levels.find(
+            (lvl) => lvl.levelId._id === selectedLevel
+          );
+          const nextModule = currentModule
+            ? modules.find((mod) => mod.order === currentModule.order + 1)
             : null;
-          if (nextCategory) {
-            const nextProgress = updatedProgress.find(
-              (p) => p.categoryId._id === nextCategory._id
+          const nextLevel = currentModule
+            ? progress.levels.find(
+                (lvl) =>
+                  lvl.moduleId === selectedModule &&
+                  lvl.levelId.order === (currentLevel?.levelId.order || 0) + 1
+              )
+            : null;
+          if (nextLevel && nextLevel.unlocked) {
+            toast(
+              `${t("reviewCardsPage.level")} ${nextLevel.levelId.order} ${t(
+                "reviewCardsPage.unlocked"
+              )}`
             );
-            const prevNextProgress = prevProgressData.find(
-              (p) => p.categoryId._id === nextCategory._id
+          } else if (nextModule) {
+            const nextModuleProgress = updatedProgress.modules.find(
+              (p) => p.moduleId._id === nextModule._id
             );
-            if (nextProgress?.unlocked && !prevNextProgress?.unlocked) {
+            const prevNextModuleProgress = prevProgressData.modules.find(
+              (p) => p.moduleId._id === nextModule._id
+            );
+            if (
+              nextModuleProgress?.unlocked &&
+              !prevNextModuleProgress?.unlocked
+            ) {
               toast(
-                `${t("reviewCardsPage.level")} ${nextCategory.order} ${t(
+                `${t("reviewCardsPage.module")} ${nextModule.order} ${t(
                   "reviewCardsPage.unlocked"
                 )}`
               );
             }
           }
-          const currentProgress = updatedProgress.find(
-            (p) => p.categoryId._id === currentCategory?._id
+          const currentLevelProgress = updatedProgress.levels.find(
+            (p) => p.levelId._id === selectedLevel
           );
           toast(
             `${t("reviewCardsPage.levelCompleted")} ${t(
               "reviewCardsPage.currentAttemptScore"
             )}: ${result.attempt.score.toFixed(2)}%, ${t(
-              "reviewCardsPage.maxScore"
-            )}: ${currentProgress?.maxScore.toFixed(2) || "0"}%`
+              "reviewCardsPage.bestScore"
+            )}: ${currentLevelProgress?.bestScore.toFixed(2) || "0"}%`
           );
         } else {
           toast(
@@ -215,15 +259,9 @@ const ReviewCardsPage: React.FC = () => {
           );
         }
       }, 1500);
-    } catch (error: unknown) {
-      if (error instanceof AxiosError) {
-        setError(
-          error.response?.data?.error ||
-            t("reviewCardsPage.failedToSubmitAnswer")
-        );
-      } else {
-        setError(t("reviewCardsPage.failedToSubmitAnswer"));
-      }
+    } catch (err) {
+      const error = err as ApiError;
+      setError(error.message || t("reviewCardsPage.failedToSubmitAnswer"));
     } finally {
       setIsSubmitting(false);
     }
@@ -231,18 +269,19 @@ const ReviewCardsPage: React.FC = () => {
 
   const handleTestAnswer = async (selectedAnswer: string) => {
     if (!testCards[currentCardIndex]) return;
-    if (selectedLanguageId === null) {
+    if (selectedLanguageId === null || !selectedLevel) {
       setError(t("reviewCardsPage.selectLearningLanguage"));
       return;
     }
     setIsSubmitting(true);
     try {
       const prevProgressData = progress;
-      const result = await submitCard(testCards[currentCardIndex]._id, {
+      const result = await CardAPI.submitCard(testCards[currentCardIndex]._id, {
         languageId: selectedLanguageId,
         answer: selectedAnswer,
         attemptId,
         type: "test",
+        levelId: selectedLevel,
       });
       setAnswerResult({
         isCorrect: result.isCorrect,
@@ -263,40 +302,61 @@ const ReviewCardsPage: React.FC = () => {
         setCurrentCardIndex(nextIndex);
         setAnswerResult(null);
         if (nextIndex >= testCards.length) {
-          const updatedProgress = await getUserProgress({
-            languageId: selectedLanguageId,
-          });
-          setProgress(updatedProgress);
-          const currentCategory = categories.find(
-            (cat) => cat._id === testCards[currentCardIndex].category._id
+          const updatedProgress = await LanguageProgressAPI.getLanguageProgress(
+            {
+              languageId: selectedLanguageId,
+            }
           );
-          const nextCategory = currentCategory
-            ? categories.find((cat) => cat.order === currentCategory.order + 1)
+          setProgress(updatedProgress);
+          const currentModule = modules.find(
+            (mod) => mod._id === selectedModule
+          );
+          const currentLevel = progress.levels.find(
+            (lvl) => lvl.levelId._id === selectedLevel
+          );
+          const nextModule = currentModule
+            ? modules.find((mod) => mod.order === currentModule.order + 1)
             : null;
-          if (nextCategory) {
-            const nextProgress = updatedProgress.find(
-              (p) => p.categoryId._id === nextCategory._id
+          const nextLevel = currentModule
+            ? progress.levels.find(
+                (lvl) =>
+                  lvl.moduleId === selectedModule &&
+                  lvl.levelId.order === (currentLevel?.levelId.order || 0) + 1
+              )
+            : null;
+          if (nextLevel && nextLevel.unlocked) {
+            toast(
+              `${t("reviewCardsPage.level")} ${nextLevel.levelId.order} ${t(
+                "reviewCardsPage.unlocked"
+              )}`
             );
-            const prevNextProgress = prevProgressData.find(
-              (p) => p.categoryId._id === nextCategory._id
+          } else if (nextModule) {
+            const nextModuleProgress = updatedProgress.modules.find(
+              (p) => p.moduleId._id === nextModule._id
             );
-            if (nextProgress?.unlocked && !prevNextProgress?.unlocked) {
+            const prevNextModuleProgress = prevProgressData.modules.find(
+              (p) => p.moduleId._id === nextModule._id
+            );
+            if (
+              nextModuleProgress?.unlocked &&
+              !prevNextModuleProgress?.unlocked
+            ) {
               toast(
-                `${t("reviewCardsPage.level")} ${nextCategory.order} ${t(
+                `${t("reviewCardsPage.module")} ${nextModule.order} ${t(
                   "reviewCardsPage.unlocked"
                 )}`
               );
             }
           }
-          const currentProgress = updatedProgress.find(
-            (p) => p.categoryId._id === currentCategory?._id
+          const currentLevelProgress = updatedProgress.levels.find(
+            (p) => p.levelId._id === selectedLevel
           );
           toast(
             `${t("reviewCardsPage.levelCompleted")} ${t(
               "reviewCardsPage.currentAttemptScore"
             )}: ${result.attempt.score.toFixed(2)}%, ${t(
-              "reviewCardsPage.maxScore"
-            )}: ${currentProgress?.maxScore.toFixed(2) || "0"}%`
+              "reviewCardsPage.bestScore"
+            )}: ${currentLevelProgress?.bestScore.toFixed(2) || "0"}%`
           );
         } else {
           toast(
@@ -306,15 +366,9 @@ const ReviewCardsPage: React.FC = () => {
           );
         }
       }, 1500);
-    } catch (error: unknown) {
-      if (error instanceof AxiosError) {
-        setError(
-          error.response?.data?.error ||
-            t("reviewCardsPage.failedToSubmitAnswer")
-        );
-      } else {
-        setError(t("reviewCardsPage.failedToSubmitAnswer"));
-      }
+    } catch (err) {
+      const error = err as ApiError;
+      setError(error.message || t("reviewCardsPage.failedToSubmitAnswer"));
     } finally {
       setIsSubmitting(false);
     }
@@ -322,18 +376,19 @@ const ReviewCardsPage: React.FC = () => {
 
   const handleDictationSubmit = async () => {
     if (!cards[currentCardIndex] || !cardAnswer.trim()) return;
-    if (selectedLanguageId === null) {
+    if (selectedLanguageId === null || !selectedLevel) {
       setError(t("reviewCardsPage.selectLearningLanguage"));
       return;
     }
     setIsSubmitting(true);
     try {
       const prevProgressData = progress;
-      const result = await submitCard(cards[currentCardIndex]._id, {
+      const result = await CardAPI.submitCard(cards[currentCardIndex]._id, {
         languageId: selectedLanguageId,
         answer: cardAnswer,
         attemptId,
         type: "dictation",
+        levelId: selectedLevel,
       });
       setAnswerResult({
         isCorrect: result.isCorrect,
@@ -354,40 +409,61 @@ const ReviewCardsPage: React.FC = () => {
         setCardAnswer("");
         setAnswerResult(null);
         if (nextIndex >= cards.length) {
-          const updatedProgress = await getUserProgress({
-            languageId: selectedLanguageId,
-          });
-          setProgress(updatedProgress);
-          const currentCategory = categories.find(
-            (cat) => cat._id === cards[currentCardIndex].categoryId._id
+          const updatedProgress = await LanguageProgressAPI.getLanguageProgress(
+            {
+              languageId: selectedLanguageId,
+            }
           );
-          const nextCategory = currentCategory
-            ? categories.find((cat) => cat.order === currentCategory.order + 1)
+          setProgress(updatedProgress);
+          const currentModule = modules.find(
+            (mod) => mod._id === selectedModule
+          );
+          const currentLevel = progress.levels.find(
+            (lvl) => lvl.levelId._id === selectedLevel
+          );
+          const nextModule = currentModule
+            ? modules.find((mod) => mod.order === currentModule.order + 1)
             : null;
-          if (nextCategory) {
-            const nextProgress = updatedProgress.find(
-              (p) => p.categoryId._id === nextCategory._id
+          const nextLevel = currentModule
+            ? progress.levels.find(
+                (lvl) =>
+                  lvl.moduleId === selectedModule &&
+                  lvl.levelId.order === (currentLevel?.levelId.order || 0) + 1
+              )
+            : null;
+          if (nextLevel && nextLevel.unlocked) {
+            toast(
+              `${t("reviewCardsPage.level")} ${nextLevel.levelId.order} ${t(
+                "reviewCardsPage.unlocked"
+              )}`
             );
-            const prevNextProgress = prevProgressData.find(
-              (p) => p.categoryId._id === nextCategory._id
+          } else if (nextModule) {
+            const nextModuleProgress = updatedProgress.modules.find(
+              (p) => p.moduleId._id === nextModule._id
             );
-            if (nextProgress?.unlocked && !prevNextProgress?.unlocked) {
+            const prevNextModuleProgress = prevProgressData.modules.find(
+              (p) => p.moduleId._id === nextModule._id
+            );
+            if (
+              nextModuleProgress?.unlocked &&
+              !prevNextModuleProgress?.unlocked
+            ) {
               toast(
-                `${t("reviewCardsPage.level")} ${nextCategory.order} ${t(
+                `${t("reviewCardsPage.module")} ${nextModule.order} ${t(
                   "reviewCardsPage.unlocked"
                 )}`
               );
             }
           }
-          const currentProgress = updatedProgress.find(
-            (p) => p.categoryId._id === currentCategory?._id
+          const currentLevelProgress = updatedProgress.levels.find(
+            (p) => p.levelId._id === selectedLevel
           );
           toast(
             `${t("reviewCardsPage.levelCompleted")} ${t(
               "reviewCardsPage.currentAttemptScore"
             )}: ${result.attempt.score.toFixed(2)}%, ${t(
-              "reviewCardsPage.maxScore"
-            )}: ${currentProgress?.maxScore.toFixed(2) || "0"}%`
+              "reviewCardsPage.bestScore"
+            )}: ${currentLevelProgress?.bestScore.toFixed(2) || "0"}%`
           );
         } else {
           toast(
@@ -397,15 +473,9 @@ const ReviewCardsPage: React.FC = () => {
           );
         }
       }, 1500);
-    } catch (error: unknown) {
-      if (error instanceof AxiosError) {
-        setError(
-          error.response?.data?.error ||
-            t("reviewCardsPage.failedToSubmitAnswer")
-        );
-      } else {
-        setError(t("reviewCardsPage.failedToSubmitAnswer"));
-      }
+    } catch (err) {
+      const error = err as ApiError;
+      setError(error.message || t("reviewCardsPage.failedToSubmitAnswer"));
     } finally {
       setIsSubmitting(false);
     }
@@ -417,25 +487,19 @@ const ReviewCardsPage: React.FC = () => {
       return;
     }
     try {
-      const shareUrl = await shareAttempt(attemptId);
+      const shareUrl = await AttemptAPI.shareAttempt(attemptId);
       setShareLink(shareUrl);
       toast(t("reviewCardsPage.shareLinkGenerated"));
-    } catch (error: unknown) {
-      if (error instanceof AxiosError) {
-        setError(
-          error.response?.data?.error ||
-            t("reviewCardsPage.failedToGenerateShareLink")
-        );
-      } else {
-        setError(t("reviewCardsPage.failedToGenerateShareLink"));
-      }
+    } catch (err) {
+      const error = err as ApiError;
+      setError(error.message || t("reviewCardsPage.failedToGenerateShareLink"));
     }
   };
 
   const closeModal = () => {
     setShowCardsModal(false);
-    setShowFormatSelection(false);
-    setSelectedCategory("");
+    setSelectedModule("");
+    setSelectedLevel("");
     setCards([]);
     setTestCards([]);
     setCurrentCardIndex(0);
@@ -452,16 +516,15 @@ const ReviewCardsPage: React.FC = () => {
   const currentCard = cards[currentCardIndex];
   const currentTestCard = testCards[currentCardIndex];
 
-  const languageProgress = progress.filter(
+  const languageProgress = progress.modules.filter(
     (p) => p.languageId === selectedLanguageId
   );
-  const languageTotalCards = languageProgress.reduce(
-    (sum, p) => sum + p.totalCards,
+  const languageTotalPoints = languageProgress.reduce(
+    (sum, p) => sum + p.totalScore,
     0
   );
-  const languageScore = languageProgress.reduce(
-    (sum, p) => sum + p.maxScore,
-    0
+  const languageModules = modules.filter(
+    (m) => m.languageId?._id === selectedLanguageId
   );
 
   const getScoreColor = (score: number, requiredScore: number) => {
@@ -472,6 +535,19 @@ const ReviewCardsPage: React.FC = () => {
   };
 
   const toggleExample = () => setShowExample((prev) => !prev);
+
+  const getTaskIcon = (taskType: string) => {
+    switch (taskType) {
+      case "flash":
+        return <ArrowUpIcon className="w-5 h-5 text-indigo-600" />;
+      case "test":
+        return <CheckCircleIcon className="w-5 h-5 text-indigo-600" />;
+      case "dictation":
+        return <PencilIcon className="w-5 h-5 text-indigo-600" />;
+      default:
+        return null;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex flex-col items-center p-4">
@@ -487,18 +563,25 @@ const ReviewCardsPage: React.FC = () => {
               {t("reviewCardsPage.courseProgress")}
             </h3>
             <p className="text-gray-600">
-              {t("reviewCardsPage.totalCards")}: {languageTotalCards}
+              {t("reviewCardsPage.totalScore")}:{" "}
+              {languageTotalPoints.toFixed(2)}
             </p>
             <p className="text-gray-600">
-              {t("reviewCardsPage.totalScore")}: {languageScore.toFixed(1)}
+              {t("reviewCardsPage.completedModules")}:{" "}
+              {Math.max(
+                languageProgress.filter((p) => p.unlocked).length - 1,
+                0
+              )}{" "}
+              / {languageModules.length}
             </p>
             <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
               <div
                 className="bg-indigo-600 h-2.5 rounded-full"
                 style={{
                   width: `${
-                    languageTotalCards
-                      ? (languageScore / (languageTotalCards * 100)) * 100
+                    languageProgress.length
+                      ? (languageProgress.filter((p) => p.unlocked).length - 1,
+                        0 / languageProgress.length) * 100
                       : 0
                   }%`,
                 }}
@@ -507,99 +590,178 @@ const ReviewCardsPage: React.FC = () => {
           </div>
         )}
         <div className="mb-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-2">
-            {t("reviewCardsPage.levels")}
+          <h3 className="text-xl font-semibold text-gray-800 mb-4">
+            {t("reviewCardsPage.modules")}
           </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {categories.map((cat) => {
-              const catProgress = languageProgress.find((p) => {
-                return p.categoryId._id === cat._id;
-              });
-              return (
-                <div
-                  key={cat._id}
-                  className={`p-4 rounded-lg shadow-md ${
-                    catProgress?.unlocked || cat.order === 1
-                      ? "bg-gray-50"
-                      : "bg-gray-200 opacity-50"
-                  }`}
-                >
-                  <h4 className="font-semibold text-gray-800">
-                    {t("reviewCardsPage.level")} {cat.order}: {cat.name}
-                  </h4>
-                  <p className="text-sm text-gray-600">
-                    {t("reviewCardsPage.totalCards")}:{" "}
-                    {catProgress?.totalCards || 0}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    {t("reviewCardsPage.bestScore")}:{" "}
-                    {(catProgress?.maxScore || 0).toFixed(1)}
-                  </p>
-                  <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
-                    <div
-                      className="bg-indigo-600 h-2.5 rounded-full"
-                      style={{ width: `${catProgress?.maxScore || 0}%` }}
-                    ></div>
-                  </div>
-                  <button
-                    onClick={() => handleStartLevel(cat._id)}
-                    disabled={
-                      !(catProgress?.unlocked || cat.order === 1) ||
-                      isSubmitting
-                    }
-                    className={`mt-2 w-full p-2 rounded-lg font-semibold ${
-                      !(catProgress?.unlocked || cat.order === 1)
-                        ? "bg-gray-400 cursor-not-allowed"
-                        : selectedCategory === cat._id
-                        ? "bg-indigo-600 text-white"
-                        : "bg-indigo-600 text-white hover:bg-indigo-700"
-                    } transition-colors duration-200`}
-                  >
-                    {catProgress?.unlocked || cat.order === 1
-                      ? t("reviewCardsPage.studyLevel")
-                      : t("reviewCardsPage.locked")}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {setShowFormatSelection && (
-          <Dialog
-            open={showFormatSelection}
-            onClose={() => setShowFormatSelection(false)}
-          >
-            <div className="fixed inset-0 bg-black/30" />
-            <div className="fixed inset-0 flex items-center justify-center p-4">
-              <DialogPanel className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md">
-                <DialogTitle className="text-lg font-bold text-indigo-700">
-                  {t("reviewCardsPage.chooseExerciseType")}
-                </DialogTitle>
-                <div className="mt-4 flex flex-col space-y-4">
-                  <button
-                    onClick={() => handleSelectFormat("flash")}
-                    className="bg-indigo-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-indigo-700 transition-colors duration-200"
-                  >
-                    {t("reviewCardsPage.flashcards")}
-                  </button>
-                  <button
-                    onClick={() => handleSelectFormat("test")}
-                    className="bg-indigo-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-indigo-700 transition-colors duration-200"
-                  >
-                    {t("reviewCardsPage.multipleChoiceTest")}
-                  </button>
-                  <button
-                    onClick={() => handleSelectFormat("dictation")}
-                    className="bg-indigo-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-indigo-700 transition-colors duration-200"
-                  >
-                    {t("reviewCardsPage.dictation")}
-                  </button>
-                </div>
-              </DialogPanel>
+          {loading && (
+            <div className="flex items-center mb-4">
+              <ArrowPathIcon className="h-5 w-5 text-indigo-600 animate-spin" />
+              <span className="ml-2 text-gray-600">
+                {t("reviewCardsPage.loading")}
+              </span>
             </div>
-          </Dialog>
-        )}
+          )}
+          {error && (
+            <div className="mb-4 p-3 bg-red-100 text-red-700 text-sm rounded-lg text-center animate-fade-in">
+              {error}
+            </div>
+          )}
+          {!loading && !error && modules.length === 0 && (
+            <div className="text-center text-gray-600">
+              {t("reviewCardsPage.noModulesAvailable")}
+            </div>
+          )}
+          {!loading && !error && modules.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {modules.map((mod) => {
+                const modProgress = progress.modules.find(
+                  (p) => p.moduleId._id === mod._id
+                );
+                const moduleLevels = progress.levels.filter(
+                  (lvl) => lvl.moduleId === mod._id
+                );
+                const isUnlocked = modProgress?.unlocked || mod.order === 1;
+                const isSelected = selectedModule === mod._id;
+
+                return (
+                  <motion.div
+                    key={mod._id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className={`relative p-6 rounded-xl shadow-lg transition-all duration-200 ${
+                      isUnlocked
+                        ? "bg-white hover:shadow-xl"
+                        : "bg-gray-100 opacity-70"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-lg font-semibold text-gray-800">
+                        {t("reviewCardsPage.module")} {mod.order}: {mod.name}
+                      </h4>
+                      {isUnlocked ? (
+                        <LockOpenIcon className="w-5 h-5 text-green-500" />
+                      ) : (
+                        <LockClosedIcon className="w-5 h-5 text-gray-500" />
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-600 mb-2">
+                      {t("reviewCardsPage.completedLevels")}:{" "}
+                      <span className="font-medium">
+                        {modProgress?.completedLevels || 0} /{" "}
+                        {modProgress?.totalLevels || 0}
+                      </span>
+                    </p>
+                    <p className="text-sm text-gray-600 mb-3">
+                      {t("reviewCardsPage.totalScore")}:{" "}
+                      <span
+                        className={`font-medium ${getScoreColor(
+                          modProgress?.totalScore || 0,
+                          mod.requiredScore
+                        )}`}
+                      >
+                        {modProgress?.totalScore.toFixed(2) || 0}
+                      </span>
+                    </p>
+                    <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden mb-4">
+                      <div
+                        className="bg-gradient-to-r from-indigo-500 to-purple-600 h-3 rounded-full transition-all duration-300"
+                        style={{
+                          width: `${
+                            modProgress?.totalScore
+                              ? Math.min(modProgress.totalScore, 100)
+                              : 0
+                          }%`,
+                        }}
+                      ></div>
+                    </div>
+                    <button
+                      onClick={() => handleStartModule(mod._id)}
+                      disabled={!isUnlocked}
+                      className={`w-full py-2 rounded-lg font-semibold transition-colors duration-200 ${
+                        isUnlocked
+                          ? isSelected
+                            ? "bg-indigo-100 text-indigo-700"
+                            : "bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
+                          : "bg-gray-300 text-gray-600 cursor-not-allowed"
+                      }`}
+                    >
+                      {isUnlocked
+                        ? t("reviewCardsPage.selectModule")
+                        : t("reviewCardsPage.locked")}
+                    </button>
+                    <AnimatePresence>
+                      {isSelected && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.3 }}
+                          className="mt-4"
+                        >
+                          <h5 className="text-sm font-semibold text-gray-800 mb-2">
+                            {t("reviewCardsPage.levels")}
+                          </h5>
+                          <div className="space-y-3">
+                            {moduleLevels.map((lvl) => (
+                              <motion.div
+                                key={lvl.levelId._id}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ duration: 0.2 }}
+                                className={`p-4 rounded-lg shadow-sm transition-all duration-200 ${
+                                  lvl.unlocked
+                                    ? "bg-gray-50 hover:bg-gray-100"
+                                    : "bg-gray-200 opacity-70"
+                                }`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center space-x-2">
+                                    {getTaskIcon(lvl.levelId.tasks as string)}
+                                    <p className="text-sm font-medium text-gray-700">
+                                      {t("reviewCardsPage.level")}{" "}
+                                      {lvl.levelId.order}
+                                    </p>
+                                  </div>
+                                  {lvl.unlocked ? (
+                                    <LockOpenIcon className="w-4 h-4 text-green-500" />
+                                  ) : (
+                                    <LockClosedIcon className="w-4 h-4 text-gray-500" />
+                                  )}
+                                </div>
+                                <p className="text-xs text-gray-600 mt-1">
+                                  {t("reviewCardsPage.taskType")}:{" "}
+                                  <span className="capitalize">
+                                    {lvl.levelId.tasks}
+                                  </span>
+                                </p>
+                                <button
+                                  onClick={() =>
+                                    handleStartLevel(lvl.levelId._id)
+                                  }
+                                  disabled={!lvl.unlocked}
+                                  className={`mt-2 w-full py-1.5 rounded-lg text-sm font-semibold transition-colors duration-200 ${
+                                    lvl.unlocked
+                                      ? "bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
+                                      : "bg-gray-300 text-gray-600 cursor-not-allowed"
+                                  }`}
+                                >
+                                  {lvl.unlocked
+                                    ? t("reviewCardsPage.studyLevel")
+                                    : t("reviewCardsPage.locked")}
+                                </button>
+                              </motion.div>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
         {showCardsModal && (
           <>
@@ -617,10 +779,10 @@ const ReviewCardsPage: React.FC = () => {
                     {t("reviewCardsPage.attemptProgress")}:{" "}
                     {totalScore.toFixed(1)}%
                   </p>
-                  <div className="w-full bg-gray-200 rounded-full h-2.5">
+                  <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
                     <div
                       className="bg-indigo-600 h-2.5 rounded-full"
-                      style={{ width: `${totalScore}%` }}
+                      style={{ width: `${Math.min(totalScore, 100)}%` }}
                     ></div>
                   </div>
                 </div>

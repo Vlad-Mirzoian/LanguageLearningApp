@@ -3,9 +3,9 @@ const router = express.Router();
 const { authenticate, authorizeRoles } = require("../middleware/auth");
 const { validate } = require("../middleware/validation");
 const { query } = require("express-validator");
-const userProgressController = require("../controllers/userProgressController");
+const languageProgressController = require("../controllers/languageProgressController");
 
-// GET /api/user-progress
+// GET /api/language-progress
 router.get(
   "/",
   authenticate,
@@ -15,13 +15,10 @@ router.get(
       .optional()
       .isMongoId()
       .withMessage("Invalid language ID"),
-    query("categoryId")
-      .optional()
-      .isMongoId()
-      .withMessage("Invalid category ID"),
+    query("moduleId").optional().isMongoId().withMessage("Invalid module ID"),
   ],
   validate,
-  userProgressController.getUserProgress
+  languageProgressController.getLanguageProgress
 );
 
 module.exports = router;

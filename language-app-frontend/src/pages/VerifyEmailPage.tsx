@@ -1,9 +1,9 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
-import { verifyEmail } from "../services/api";
+import { AuthAPI } from "../services/index";
 import { ArrowPathIcon } from "@heroicons/react/24/solid";
-import { AxiosError } from "axios";
 import { useTranslation } from "react-i18next";
+import type { ApiError } from "../types/index";
 
 const VerifyEmailPage: React.FC = () => {
   const { t } = useTranslation();
@@ -26,21 +26,15 @@ const VerifyEmailPage: React.FC = () => {
       setError("");
       try {
         isMounted.current = true;
-        await verifyEmail(token);
+        await AuthAPI.verifyEmail(token);
         setSuccess(t("verifyEmailPage.emailVerifiedSuccess"));
         setTimeout(() => {
           navigate("/login");
         }, 3000);
-      } catch (error: unknown) {
+      } catch (err) {
         isMounted.current = true;
-        if (error instanceof AxiosError) {
-          setError(
-            error.response?.data?.error ||
-              t("verifyEmailPage.verificationFailed")
-          );
-        } else {
-          setError(t("verifyEmailPage.verificationFailed"));
-        }
+        const error = err as ApiError;
+        setError(error.message || t("verifyEmailPage.verificationFailed"));
       } finally {
         setLoading(false);
       }

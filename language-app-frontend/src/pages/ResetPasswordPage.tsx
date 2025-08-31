@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import FormInput from "../components/ui/FormInput";
-import { resetPassword } from "../services/api";
-import { AxiosError } from "axios";
+import { AuthAPI } from "../services/index";
 import { useTranslation } from "react-i18next";
+import type { ApiError } from "../types/index";
 
 const ResetPasswordPage: React.FC = () => {
   const { t } = useTranslation();
@@ -90,20 +90,16 @@ const ResetPasswordPage: React.FC = () => {
     }
 
     try {
-      await resetPassword(token, { password: formData.password });
+      await AuthAPI.resetPassword(token, { password: formData.password });
       setSuccessMessage(t("resetPasswordPage.passwordResetSuccessful"));
       setTimeout(() => {
         navigate("/login");
       }, 3000);
-    } catch (error: unknown) {
-      if (error instanceof AxiosError) {
-        setServerError(
-          error.response?.data?.error ||
-            t("resetPasswordPage.failedToResetPassword")
-        );
-      } else {
-        setServerError(t("resetPasswordPage.failedToResetPassword"));
-      }
+    } catch (err) {
+      const error = err as ApiError;
+      setServerError(
+        error.message || t("resetPasswordPage.failedToResetPassword")
+      );
     }
   };
 

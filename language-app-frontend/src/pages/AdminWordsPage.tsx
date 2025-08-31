@@ -1,17 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import type { Language, Word } from "../types";
-import {
-  checkWordUnique,
-  createWord,
-  deleteWord,
-  getLanguages,
-  getWords,
-  updateWord,
-} from "../services/api";
+import type { ApiError, Language, Word } from "../types/index";
+import { LanguageAPI, WordAPI } from "../services/index";
 import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
 import FormInput from "../components/ui/FormInput";
 import { ArrowPathIcon } from "@heroicons/react/24/solid";
-import { AxiosError } from "axios";
 import { useTranslation } from "react-i18next";
 
 const AdminWordsPage: React.FC = () => {
@@ -45,8 +37,8 @@ const AdminWordsPage: React.FC = () => {
       try {
         setLoading(true);
         const [langData, wordData] = await Promise.all([
-          getLanguages(),
-          getWords({
+          LanguageAPI.getLanguages(),
+          WordAPI.getWords({
             languageId: filters.languageId || undefined,
             text: filters.text || undefined,
             limit: filters.limit,
@@ -56,14 +48,9 @@ const AdminWordsPage: React.FC = () => {
         setWords(wordData.words);
         setTotalWords(wordData.total);
         setLanguages(langData);
-      } catch (error: unknown) {
-        if (error instanceof AxiosError) {
-          setError(
-            error.response?.data?.error || t("adminWordsPage.failedToLoadWords")
-          );
-        } else {
-          setError(t("adminWordsPage.failedToLoadWords"));
-        }
+      } catch (err) {
+        const error = err as ApiError;
+        setError(error.message || t("adminWordsPage.failedToLoadWords"));
       } finally {
         setLoading(false);
       }
@@ -132,26 +119,21 @@ const AdminWordsPage: React.FC = () => {
     }
 
     try {
-      const uniquenessCheck = await checkWordUnique(formData);
+      const uniquenessCheck = await WordAPI.checkWordUnique(formData);
       if (!uniquenessCheck.isUnique) {
         setServerError(t("adminWordsPage.wordAlreadyExists"));
         return;
       }
-      const newWord = await createWord(formData);
+      const newWord = await WordAPI.createWord(formData);
       setWords([...words, newWord]);
       setTotalWords(totalWords + 1);
       setIsAddModalOpen(false);
       setFormData({ text: "", languageId: "" });
       setErrors({});
       setServerError("");
-    } catch (error: unknown) {
-      if (error instanceof AxiosError) {
-        setServerError(
-          error.response?.data?.error || t("adminWordsPage.failedToCreateWord")
-        );
-      } else {
-        setServerError(t("adminWordsPage.failedToCreateWord"));
-      }
+    } catch (err) {
+      const error = err as ApiError;
+      setServerError(error.message || t("adminWordsPage.failedToCreateWord"));
     }
   };
 
@@ -163,7 +145,7 @@ const AdminWordsPage: React.FC = () => {
     }
 
     try {
-      const uniquenessCheck = await checkWordUnique(formData);
+      const uniquenessCheck = await WordAPI.checkWordUnique(formData);
       if (!uniquenessCheck.isUnique) {
         setServerError(t("adminWordsPage.wordAlreadyExists"));
         return;
@@ -174,7 +156,10 @@ const AdminWordsPage: React.FC = () => {
         updateData.languageId = formData.languageId;
 
       if (Object.keys(updateData).length > 0) {
-        const updatedWord = await updateWord(currentWord._id, updateData);
+        const updatedWord = await WordAPI.updateWord(
+          currentWord._id,
+          updateData
+        );
         setWords(
           words.map((word) =>
             word._id === updatedWord._id ? updatedWord : word
@@ -186,14 +171,9 @@ const AdminWordsPage: React.FC = () => {
       setFormData({ text: "", languageId: "" });
       setErrors({});
       setServerError("");
-    } catch (error: unknown) {
-      if (error instanceof AxiosError) {
-        setServerError(
-          error.response?.data?.error || t("adminWordsPage.failedToUpdateWord")
-        );
-      } else {
-        setServerError(t("adminWordsPage.failedToUpdateWord"));
-      }
+    } catch (err) {
+      const error = err as ApiError;
+      setServerError(error.message || t("adminWordsPage.failedToUpdateWord"));
     }
   };
 
@@ -203,19 +183,14 @@ const AdminWordsPage: React.FC = () => {
     if (!currentWord) return;
 
     try {
-      await deleteWord(currentWord._id);
+      await WordAPI.deleteWord(currentWord._id);
       setWords(words.filter((word) => word._id !== currentWord._id));
       setTotalWords(totalWords - 1);
       setIsDeleteModalOpen(false);
       setCurrentWord(null);
-    } catch (error: unknown) {
-      if (error instanceof AxiosError) {
-        setServerError(
-          error.response?.data?.error || t("adminWordsPage.failedToDeleteWord")
-        );
-      } else {
-        setServerError(t("adminWordsPage.failedToDeleteWord"));
-      }
+    } catch (err) {
+      const error = err as ApiError;
+      setServerError(error.message || t("adminWordsPage.failedToDeleteWord"));
     }
   };
 

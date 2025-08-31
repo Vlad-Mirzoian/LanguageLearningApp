@@ -137,7 +137,7 @@ router.put(
       .isLength({ min: 8 })
       .withMessage("Password must be at least 8 characters"),
     body("nativeLanguageId")
-      .optional()
+      .optional({ nullable: true, checkFalsy: true })
       .isMongoId()
       .withMessage("Invalid nativeLanguageId"),
     body("learningLanguagesIds")
