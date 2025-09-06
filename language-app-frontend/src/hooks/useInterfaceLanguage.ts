@@ -22,9 +22,7 @@ export const useInterfaceLanguage = () => {
       await i18next.changeLanguage(locale);
       setLocale(locale, languageId);
       if (languageId) {
-        const lang = await UserAPI.updateInterfaceLanguage({
-          interfaceLanguageId: languageId,
-        });
+        const lang = await UserAPI.updateInterfaceLanguage(languageId);
         const authStore = useAuthStore.getState();
         if (authStore.user) {
           authStore.setUser({

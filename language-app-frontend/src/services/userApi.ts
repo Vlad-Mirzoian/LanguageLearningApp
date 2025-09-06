@@ -1,7 +1,6 @@
 import api from "./apiClient";
 import type { User, Language } from "../types/index";
 import type {
-  UpdateInterfaceLanguageRequest,
   UpdateUserRequest,
 } from "../types/index";
 
@@ -9,17 +8,17 @@ export const updateUserAPI = async (
   data: UpdateUserRequest
 ): Promise<{ user: User; message: string }> => {
   const response = await api.put<{ user: User; message: string }>(
-    "/auth/user",
+    "/user",
     data
   );
   return response.data;
 };
 
 export const updateInterfaceLanguage = async (
-  data: UpdateInterfaceLanguageRequest
+  interfaceLanguageId: string
 ): Promise<Language> => {
-  const response = await api.put("/auth/interface-language", {
-    data,
+  const response = await api.put("/user/interface-language", {
+    interfaceLanguageId,
   });
   return response.data;
 };
@@ -30,7 +29,7 @@ export const uploadAvatarAPI = async (
   const formData = new FormData();
   formData.append("avatar", file);
   const response = await api.post<{ avatar: string; message: string }>(
-    "/auth/upload-avatar",
+    "/user/upload-avatar",
     formData,
     {
       headers: {

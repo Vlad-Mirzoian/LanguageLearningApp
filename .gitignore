@@ -1,11 +1,13 @@
-backend/node_modules/
-backend/.env
-backend/uploads
-
 language-app-frontend/node_modules
 language-app-frontend/.env
 language-app-frontend/dist
 language-app-frontend/dist-ssr
+
+language-app-backend/node_modules/
+language-app-backend/.env
+language-app-backend/uploads
+language-app-backend/dist
+language-app-backend/dist-ssr
 
 *.log
 *.http

@@ -119,12 +119,12 @@ const AdminLanguagesPage: React.FC = () => {
 
       if (Object.keys(updateData).length > 0) {
         const updatedLanguage = await LanguageAPI.updateLanguage(
-          currentLanguage._id,
+          currentLanguage.id,
           updateData
         );
         setLanguages(
           languages.map((lang) =>
-            lang._id === updatedLanguage._id ? updatedLanguage : lang
+            lang.id === updatedLanguage.id ? updatedLanguage : lang
           )
         );
       }
@@ -147,10 +147,8 @@ const AdminLanguagesPage: React.FC = () => {
     if (!currentLanguage) return;
 
     try {
-      await LanguageAPI.deleteLanguage(currentLanguage._id);
-      setLanguages(
-        languages.filter((lang) => lang._id !== currentLanguage._id)
-      );
+      await LanguageAPI.deleteLanguage(currentLanguage.id);
+      setLanguages(languages.filter((lang) => lang.id !== currentLanguage.id));
       setIsDeleteModalOpen(false);
       setCurrentLanguage(null);
     } catch (err) {
@@ -216,7 +214,7 @@ const AdminLanguagesPage: React.FC = () => {
               </thead>
               <tbody>
                 {languages.map((lang) => (
-                  <tr key={lang._id} className="border-t hover:bg-gray-50">
+                  <tr key={lang.id} className="border-t hover:bg-gray-50">
                     <td className="p-4 text-gray-800">{lang.name}</td>
                     <td className="p-4 text-gray-800">{lang.code}</td>
                     <td className="p-4">

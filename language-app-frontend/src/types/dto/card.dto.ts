@@ -22,7 +22,6 @@ export interface UpdateCardDTO {
 export interface ReviewCardsFiltersDTO {
   languageId: string;
   moduleId?: string;
-  levelId?: string;
 }
 
 export interface SubmitCardDTO {

@@ -75,8 +75,7 @@ const StatisticsPage: React.FC = () => {
   };
 
   const filteredAttempts = filterByDate(stats?.attempts || []).filter((a) => {
-    const languageMatch =
-      String(a.languageId?._id || a.languageId) === selectedLanguageId;
+    const languageMatch = a.language?.id === selectedLanguageId;
     return languageMatch;
   });
 
@@ -88,10 +87,10 @@ const StatisticsPage: React.FC = () => {
         year: "numeric",
       }),
       score: a.score,
-      moduleId: a.moduleId?._id,
-      moduleName: a.moduleId?.name || "Unknown Module",
-      levelId: a.levelId?._id,
-      levelOrder: a.levelId?.order || 0,
+      moduleId: a.module?.id,
+      moduleName: a.module?.name || "Unknown Module",
+      levelId: a.level?.id,
+      levelOrder: a.level?.order || 0,
       type: a.type,
       attemptCount: 1,
     }))
@@ -157,7 +156,7 @@ const StatisticsPage: React.FC = () => {
     try {
       const doc = new jsPDF();
       const languageName =
-        languages.find((lang) => lang._id === selectedLanguageId)?.name ||
+        languages.find((lang) => lang.id === selectedLanguageId)?.name ||
         t("statisticsPage.selectLanguage");
 
       let yOffset = 15;
@@ -270,7 +269,7 @@ const StatisticsPage: React.FC = () => {
       <div className="w-full max-w-4xl">
         <h2 className="text-3xl font-bold text-center text-indigo-700 mb-6">
           {t("statisticsPage.statistics")}:{" "}
-          {languages.find((lang) => lang._id === selectedLanguageId)?.name ||
+          {languages.find((lang) => lang.id === selectedLanguageId)?.name ||
             t("statisticsPage.selectLanguage")}
         </h2>
         {loading && (
@@ -414,7 +413,9 @@ const StatisticsPage: React.FC = () => {
                             props.payload[`${name}_type`] || "Unknown";
                           const moduleId = props.payload[`${name}_moduleId`];
                           const totalScore =
-                            stats.statsByModule[moduleId]?.totalScore.toFixed(2) || 0;
+                            stats.statsByModule[moduleId]?.totalScore.toFixed(
+                              2
+                            ) || 0;
                           return [
                             `${value} (${t(
                               "statisticsPage.attempts"

@@ -112,13 +112,13 @@ const Navbar: React.FC = () => {
                         (l) => l.code === e.target.value
                       );
                       if (selectedLang) {
-                        changeLanguage(selectedLang.code, selectedLang._id);
+                        changeLanguage(selectedLang.code, selectedLang.id);
                       }
                     }}
                     className="appearance-none bg-indigo-600 text-white py-2 px-4 pr-8 rounded-lg font-semibold hover:bg-indigo-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
                     {availableLanguages.map((lang) => (
-                      <option key={lang._id} value={lang.code}>
+                      <option key={lang.id} value={lang.code}>
                         {lang.name}
                       </option>
                     ))}
@@ -199,13 +199,13 @@ const Navbar: React.FC = () => {
                       (l) => l.code === e.target.value
                     );
                     if (selectedLang) {
-                      changeLanguage(selectedLang.code, selectedLang._id);
+                      changeLanguage(selectedLang.code, selectedLang.id);
                     }
                   }}
                   className="w-full bg-indigo-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-indigo-700 transition-colors duration-200"
                 >
                   {availableLanguages.map((lang) => (
-                    <option key={lang._id} value={lang._id}>
+                    <option key={lang.id} value={lang.id}>
                       {lang.name}
                     </option>
                   ))}

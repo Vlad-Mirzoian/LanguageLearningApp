@@ -159,23 +159,23 @@ const AdminCardsPage: React.FC = () => {
 
     try {
       const updateData: Partial<typeof formData> = {};
-      if (formData.wordId !== currentCard.wordId._id)
+      if (formData.wordId !== currentCard.word.id)
         updateData.wordId = formData.wordId;
-      if (formData.translationId !== currentCard.translationId._id)
+      if (formData.translationId !== currentCard.translation.id)
         updateData.translationId = formData.translationId;
-      if (formData.moduleId !== currentCard.moduleId._id)
+      if (formData.moduleId !== currentCard.module.id)
         updateData.moduleId = formData.moduleId;
       if ((formData.example || "") !== (currentCard.example || ""))
         updateData.example = formData.example || undefined;
 
       if (Object.keys(updateData).length > 0) {
         const updatedCard = await CardAPI.updateCard(
-          currentCard._id,
+          currentCard.id,
           updateData
         );
         setCards(
           cards.map((card) =>
-            card._id === updatedCard._id ? updatedCard : card
+            card.id === updatedCard.id ? updatedCard : card
           )
         );
       }
@@ -201,8 +201,8 @@ const AdminCardsPage: React.FC = () => {
     if (!currentCard) return;
 
     try {
-      await CardAPI.deleteCard(currentCard._id);
-      setCards(cards.filter((card) => card._id !== currentCard._id));
+      await CardAPI.deleteCard(currentCard.id);
+      setCards(cards.filter((card) => card.id !== currentCard.id));
       setTotalCards(totalCards - 1);
       setIsDeleteModalOpen(false);
       setCurrentCard(null);
@@ -230,7 +230,7 @@ const AdminCardsPage: React.FC = () => {
             >
               <option value="">{t("adminCardsPage.allModules")}</option>
               {modules.map((mod) => (
-                <option key={mod._id} value={mod._id}>
+                <option key={mod.id} value={mod.id}>
                   {mod.name}
                 </option>
               ))}
@@ -308,13 +308,13 @@ const AdminCardsPage: React.FC = () => {
                 </thead>
                 <tbody>
                   {cards.map((card) => (
-                    <tr key={card._id} className="border-t hover:bg-gray-50">
-                      <td className="p-4 text-gray-800">{card.wordId.text}</td>
+                    <tr key={card.id} className="border-t hover:bg-gray-50">
+                      <td className="p-4 text-gray-800">{card.word.text}</td>
                       <td className="p-4 text-gray-800">
-                        {card.translationId.text}
+                        {card.translation.text}
                       </td>
                       <td className="p-4 text-gray-800">
-                        {card.moduleId.name}
+                        {card.module.name}
                       </td>
                       <td className="p-4 text-gray-800">{card.example}</td>
                       <td className="p-4">
@@ -322,9 +322,9 @@ const AdminCardsPage: React.FC = () => {
                           onClick={() => {
                             setCurrentCard(card);
                             setFormData({
-                              wordId: card.wordId._id,
-                              translationId: card.translationId._id,
-                              moduleId: card.moduleId._id,
+                              wordId: card.word.id,
+                              translationId: card.translation.id,
+                              moduleId: card.module.id,
                               example: card.example ?? "",
                             });
                             setErrors({});
@@ -413,7 +413,7 @@ const AdminCardsPage: React.FC = () => {
                   >
                     <option value="">{t("adminCardsPage.selectWord")}</option>
                     {words.map((word) => (
-                      <option key={word._id} value={word._id}>
+                      <option key={word.id} value={word.id}>
                         {word.text}
                       </option>
                     ))}
@@ -439,7 +439,7 @@ const AdminCardsPage: React.FC = () => {
                       {t("adminCardsPage.selectTranslation")}
                     </option>
                     {words.map((word) => (
-                      <option key={word._id} value={word._id}>
+                      <option key={word.id} value={word.id}>
                         {word.text}
                       </option>
                     ))}
@@ -463,7 +463,7 @@ const AdminCardsPage: React.FC = () => {
                       {t("adminCardsPage.selectModule")}
                     </option>
                     {modules.map((mod) => (
-                      <option key={mod._id} value={mod._id}>
+                      <option key={mod.id} value={mod.id}>
                         {mod.name}
                       </option>
                     ))}
@@ -550,7 +550,7 @@ const AdminCardsPage: React.FC = () => {
                   >
                     <option value="">{t("adminCardsPage.selectWord")}</option>
                     {words.map((word) => (
-                      <option key={word._id} value={word._id}>
+                      <option key={word.id} value={word.id}>
                         {word.text}
                       </option>
                     ))}
@@ -576,7 +576,7 @@ const AdminCardsPage: React.FC = () => {
                       {t("adminCardsPage.selectTranslation")}
                     </option>
                     {words.map((word) => (
-                      <option key={word._id} value={word._id}>
+                      <option key={word.id} value={word.id}>
                         {word.text}
                       </option>
                     ))}
@@ -600,7 +600,7 @@ const AdminCardsPage: React.FC = () => {
                       {t("adminCardsPage.selectModule")}
                     </option>
                     {modules.map((mod) => (
-                      <option key={mod._id} value={mod._id}>
+                      <option key={mod.id} value={mod.id}>
                         {mod.name}
                       </option>
                     ))}
@@ -665,8 +665,8 @@ const AdminCardsPage: React.FC = () => {
             </DialogTitle>
             <p className="mt-2 text-gray-600">
               {t("adminCardsPage.confirmDeletionMessage", {
-                word: currentCard?.wordId.text,
-                translation: currentCard?.translationId.text,
+                word: currentCard?.word.text,
+                translation: currentCard?.translation.text,
               })}
             </p>
             {serverError && (

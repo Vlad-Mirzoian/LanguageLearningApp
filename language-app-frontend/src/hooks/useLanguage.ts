@@ -15,14 +15,14 @@ export const useLanguage = () => {
       try {
         const languages = await LanguageAPI.getLanguages();
         const validLanguage = languages.find(
-          (lang) => lang._id === selectedLanguageId
+          (lang) => lang.id === selectedLanguageId
         );
 
         if (validLanguage) {
-          setSelectedLanguageId(validLanguage._id);
+          setSelectedLanguageId(validLanguage.id);
         } else if (user.learningLanguagesIds?.length) {
           const firstLang = user.learningLanguagesIds.find((id) =>
-            languages.some((lang) => lang._id === id)
+            languages.some((lang) => lang.id === id)
           );
           setSelectedLanguageId(firstLang || null);
         } else {
@@ -37,7 +37,7 @@ export const useLanguage = () => {
     };
 
     initializeLanguage();
-  }, [user, selectedLanguageId, setSelectedLanguageId]);
+  }, [user, setSelectedLanguageId, selectedLanguageId]);
 
   return {
     selectedLanguageId,

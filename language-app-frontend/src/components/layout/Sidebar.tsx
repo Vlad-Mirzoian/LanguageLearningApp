@@ -94,15 +94,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
           {!loading && !error && (
             <ul className="space-y-2">
               {languages
-                .filter((lang) =>
-                  user?.learningLanguagesIds?.includes(lang._id)
-                )
+                .filter((lang) => user?.learningLanguagesIds?.includes(lang.id))
                 .map((lang) => (
-                  <li key={lang._id}>
+                  <li key={lang.id}>
                     <button
-                      onClick={() => handleLanguageSelect(lang._id)}
+                      onClick={() => handleLanguageSelect(lang.id)}
                       className={`w-full text-left p-2 rounded-lg ${
-                        selectedLanguageId === lang._id
+                        selectedLanguageId === lang.id
                           ? "bg-indigo-600"
                           : "hover:bg-indigo-700"
                       } transition-colors duration-200`}

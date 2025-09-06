@@ -9,16 +9,16 @@ export interface User {
 }
 
 export interface Language {
-  _id: string;
+  id: string;
   code: string;
   name: string;
 }
 
 export interface Module {
-  _id: string;
+  id: string;
   name: string;
   description: string;
-  languageId: Language;
+  language: Language;
   order: number;
   requiredScore: number;
   wordsCount: number;
@@ -33,7 +33,7 @@ export interface ModuleProgress {
   _id: string;
   userId: string;
   languageId: string;
-  moduleId: Module;
+  module: Module;
   totalLevels: number;
   completedLevels: number;
   totalScore: number;
@@ -42,7 +42,7 @@ export interface ModuleProgress {
 }
 
 export interface Level {
-  _id: string;
+  id: string;
   moduleId: string;
   order: number;
   tasks: "flash" | "test" | "dictation";
@@ -55,15 +55,15 @@ export interface LevelProgress {
   userId: string;
   languageId: string;
   moduleId: string;
-  levelId: Level;
+  level: Level;
   bestScore: number;
   unlocked: boolean;
 }
 
 export interface Word {
-  _id: string;
+  id: string;
   text: string;
-  languageId: Language;
+  language: Language;
 }
 
 export interface WordResponse {
@@ -72,16 +72,11 @@ export interface WordResponse {
 }
 
 export interface Card {
-  _id: string;
-  wordId: Word;
-  translationId: Word;
-  moduleId: Module;
+  id: string;
+  word: Word;
+  translation: Word;
+  module: Module;
   example?: string;
-  interval: number;
-  nextReview: string;
-  easiness: number;
-  repetitions: number;
-  lastReviewed: string;
 }
 
 export interface CardResponse {
@@ -90,31 +85,19 @@ export interface CardResponse {
 }
 
 export interface TestCard {
-  _id: string;
+  id: string;
   word: Word;
   module: Module;
   example?: string;
   options: { text: string; isCorrect: boolean }[];
 }
 
-export interface UserProgress {
-  _id: string;
-  userId: string;
-  languageId: string;
-  moduleId: Module;
-  totalCards: number;
-  score: number;
-  bestScore: number;
-  unlocked: boolean;
-  attemptId: string | null;
-}
-
 export interface Attempt {
   _id: string;
-  userId: User;
-  languageId: Language;
-  moduleId?: Module;
-  levelId?: Level;
+  user: User;
+  language: Language;
+  module?: Module;
+  level?: Level;
   type: "flash" | "test" | "dictation";
   score: number;
   correctAnswers: number;

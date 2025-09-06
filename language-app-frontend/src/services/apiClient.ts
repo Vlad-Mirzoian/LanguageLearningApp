@@ -1,6 +1,6 @@
 import axios from "axios";
 import { useAuthStore } from "../store/authStore";
-import { refreshAPI } from "./authAPI";
+import { refreshAPI } from "./authApi";
 import type { ApiError } from "../types/index";
 
 const api = axios.create({

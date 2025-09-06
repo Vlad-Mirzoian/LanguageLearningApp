@@ -70,19 +70,19 @@ const ViewAttemptPage: React.FC = () => {
               <span className="font-semibold">
                 {t("viewAttemptPage.user")}:
               </span>{" "}
-              {attempt.userId.username}
+              {attempt.user.username}
             </p>
             <p className="text-gray-600">
               <span className="font-semibold">
                 {t("viewAttemptPage.language")}:
               </span>{" "}
-              {attempt.languageId.name}
+              {attempt.language.name}
             </p>
             <p className="text-gray-600">
               <span className="font-semibold">
                 {t("viewAttemptPage.module")}:
               </span>{" "}
-              {attempt.moduleId?.name}
+              {attempt.module?.name}
             </p>
             <p className="text-gray-600">
               <span className="font-semibold">

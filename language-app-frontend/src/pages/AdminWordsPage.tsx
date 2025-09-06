@@ -152,17 +152,17 @@ const AdminWordsPage: React.FC = () => {
       }
       const updateData: Partial<typeof formData> = {};
       if (formData.text !== currentWord.text) updateData.text = formData.text;
-      if (formData.languageId !== currentWord.languageId._id)
+      if (formData.languageId !== currentWord.language.id)
         updateData.languageId = formData.languageId;
 
       if (Object.keys(updateData).length > 0) {
         const updatedWord = await WordAPI.updateWord(
-          currentWord._id,
+          currentWord.id,
           updateData
         );
         setWords(
           words.map((word) =>
-            word._id === updatedWord._id ? updatedWord : word
+            word.id === updatedWord.id ? updatedWord : word
           )
         );
       }
@@ -183,8 +183,8 @@ const AdminWordsPage: React.FC = () => {
     if (!currentWord) return;
 
     try {
-      await WordAPI.deleteWord(currentWord._id);
-      setWords(words.filter((word) => word._id !== currentWord._id));
+      await WordAPI.deleteWord(currentWord.id);
+      setWords(words.filter((word) => word.id !== currentWord.id));
       setTotalWords(totalWords - 1);
       setIsDeleteModalOpen(false);
       setCurrentWord(null);
@@ -212,7 +212,7 @@ const AdminWordsPage: React.FC = () => {
             >
               <option value="">{t("adminWordsPage.allLanguages")}</option>
               {languages.map((lang) => (
-                <option key={lang._id} value={lang._id}>
+                <option key={lang.id} value={lang.id}>
                   {lang.name} ({lang.code})
                 </option>
               ))}
@@ -279,10 +279,10 @@ const AdminWordsPage: React.FC = () => {
                 </thead>
                 <tbody>
                   {words.map((word) => (
-                    <tr key={word._id} className="border-t hover:bg-gray-50">
+                    <tr key={word.id} className="border-t hover:bg-gray-50">
                       <td className="p-4 text-gray-800">{word.text}</td>
                       <td className="p-4 text-gray-800">
-                        {word.languageId.name}
+                        {word.language.name}
                       </td>
                       <td className="p-4">
                         <button
@@ -290,7 +290,7 @@ const AdminWordsPage: React.FC = () => {
                             setCurrentWord(word);
                             setFormData({
                               text: word.text,
-                              languageId: word.languageId._id,
+                              languageId: word.language.id,
                             });
                             setErrors({});
                             setServerError("");
@@ -382,7 +382,7 @@ const AdminWordsPage: React.FC = () => {
                       {t("adminWordsPage.selectLanguage")}
                     </option>
                     {languages.map((lang) => (
-                      <option key={lang._id} value={lang._id}>
+                      <option key={lang.id} value={lang.id}>
                         {lang.name} ({lang.code})
                       </option>
                     ))}
@@ -461,7 +461,7 @@ const AdminWordsPage: React.FC = () => {
                       {t("adminWordsPage.selectLanguage")}
                     </option>
                     {languages.map((lang) => (
-                      <option key={lang._id} value={lang._id}>
+                      <option key={lang.id} value={lang.id}>
                         {lang.name} ({lang.code})
                       </option>
                     ))}

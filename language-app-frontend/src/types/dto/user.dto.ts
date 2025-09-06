@@ -6,6 +6,3 @@ export interface UpdateUserRequest {
   learningLanguagesIds?: string[];
 }
 
-export interface UpdateInterfaceLanguageRequest {
-  interfaceLanguageId: string;
-}

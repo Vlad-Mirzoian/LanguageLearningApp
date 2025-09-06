@@ -275,7 +275,7 @@
     "failedToUpdateWord": "Failed to update Word",
     "failedToDeleteWord": "Failed to delete Word",
     "confirmDeletionTitle": "Confirm Deletion",
-    "confirmDeletionMessage": "Are you sure you want to delete the Word \"{text}\"? This will also remove related cards.",
+    "confirmDeletionMessage": "Are you sure you want to delete the Word \"{{text}}\"? This will also remove related cards.",
     "cancel": "Cancel",
     "add": "Add",
     "save": "Save"
@@ -301,7 +301,7 @@
     "failedToUpdateLanguage": "Failed to update Language",
     "failedToDeleteLanguage": "Failed to delete Language",
     "confirmDeletionTitle": "Confirm Deletion",
-    "confirmDeletionMessage": "Are you sure you want to delete the language \"{name}\"? This will also remove related words, cards, and user associations.",
+    "confirmDeletionMessage": "Are you sure you want to delete the language {{name}}? This will also remove related words, cards, and user associations.",
     "cancel": "Cancel",
     "add": "Add",
     "save": "Save"

@@ -79,8 +79,7 @@ const AdminCategoriesPage: React.FC = () => {
         }
         if (
           modules.some(
-            (mod) =>
-              mod.order === Number(value) && mod._id !== currentModule?._id
+            (mod) => mod.order === Number(value) && mod.id !== currentModule?.id
           )
         ) {
           return t("adminCategoriesPage.orderTaken");
@@ -180,24 +179,21 @@ const AdminCategoriesPage: React.FC = () => {
     try {
       const updateData: Partial<typeof formData> = {};
       if (formData.name !== currentModule.name) updateData.name = formData.name;
-      if (formData.languageId !== currentModule.languageId._id)
+      if (formData.languageId !== currentModule.language.id)
         updateData.languageId = formData.languageId;
       if ((formData.description || "") !== (currentModule.description || ""))
         updateData.description = formData.description || undefined;
 
       if (Object.keys(updateData).length > 0) {
-        const updatedCategory = await ModuleAPI.updateModule(
-          currentModule._id,
-          {
-            ...updateData,
-            order: Number(formData.order),
-            requiredScore: Number(formData.requiredScore),
-          }
-        );
+        const updatedCategory = await ModuleAPI.updateModule(currentModule.id, {
+          ...updateData,
+          order: Number(formData.order),
+          requiredScore: Number(formData.requiredScore),
+        });
         setModules(
           modules
             .map((mod) =>
-              mod._id === updatedCategory._id ? updatedCategory : mod
+              mod.id === updatedCategory.id ? updatedCategory : mod
             )
             .sort((a, b) => a.order - b.order)
         );
@@ -227,8 +223,8 @@ const AdminCategoriesPage: React.FC = () => {
     if (!currentModule) return;
 
     try {
-      await ModuleAPI.deleteModule(currentModule._id);
-      setModules(modules.filter((mod) => mod._id !== currentModule._id));
+      await ModuleAPI.deleteModule(currentModule.id);
+      setModules(modules.filter((mod) => mod.id !== currentModule.id));
       setTotalModules(totalModules - 1);
       setIsDeleteModalOpen(false);
       setCurrentModule(null);
@@ -251,7 +247,7 @@ const AdminCategoriesPage: React.FC = () => {
     const changedOrders = reorderedCategories
       .map((mod, index) => {
         const newOrder = index + 1;
-        return mod.order !== newOrder ? { id: mod._id, order: newOrder } : null;
+        return mod.order !== newOrder ? { id: mod.id, order: newOrder } : null;
       })
       .filter(Boolean) as { id: string; order: number }[];
     if (changedOrders.length === 0) {
@@ -292,7 +288,7 @@ const AdminCategoriesPage: React.FC = () => {
             >
               <option value="">{t("adminCategoriesPage.allLanguages")}</option>
               {languages.map((lang) => (
-                <option key={lang._id} value={lang._id}>
+                <option key={lang.id} value={lang.id}>
                   {lang.name}
                 </option>
               ))}
@@ -325,7 +321,7 @@ const AdminCategoriesPage: React.FC = () => {
             }}
             className="bg-indigo-600 text-white py-2.5 px-8 rounded-lg font-semibold hover:bg-indigo-700 transition-colors duration-200 cursor-pointer"
           >
-            {t("adminCardsPage.addCard")}
+            {t("adminCategoriesPage.addCategory")}
           </button>
         </div>
         {loading && (
@@ -383,8 +379,8 @@ const AdminCategoriesPage: React.FC = () => {
                         <tbody>
                           {modules.map((mod, index) => (
                             <Draggable
-                              key={mod._id}
-                              draggableId={mod._id}
+                              key={mod.id}
+                              draggableId={mod.id}
                               index={index}
                             >
                               {(provided, snapshot) => (
@@ -407,7 +403,7 @@ const AdminCategoriesPage: React.FC = () => {
                                     {mod.description || "-"}
                                   </td>
                                   <td className="p-4 text-gray-800">
-                                    {mod.languageId.name}
+                                    {mod.language.name}
                                   </td>
                                   <td className="p-4 text-gray-800">
                                     {mod.requiredScore}
@@ -419,7 +415,7 @@ const AdminCategoriesPage: React.FC = () => {
                                         setFormData({
                                           name: mod.name,
                                           description: mod.description || "",
-                                          languageId: mod.languageId._id,
+                                          languageId: mod.language.id,
                                           order: String(mod.order),
                                           requiredScore: String(
                                             mod.requiredScore
@@ -481,14 +477,14 @@ const AdminCategoriesPage: React.FC = () => {
                   </thead>
                   <tbody>
                     {modules.map((mod) => (
-                      <tr key={mod._id} className="border-t hover:bg-gray-50">
+                      <tr key={mod.id} className="border-t hover:bg-gray-50">
                         <td className="p-4 text-gray-800">{mod.order}</td>
                         <td className="p-4 text-gray-800">{mod.name}</td>
                         <td className="p-4 text-gray-800">
                           {mod.description || "-"}
                         </td>
                         <td className="p-4 text-gray-800">
-                          {mod.languageId.name}
+                          {mod.language.name}
                         </td>
                         <td className="p-4 text-gray-800">
                           {mod.requiredScore}
@@ -500,7 +496,7 @@ const AdminCategoriesPage: React.FC = () => {
                               setFormData({
                                 name: mod.name,
                                 description: mod.description || "",
-                                languageId: mod.languageId._id,
+                                languageId: mod.language.id,
                                 order: String(mod.order),
                                 requiredScore: String(mod.requiredScore),
                               });
@@ -608,7 +604,7 @@ const AdminCategoriesPage: React.FC = () => {
                       {t("adminCategoriesPage.selectLanguage")}
                     </option>
                     {languages.map((lang) => (
-                      <option key={lang._id} value={lang._id}>
+                      <option key={lang.id} value={lang.id}>
                         {lang.name}
                       </option>
                     ))}
@@ -726,7 +722,7 @@ const AdminCategoriesPage: React.FC = () => {
                       {t("adminCategoriesPage.selectLanguage")}
                     </option>
                     {languages.map((lang) => (
-                      <option key={lang._id} value={lang._id}>
+                      <option key={lang.id} value={lang.id}>
                         {lang.name}
                       </option>
                     ))}

@@ -100,12 +100,12 @@ const ReviewCardsPage: React.FC = () => {
   };
 
   const handleStartLevel = (levelId: string) => {
-    const level = progress.levels.find((lvl) => lvl.levelId._id === levelId);
+    const level = progress.levels.find((lvl) => lvl.level.id === levelId);
     if (!level) {
       setError(t("reviewCardsPage.levelNotFound"));
       return;
     }
-    const taskType = level.levelId.tasks as ExerciseType;
+    const taskType = level.level.tasks as ExerciseType;
     if (!taskType) {
       setError(t("reviewCardsPage.noTaskType"));
       return;
@@ -135,7 +135,7 @@ const ReviewCardsPage: React.FC = () => {
       setTotalScore(0);
       setShareLink(null);
 
-      const filters = { languageId, moduleId, levelId };
+      const filters = { languageId, moduleId };
       let response;
       if (type === "test") {
         response = await CardAPI.getTestCards(filters);
@@ -168,7 +168,7 @@ const ReviewCardsPage: React.FC = () => {
     setIsSubmitting(true);
     try {
       const prevProgressData = progress;
-      const result = await CardAPI.submitCard(cards[currentCardIndex]._id, {
+      const result = await CardAPI.submitCard(cards[currentCardIndex].id, {
         languageId: selectedLanguageId,
         answer: cardAnswer,
         attemptId,
@@ -202,10 +202,10 @@ const ReviewCardsPage: React.FC = () => {
           );
           setProgress(updatedProgress);
           const currentModule = modules.find(
-            (mod) => mod._id === selectedModule
+            (mod) => mod.id === selectedModule
           );
           const currentLevel = progress.levels.find(
-            (lvl) => lvl.levelId._id === selectedLevel
+            (lvl) => lvl.level.id === selectedLevel
           );
           const nextModule = currentModule
             ? modules.find((mod) => mod.order === currentModule.order + 1)
@@ -214,21 +214,21 @@ const ReviewCardsPage: React.FC = () => {
             ? progress.levels.find(
                 (lvl) =>
                   lvl.moduleId === selectedModule &&
-                  lvl.levelId.order === (currentLevel?.levelId.order || 0) + 1
+                  lvl.level.order === (currentLevel?.level.order || 0) + 1
               )
             : null;
           if (nextLevel && nextLevel.unlocked) {
             toast(
-              `${t("reviewCardsPage.level")} ${nextLevel.levelId.order} ${t(
+              `${t("reviewCardsPage.level")} ${nextLevel.level.order} ${t(
                 "reviewCardsPage.unlocked"
               )}`
             );
           } else if (nextModule) {
             const nextModuleProgress = updatedProgress.modules.find(
-              (p) => p.moduleId._id === nextModule._id
+              (p) => p.module.id === nextModule.id
             );
             const prevNextModuleProgress = prevProgressData.modules.find(
-              (p) => p.moduleId._id === nextModule._id
+              (p) => p.module.id === nextModule.id
             );
             if (
               nextModuleProgress?.unlocked &&
@@ -242,7 +242,7 @@ const ReviewCardsPage: React.FC = () => {
             }
           }
           const currentLevelProgress = updatedProgress.levels.find(
-            (p) => p.levelId._id === selectedLevel
+            (p) => p.level.id === selectedLevel
           );
           toast(
             `${t("reviewCardsPage.levelCompleted")} ${t(
@@ -276,7 +276,7 @@ const ReviewCardsPage: React.FC = () => {
     setIsSubmitting(true);
     try {
       const prevProgressData = progress;
-      const result = await CardAPI.submitCard(testCards[currentCardIndex]._id, {
+      const result = await CardAPI.submitCard(testCards[currentCardIndex].id, {
         languageId: selectedLanguageId,
         answer: selectedAnswer,
         attemptId,
@@ -309,10 +309,10 @@ const ReviewCardsPage: React.FC = () => {
           );
           setProgress(updatedProgress);
           const currentModule = modules.find(
-            (mod) => mod._id === selectedModule
+            (mod) => mod.id === selectedModule
           );
           const currentLevel = progress.levels.find(
-            (lvl) => lvl.levelId._id === selectedLevel
+            (lvl) => lvl.level.id === selectedLevel
           );
           const nextModule = currentModule
             ? modules.find((mod) => mod.order === currentModule.order + 1)
@@ -321,21 +321,21 @@ const ReviewCardsPage: React.FC = () => {
             ? progress.levels.find(
                 (lvl) =>
                   lvl.moduleId === selectedModule &&
-                  lvl.levelId.order === (currentLevel?.levelId.order || 0) + 1
+                  lvl.level.order === (currentLevel?.level.order || 0) + 1
               )
             : null;
           if (nextLevel && nextLevel.unlocked) {
             toast(
-              `${t("reviewCardsPage.level")} ${nextLevel.levelId.order} ${t(
+              `${t("reviewCardsPage.level")} ${nextLevel.level.order} ${t(
                 "reviewCardsPage.unlocked"
               )}`
             );
           } else if (nextModule) {
             const nextModuleProgress = updatedProgress.modules.find(
-              (p) => p.moduleId._id === nextModule._id
+              (p) => p.module.id === nextModule.id
             );
             const prevNextModuleProgress = prevProgressData.modules.find(
-              (p) => p.moduleId._id === nextModule._id
+              (p) => p.module.id === nextModule.id
             );
             if (
               nextModuleProgress?.unlocked &&
@@ -349,7 +349,7 @@ const ReviewCardsPage: React.FC = () => {
             }
           }
           const currentLevelProgress = updatedProgress.levels.find(
-            (p) => p.levelId._id === selectedLevel
+            (p) => p.level.id === selectedLevel
           );
           toast(
             `${t("reviewCardsPage.levelCompleted")} ${t(
@@ -383,7 +383,7 @@ const ReviewCardsPage: React.FC = () => {
     setIsSubmitting(true);
     try {
       const prevProgressData = progress;
-      const result = await CardAPI.submitCard(cards[currentCardIndex]._id, {
+      const result = await CardAPI.submitCard(cards[currentCardIndex].id, {
         languageId: selectedLanguageId,
         answer: cardAnswer,
         attemptId,
@@ -416,10 +416,10 @@ const ReviewCardsPage: React.FC = () => {
           );
           setProgress(updatedProgress);
           const currentModule = modules.find(
-            (mod) => mod._id === selectedModule
+            (mod) => mod.id === selectedModule
           );
           const currentLevel = progress.levels.find(
-            (lvl) => lvl.levelId._id === selectedLevel
+            (lvl) => lvl.level.id === selectedLevel
           );
           const nextModule = currentModule
             ? modules.find((mod) => mod.order === currentModule.order + 1)
@@ -428,21 +428,21 @@ const ReviewCardsPage: React.FC = () => {
             ? progress.levels.find(
                 (lvl) =>
                   lvl.moduleId === selectedModule &&
-                  lvl.levelId.order === (currentLevel?.levelId.order || 0) + 1
+                  lvl.level.order === (currentLevel?.level.order || 0) + 1
               )
             : null;
           if (nextLevel && nextLevel.unlocked) {
             toast(
-              `${t("reviewCardsPage.level")} ${nextLevel.levelId.order} ${t(
+              `${t("reviewCardsPage.level")} ${nextLevel.level.order} ${t(
                 "reviewCardsPage.unlocked"
               )}`
             );
           } else if (nextModule) {
             const nextModuleProgress = updatedProgress.modules.find(
-              (p) => p.moduleId._id === nextModule._id
+              (p) => p.module.id === nextModule.id
             );
             const prevNextModuleProgress = prevProgressData.modules.find(
-              (p) => p.moduleId._id === nextModule._id
+              (p) => p.module.id === nextModule.id
             );
             if (
               nextModuleProgress?.unlocked &&
@@ -456,7 +456,7 @@ const ReviewCardsPage: React.FC = () => {
             }
           }
           const currentLevelProgress = updatedProgress.levels.find(
-            (p) => p.levelId._id === selectedLevel
+            (p) => p.level.id === selectedLevel
           );
           toast(
             `${t("reviewCardsPage.levelCompleted")} ${t(
@@ -524,7 +524,7 @@ const ReviewCardsPage: React.FC = () => {
     0
   );
   const languageModules = modules.filter(
-    (m) => m.languageId?._id === selectedLanguageId
+    (m) => m.language?.id === selectedLanguageId
   );
 
   const getScoreColor = (score: number, requiredScore: number) => {
@@ -554,7 +554,7 @@ const ReviewCardsPage: React.FC = () => {
       <div className="w-full max-w-4xl">
         <h2 className="text-3xl font-bold text-center text-indigo-700 mb-6">
           {t("reviewCardsPage.course")}:{" "}
-          {languages.find((lang) => lang._id === selectedLanguageId)?.name ||
+          {languages.find((lang) => lang.id === selectedLanguageId)?.name ||
             t("reviewCardsPage.selectLanguage")}
         </h2>
         {selectedLanguageId && (
@@ -615,17 +615,17 @@ const ReviewCardsPage: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               {modules.map((mod) => {
                 const modProgress = progress.modules.find(
-                  (p) => p.moduleId._id === mod._id
+                  (p) => p.module.id === mod.id
                 );
                 const moduleLevels = progress.levels.filter(
-                  (lvl) => lvl.moduleId === mod._id
+                  (lvl) => lvl.moduleId === mod.id
                 );
                 const isUnlocked = modProgress?.unlocked || mod.order === 1;
-                const isSelected = selectedModule === mod._id;
+                const isSelected = selectedModule === mod.id;
 
                 return (
                   <motion.div
-                    key={mod._id}
+                    key={mod.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3 }}
@@ -676,7 +676,7 @@ const ReviewCardsPage: React.FC = () => {
                       ></div>
                     </div>
                     <button
-                      onClick={() => handleStartModule(mod._id)}
+                      onClick={() => handleStartModule(mod.id)}
                       disabled={!isUnlocked}
                       className={`w-full py-2 rounded-lg font-semibold transition-colors duration-200 ${
                         isUnlocked
@@ -705,7 +705,7 @@ const ReviewCardsPage: React.FC = () => {
                           <div className="space-y-3">
                             {moduleLevels.map((lvl) => (
                               <motion.div
-                                key={lvl.levelId._id}
+                                key={lvl.level.id}
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 transition={{ duration: 0.2 }}
@@ -717,10 +717,10 @@ const ReviewCardsPage: React.FC = () => {
                               >
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center space-x-2">
-                                    {getTaskIcon(lvl.levelId.tasks as string)}
+                                    {getTaskIcon(lvl.level.tasks as string)}
                                     <p className="text-sm font-medium text-gray-700">
                                       {t("reviewCardsPage.level")}{" "}
-                                      {lvl.levelId.order}
+                                      {lvl.level.order}
                                     </p>
                                   </div>
                                   {lvl.unlocked ? (
@@ -732,13 +732,11 @@ const ReviewCardsPage: React.FC = () => {
                                 <p className="text-xs text-gray-600 mt-1">
                                   {t("reviewCardsPage.taskType")}:{" "}
                                   <span className="capitalize">
-                                    {lvl.levelId.tasks}
+                                    {lvl.level.tasks}
                                   </span>
                                 </p>
                                 <button
-                                  onClick={() =>
-                                    handleStartLevel(lvl.levelId._id)
-                                  }
+                                  onClick={() => handleStartLevel(lvl.level.id)}
                                   disabled={!lvl.unlocked}
                                   className={`mt-2 w-full py-1.5 rounded-lg text-sm font-semibold transition-colors duration-200 ${
                                     lvl.unlocked
@@ -835,7 +833,7 @@ const ReviewCardsPage: React.FC = () => {
                             style={{ backfaceVisibility: "hidden" }}
                           >
                             <h3 className="text-lg font-semibold text-gray-800">
-                              {currentCard.translationId.text}
+                              {currentCard.translation.text}
                             </h3>
                             {currentCard.example && (
                               <div className="mt-2 w-full">
@@ -905,7 +903,7 @@ const ReviewCardsPage: React.FC = () => {
                             }}
                           >
                             <h3 className="text-lg font-semibold text-gray-800">
-                              {currentCard.wordId.text}
+                              {currentCard.word.text}
                             </h3>
                             {answerResult && (
                               <p
@@ -981,7 +979,7 @@ const ReviewCardsPage: React.FC = () => {
                       {exerciseType === "dictation" && currentCard && (
                         <div className="bg-white p-6 rounded-lg text-center shadow-md w-full">
                           <h3 className="text-lg font-semibold text-gray-800">
-                            {currentCard.wordId.text}
+                            {currentCard.word.text}
                           </h3>
                           {answerResult && (
                             <p

@@ -211,7 +211,7 @@ const ProfilePage: React.FC = () => {
 
   const languageOptions =
     languages?.map((lang) => ({
-      value: lang._id,
+      value: lang.id,
       label: lang.name,
     })) || [];
 
