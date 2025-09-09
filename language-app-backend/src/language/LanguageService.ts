@@ -8,6 +8,8 @@ import User from "../user/User";
 import Card from "../card/Card";
 import Word from "../word/Word";
 import { ILanguage } from "./language.interface";
+import Module from "../module/Module";
+import Attempt from "../attempt/Attempt";
 
 export class LanguageService {
   static async getLanguages(): Promise<LanguageDTO[]> {
@@ -75,17 +77,17 @@ export class LanguageService {
     if (!language) {
       throw new Error("Language not found");
     }
-    const wordIds = await Word.find({ languageId: languageId })
-      .distinct("_id")
-      .lean();
+    const wordIds = await Word.find({ languageId }).distinct("_id").lean();
     await Promise.all([
       Card.deleteMany({
         $or: [
-          { wordId: { $in: wordIds } },
-          { translationId: { $in: wordIds } },
+          { firstWordId: { $in: wordIds } },
+          { secondWordId: { $in: wordIds } },
         ],
       }),
-      Word.deleteMany({ languageId: languageId }),
+      Word.deleteMany({ languageId }),
+      Module.deleteMany({ languageId }),
+      Attempt.deleteMany({ languageId }),
       User.updateMany(
         {
           $or: [

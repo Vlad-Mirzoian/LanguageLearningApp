@@ -1,22 +1,20 @@
 export interface CardFiltersDTO {
-  moduleId?: string;
-  example?: string;
+  wordText?: string;
+  moduleName?: string;
   limit?: number;
   skip?: number;
 }
 
 export interface CreateCardDTO {
-  wordId: string;
-  translationId: string;
-  moduleId: string;
-  example?: string;
+  firstWordId: string;
+  secondWordId: string;
+  moduleIds: string[];
 }
 
 export interface UpdateCardDTO {
-  wordId?: string;
-  translationId?: string;
-  moduleId?: string;
-  example?: string;
+  firstWordId?: string;
+  secondWordId?: string;
+  moduleIds?: string[];
 }
 
 export interface ReviewCardsFiltersDTO {

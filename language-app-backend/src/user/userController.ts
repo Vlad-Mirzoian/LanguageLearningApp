@@ -30,7 +30,7 @@ export const deleteAvatar = async (req: Request, res: Response) => {
     res.json({ message: "Avatar deleted successfully" });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    res.status(500).json({ error: `Failed to upload avatar: ${message}` });
+    res.status(500).json({ error: `Failed to delete avatar: ${message}` });
   }
 };
 

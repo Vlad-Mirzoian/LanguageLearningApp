@@ -1,8 +1,6 @@
 import api from "./apiClient";
 import type { User, Language } from "../types/index";
-import type {
-  UpdateUserRequest,
-} from "../types/index";
+import type { UpdateUserRequest } from "../types/index";
 
 export const updateUserAPI = async (
   data: UpdateUserRequest
@@ -29,7 +27,7 @@ export const uploadAvatarAPI = async (
   const formData = new FormData();
   formData.append("avatar", file);
   const response = await api.post<{ avatar: string; message: string }>(
-    "/user/upload-avatar",
+    "/user/avatar",
     formData,
     {
       headers: {
@@ -37,5 +35,10 @@ export const uploadAvatarAPI = async (
       },
     }
   );
+  return response.data;
+};
+
+export const deleteAvatarAPI = async (): Promise<{ message: string }> => {
+  const response = await api.delete("/user/avatar");
   return response.data;
 };

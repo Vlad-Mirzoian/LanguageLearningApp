@@ -12,7 +12,7 @@ import StatisticsPage from "./pages/StatisticsPage";
 import LeaderboardPage from "./pages/LeaderboardPage";
 import ProfilePage from "./pages/ProfilePage";
 import AdminLanguagesPage from "./pages/AdminLanguagesPage";
-import AdminCategoriesPage from "./pages/AdminCategoriesPage";
+import AdminModulesPage from "./pages/AdminModulesPage";
 import AdminWordsPage from "./pages/AdminWordsPage";
 import AdminCardsPage from "./pages/AdminCardsPage";
 import Layout from "./components/layout/Layout";
@@ -80,7 +80,7 @@ function App() {
           path="/admin/modules"
           element={
             <ProtectedRoute>
-              <AdminCategoriesPage />
+              <AdminModulesPage />
             </ProtectedRoute>
           }
         />

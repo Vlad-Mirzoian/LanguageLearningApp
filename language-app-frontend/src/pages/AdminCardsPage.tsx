@@ -2,34 +2,39 @@ import { useCallback, useEffect, useState } from "react";
 import type { Module, Card, Word, ApiError } from "../types/index";
 import { CardAPI, ModuleAPI, WordAPI } from "../services/index";
 import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
-import FormInput from "../components/ui/FormInput";
-import { ArrowPathIcon } from "@heroicons/react/24/solid";
+import { ArrowPathIcon, MagnifyingGlassIcon } from "@heroicons/react/24/solid";
 import { useTranslation } from "react-i18next";
 
 const AdminCardsPage: React.FC = () => {
   const { t } = useTranslation();
   const [cards, setCards] = useState<Card[]>([]);
   const [totalCards, setTotalCards] = useState(0);
-  const [modules, setModules] = useState<Module[]>([]);
-  const [words, setWords] = useState<Word[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [currentCard, setCurrentCard] = useState<Card | null>(null);
+  const [searchData, setSearchData] = useState({
+    firstWord: "",
+    secondWord: "",
+    module: "",
+  });
   const [formData, setFormData] = useState({
-    wordId: "",
-    translationId: "",
-    moduleId: "",
-    example: "",
+    firstWordId: "",
+    secondWordId: "",
+    moduleIds: [] as string[],
   });
   const [filters, setFilters] = useState({
-    moduleId: "",
-    example: "",
+    wordText: "",
+    moduleName: "",
     page: 1,
     limit: 20,
   });
+  const [searchedModules, setSearchedModules] = useState<Module[]>([]);
+  const [selectedModules, setSelectedModules] = useState<Module[]>([]);
+  const [searchedFirstWords, setSearchedFirstWords] = useState<Word[]>([]);
+  const [searchedSecondWords, setSearchedSecondWords] = useState<Word[]>([]);
   const [serverError, setServerError] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -39,20 +44,16 @@ const AdminCardsPage: React.FC = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [cardResponse, wordData, catData] = await Promise.all([
+        const [cardResponse] = await Promise.all([
           CardAPI.getCards({
-            moduleId: filters.moduleId || undefined,
-            example: filters.example || undefined,
+            wordText: filters.wordText,
+            moduleName: filters.moduleName,
             limit: filters.limit,
             skip: (filters.page - 1) * filters.limit,
           }),
-          WordAPI.getWords(),
-          ModuleAPI.getModules(),
         ]);
         setCards(cardResponse.cards);
         setTotalCards(cardResponse.total);
-        setWords(wordData.words);
-        setModules(catData.modules);
       } catch (err) {
         const error = err as ApiError;
         setError(error.message || t("adminCardsPage.failedToLoadCards"));
@@ -64,15 +65,17 @@ const AdminCardsPage: React.FC = () => {
   }, [filters, t]);
 
   const validateField = useCallback(
-    (field: keyof typeof formData, value: string): string | null => {
-      if (!value.trim()) {
+    (field: keyof typeof formData, value: string | string[]): string | null => {
+      if (field === "moduleIds") {
+        if (!Array.isArray(value) || value.length === 0) {
+          return t("adminCardsPage.modulesRequired");
+        }
+      } else if (!value.toString().trim()) {
         switch (field) {
-          case "wordId":
-            return t("adminCardsPage.wordRequired");
-          case "translationId":
-            return t("adminCardsPage.translationRequired");
-          case "moduleId":
-            return t("adminCardsPage.moduleRequired");
+          case "firstWordId":
+            return t("adminCardsPage.firstWordRequired");
+          case "secondWordId":
+            return t("adminCardsPage.secondWordRequired");
           default:
             return null;
         }
@@ -84,7 +87,7 @@ const AdminCardsPage: React.FC = () => {
 
   const validateForm = useCallback(() => {
     const newErrors: Record<string, string> = {};
-    (["wordId", "translationId", "moduleId"] as const).forEach((field) => {
+    (["firstWordId", "secondWordId", "moduleIds"] as const).forEach((field) => {
       const error = validateField(field, formData[field]);
       if (error) newErrors[field] = error;
     });
@@ -92,32 +95,66 @@ const AdminCardsPage: React.FC = () => {
     return Object.keys(newErrors).length === 0;
   }, [formData, validateField]);
 
-  const handleChange = (field: keyof typeof formData, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-    if (["wordId", "translationId", "moduleId"].includes(field)) {
-      const error = validateField(field, value);
-      setErrors((prev) => {
-        const newErrors = { ...prev };
-        if (error) {
-          newErrors[field] = error;
-        } else {
-          delete newErrors[field];
-        }
-        return newErrors;
-      });
-    }
-  };
-
-  const handleFilterChange = (
-    field: "moduleId" | "example",
-    value: string
+  const handleChange = (
+    field: keyof typeof formData,
+    value: string | string[]
   ) => {
-    setFilters((prev) => ({ ...prev, [field]: value, page: 1 }));
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+    setErrors((prev) => {
+      const newErrors = { ...prev };
+      const error = validateField(field, value);
+      if (error) {
+        newErrors[field] = error;
+      } else {
+        delete newErrors[field];
+      }
+      return newErrors;
+    });
   };
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
       setFilters((prev) => ({ ...prev, page: newPage }));
+    }
+  };
+
+  const handleFilterChange = (
+    field: "moduleName" | "wordText",
+    value: string
+  ) => {
+    setFilters((prev) => ({ ...prev, [field]: value, page: 1 }));
+  };
+
+  const handleWordSearch = async (field: "firstWord" | "secondWord") => {
+    try {
+      setLoading(true);
+      const response = await WordAPI.getWords({ text: searchData[field] });
+      if (field === "firstWord") {
+        setSearchedFirstWords(response.words);
+      } else {
+        setSearchedSecondWords(response.words);
+      }
+    } catch (err) {
+      const error = err as ApiError;
+      setError(error.message || t("adminCardsPage.failedToSearchModule"));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleModuleSearch = async () => {
+    try {
+      setLoading(true);
+      const response = await ModuleAPI.getModules({ name: searchData.module });
+      setSearchedModules(response.modules);
+    } catch (err) {
+      const error = err as ApiError;
+      setError(error.message || t("adminCardsPage.failedToSearchModule"));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -129,21 +166,25 @@ const AdminCardsPage: React.FC = () => {
     }
 
     try {
-      const newCard = await CardAPI.createCard({
-        ...formData,
-        example: formData.example || undefined,
-      });
+      const newCard = await CardAPI.createCard(formData);
       setCards([...cards, newCard]);
       setTotalCards(totalCards + 1);
       setIsAddModalOpen(false);
+      setSearchData({
+        firstWord: "",
+        secondWord: "",
+        module: "",
+      });
       setFormData({
-        wordId: "",
-        translationId: "",
-        moduleId: "",
-        example: "",
+        firstWordId: "",
+        secondWordId: "",
+        moduleIds: [],
       });
       setErrors({});
       setServerError("");
+      setSearchedModules([]);
+      setSearchedFirstWords([]);
+      setSearchedSecondWords([]);
     } catch (err) {
       const error = err as ApiError;
       setServerError(error.message || t("adminCardsPage.failedToCreateCard"));
@@ -159,14 +200,15 @@ const AdminCardsPage: React.FC = () => {
 
     try {
       const updateData: Partial<typeof formData> = {};
-      if (formData.wordId !== currentCard.word.id)
-        updateData.wordId = formData.wordId;
-      if (formData.translationId !== currentCard.translation.id)
-        updateData.translationId = formData.translationId;
-      if (formData.moduleId !== currentCard.module.id)
-        updateData.moduleId = formData.moduleId;
-      if ((formData.example || "") !== (currentCard.example || ""))
-        updateData.example = formData.example || undefined;
+      if (formData.firstWordId !== currentCard.firstWord.id)
+        updateData.firstWordId = formData.firstWordId;
+      if (formData.secondWordId !== currentCard.secondWord.id)
+        updateData.secondWordId = formData.secondWordId;
+      if (
+        JSON.stringify(formData.moduleIds.sort()) !==
+        JSON.stringify(currentCard.modules.map((mod) => mod.id).sort())
+      )
+        updateData.moduleIds = formData.moduleIds;
 
       if (Object.keys(updateData).length > 0) {
         const updatedCard = await CardAPI.updateCard(
@@ -174,21 +216,26 @@ const AdminCardsPage: React.FC = () => {
           updateData
         );
         setCards(
-          cards.map((card) =>
-            card.id === updatedCard.id ? updatedCard : card
-          )
+          cards.map((card) => (card.id === updatedCard.id ? updatedCard : card))
         );
       }
       setIsEditModalOpen(false);
       setCurrentCard(null);
+      setSearchData({
+        firstWord: "",
+        secondWord: "",
+        module: "",
+      });
       setFormData({
-        wordId: "",
-        translationId: "",
-        moduleId: "",
-        example: "",
+        firstWordId: "",
+        secondWordId: "",
+        moduleIds: [],
       });
       setErrors({});
       setServerError("");
+      setSearchedModules([]);
+      setSearchedFirstWords([]);
+      setSearchedSecondWords([]);
     } catch (err) {
       const error = err as ApiError;
       setServerError(error.message || t("adminCardsPage.failedToUpdateCard"));
@@ -212,6 +259,8 @@ const AdminCardsPage: React.FC = () => {
     }
   };
 
+  console.log(currentCard);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex justify-center p-4">
       <div className="w-full max-w-4xl">
@@ -221,43 +270,45 @@ const AdminCardsPage: React.FC = () => {
         <div className="flex flex-col sm:flex-row justify-center items-end gap-8 mt-4 mb-6 space-y-4 sm:space-y-0 sm:space-x-4">
           <div className="flex flex-col items-center w-full sm:w-auto">
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t("adminCardsPage.filterByModule")}
-            </label>
-            <select
-              value={filters.moduleId}
-              onChange={(e) => handleFilterChange("moduleId", e.target.value)}
-              className="w-full py-2.5 px-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300"
-            >
-              <option value="">{t("adminCardsPage.allModules")}</option>
-              {modules.map((mod) => (
-                <option key={mod.id} value={mod.id}>
-                  {mod.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex flex-col items-center w-full sm:w-auto">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t("adminCardsPage.filterByExample")}
+              {t("adminCardsPage.filterByWord")}
             </label>
             <input
               type="text"
-              value={filters.example}
-              onChange={(e) => handleFilterChange("example", e.target.value)}
-              placeholder={t("adminCardsPage.searchByExamplePlaceholder")}
+              value={filters.wordText}
+              onChange={(e) => handleFilterChange("wordText", e.target.value)}
+              placeholder={t("adminCardsPage.searchByWordPlaceholder")}
+              className="w-full py-2.5 px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300"
+            />
+          </div>
+          <div className="flex flex-col items-center w-full sm:w-auto">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {t("adminCardsPage.filterByModule")}
+            </label>
+            <input
+              type="text"
+              value={filters.moduleName}
+              onChange={(e) => handleFilterChange("moduleName", e.target.value)}
+              placeholder={t("adminCardsPage.searchByModulePlaceholder")}
               className="w-full py-2.5 px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300"
             />
           </div>
           <button
             onClick={() => {
+              setSearchData({
+                firstWord: "",
+                secondWord: "",
+                module: "",
+              });
               setFormData({
-                wordId: "",
-                translationId: "",
-                moduleId: "",
-                example: "",
+                firstWordId: "",
+                secondWordId: "",
+                moduleIds: [],
               });
               setErrors({});
               setServerError("");
+              setSearchedModules([]);
+              setSearchedFirstWords([]);
+              setSearchedSecondWords([]);
               setIsAddModalOpen(true);
             }}
             className="bg-indigo-600 text-white py-2.5 px-8 rounded-lg font-semibold hover:bg-indigo-700 transition-colors duration-200 cursor-pointer"
@@ -290,16 +341,13 @@ const AdminCardsPage: React.FC = () => {
                 <thead>
                   <tr className="bg-indigo-50">
                     <th className="p-4 font-semibold text-indigo-700">
-                      {t("adminCardsPage.word")}
+                      {t("adminCardsPage.firstWord")}
                     </th>
                     <th className="p-4 font-semibold text-indigo-700">
-                      {t("adminCardsPage.translation")}
+                      {t("adminCardsPage.secondWord")}
                     </th>
                     <th className="p-4 font-semibold text-indigo-700">
-                      {t("adminCardsPage.module")}
-                    </th>
-                    <th className="p-4 font-semibold text-indigo-700">
-                      {t("adminCardsPage.example")}
+                      {t("adminCardsPage.modules")}
                     </th>
                     <th className="p-4 font-semibold text-indigo-700">
                       {t("adminCardsPage.actions")}
@@ -309,24 +357,28 @@ const AdminCardsPage: React.FC = () => {
                 <tbody>
                   {cards.map((card) => (
                     <tr key={card.id} className="border-t hover:bg-gray-50">
-                      <td className="p-4 text-gray-800">{card.word.text}</td>
                       <td className="p-4 text-gray-800">
-                        {card.translation.text}
+                        {card.firstWord.text}
                       </td>
                       <td className="p-4 text-gray-800">
-                        {card.module.name}
+                        {card.secondWord.text}
                       </td>
-                      <td className="p-4 text-gray-800">{card.example}</td>
+                      <td className="p-4 text-gray-800">
+                        {card.modules.map((mod) => mod.name).join(", ")}
+                      </td>
                       <td className="p-4">
                         <button
                           onClick={() => {
+                            console.log(card.modules);
                             setCurrentCard(card);
                             setFormData({
-                              wordId: card.word.id,
-                              translationId: card.translation.id,
-                              moduleId: card.module.id,
-                              example: card.example ?? "",
+                              firstWordId: card.firstWord.id,
+                              secondWordId: card.secondWord.id,
+                              moduleIds: card.modules.map((m) => m.id),
                             });
+                            setSearchedFirstWords([card.firstWord]);
+                            setSearchedSecondWords([card.secondWord]);
+                            setSearchedModules(card.modules);
                             setErrors({});
                             setServerError("");
                             setIsEditModalOpen(true);
@@ -379,15 +431,23 @@ const AdminCardsPage: React.FC = () => {
         open={isAddModalOpen}
         onClose={() => {
           setIsAddModalOpen(false);
+          setSearchData({
+            firstWord: "",
+            secondWord: "",
+            module: "",
+          });
           setFormData({
-            wordId: "",
-            translationId: "",
-            moduleId: "",
-            example: "",
+            firstWordId: "",
+            secondWordId: "",
+            moduleIds: [],
           });
           setErrors({});
           setServerError("");
+          setSearchedModules([]);
+          setSearchedFirstWords([]);
+          setSearchedSecondWords([]);
         }}
+        className="relative z-50"
       >
         <div className="fixed inset-0 bg-black/30" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
@@ -404,93 +464,169 @@ const AdminCardsPage: React.FC = () => {
               <div className="mt-2 space-y-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-800 mb-1.5">
-                    {t("adminCardsPage.word")}
+                    {t("adminCardsPage.firstWord")}
                   </label>
+                  <div className="flex w-full mb-4">
+                    <input
+                      type="text"
+                      placeholder={t("adminCardsPage.searchWords")}
+                      value={searchData.firstWord}
+                      onChange={(e) =>
+                        setSearchData({
+                          ...searchData,
+                          firstWord: e.target.value,
+                        })
+                      }
+                      className="flex-1 px-4 py-2.5 text-sm rounded-l-lg border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleWordSearch("firstWord")}
+                      className="px-4 py-2.5 bg-indigo-600 text-white rounded-r-lg hover:bg-indigo-700 transition-colors duration-200"
+                    >
+                      <MagnifyingGlassIcon className="h-5 w-5" />
+                    </button>
+                  </div>
                   <select
-                    value={formData.wordId}
-                    onChange={(e) => handleChange("wordId", e.target.value)}
-                    className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
-                  >
-                    <option value="">{t("adminCardsPage.selectWord")}</option>
-                    {words.map((word) => (
-                      <option key={word.id} value={word.id}>
-                        {word.text}
-                      </option>
-                    ))}
-                  </select>
-                  {errors.wordId && (
-                    <p className="mt-1.5 text-xs text-red-500 animate-fade-in">
-                      {errors.wordId}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-800 mb-1.5">
-                    {t("adminCardsPage.translation")}
-                  </label>
-                  <select
-                    value={formData.translationId}
+                    value={formData.firstWordId}
                     onChange={(e) =>
-                      handleChange("translationId", e.target.value)
+                      handleChange("firstWordId", e.target.value)
                     }
                     className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
                   >
-                    <option value="">
-                      {t("adminCardsPage.selectTranslation")}
-                    </option>
-                    {words.map((word) => (
+                    <option value="">{t("adminCardsPage.selectWord")}</option>
+                    {searchedFirstWords.map((word) => (
                       <option key={word.id} value={word.id}>
                         {word.text}
                       </option>
                     ))}
                   </select>
-                  {errors.translationId && (
+                  {errors.firstWordId && (
                     <p className="mt-1.5 text-xs text-red-500 animate-fade-in">
-                      {errors.translationId}
+                      {errors.firstWordId}
                     </p>
                   )}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-800 mb-1.5">
-                    {t("adminCardsPage.module")}
+                    {t("adminCardsPage.secondWord")}
                   </label>
+                  <div className="flex w-full mb-4">
+                    <input
+                      type="text"
+                      placeholder={t("adminCardsPage.searchWords")}
+                      value={searchData.secondWord}
+                      onChange={(e) =>
+                        setSearchData({
+                          ...searchData,
+                          secondWord: e.target.value,
+                        })
+                      }
+                      className="flex-1 px-4 py-2.5 text-sm rounded-l-lg border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleWordSearch("secondWord")}
+                      className="px-4 py-2.5 bg-indigo-600 text-white rounded-r-lg hover:bg-indigo-700 transition-colors duration-200"
+                    >
+                      <MagnifyingGlassIcon className="h-5 w-5" />
+                    </button>
+                  </div>
                   <select
-                    value={formData.moduleId}
-                    onChange={(e) => handleChange("moduleId", e.target.value)}
+                    value={formData.secondWordId}
+                    onChange={(e) =>
+                      handleChange("secondWordId", e.target.value)
+                    }
                     className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
                   >
-                    <option value="">
-                      {t("adminCardsPage.selectModule")}
-                    </option>
-                    {modules.map((mod) => (
+                    <option value="">{t("adminCardsPage.selectWord")}</option>
+                    {searchedSecondWords.map((word) => (
+                      <option key={word.id} value={word.id}>
+                        {word.text}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.secondWordId && (
+                    <p className="mt-1.5 text-xs text-red-500 animate-fade-in">
+                      {errors.secondWordId}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-800 mb-1.5">
+                    {t("adminCardsPage.modules")}
+                  </label>
+                  <div className="flex w-full mb-4">
+                    <input
+                      type="text"
+                      placeholder={t("adminCardsPage.searchModules")}
+                      value={searchData.module}
+                      onChange={(e) =>
+                        setSearchData({ ...searchData, module: e.target.value })
+                      }
+                      className="flex-1 px-4 py-2.5 text-sm rounded-l-lg border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleModuleSearch}
+                      className="px-4 py-2.5 bg-indigo-600 text-white rounded-r-lg hover:bg-indigo-700 transition-colors duration-200"
+                    >
+                      <MagnifyingGlassIcon className="h-5 w-5" />
+                    </button>
+                  </div>
+                  <select
+                    multiple
+                    value={formData.moduleIds}
+                    onChange={(e) => {
+                      const selectedIds = Array.from(
+                        e.target.selectedOptions,
+                        (option) => option.value
+                      );
+                      const selected = [
+                        ...selectedModules.filter((m) =>
+                          selectedIds.includes(m.id)
+                        ),
+                        ...searchedModules.filter(
+                          (m) =>
+                            selectedIds.includes(m.id) &&
+                            !selectedModules.some((sm) => sm.id === m.id)
+                        ),
+                      ];
+                      setSelectedModules(selected);
+                      setFormData({
+                        ...formData,
+                        moduleIds: selectedIds,
+                      });
+                      handleChange("moduleIds", selectedIds);
+                    }}
+                    className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all duration-200 h-36"
+                  >
+                    {[
+                      ...selectedModules,
+                      ...searchedModules.filter(
+                        (m) => !selectedModules.some((sm) => sm.id === m.id)
+                      ),
+                    ].map((mod) => (
                       <option key={mod.id} value={mod.id}>
                         {mod.name}
                       </option>
                     ))}
                   </select>
-                  {errors.moduleId && (
+                  {errors.moduleIds && (
                     <p className="mt-1.5 text-xs text-red-500 animate-fade-in">
-                      {errors.moduleId}
+                      {errors.moduleIds}
                     </p>
                   )}
                 </div>
-                <FormInput
-                  label={t("adminCardsPage.example")}
-                  value={formData.example}
-                  onChange={(e) => handleChange("example", e.target.value)}
-                  error={errors.example}
-                  placeholder={t("adminCardsPage.examplePlaceholder")}
-                />
               </div>
               <div className="mt-6 flex justify-center space-x-2">
                 <button
                   onClick={() => {
                     setIsAddModalOpen(false);
                     setFormData({
-                      wordId: "",
-                      translationId: "",
-                      moduleId: "",
-                      example: "",
+                      firstWordId: "",
+                      secondWordId: "",
+                      moduleIds: [],
                     });
                     setErrors({});
                     setServerError("");
@@ -516,15 +652,23 @@ const AdminCardsPage: React.FC = () => {
         onClose={() => {
           setIsEditModalOpen(false);
           setCurrentCard(null);
+          setSearchData({
+            firstWord: "",
+            secondWord: "",
+            module: "",
+          });
           setFormData({
-            wordId: "",
-            translationId: "",
-            moduleId: "",
-            example: "",
+            firstWordId: "",
+            secondWordId: "",
+            moduleIds: [],
           });
           setErrors({});
           setServerError("");
+          setSearchedModules([]);
+          setSearchedFirstWords([]);
+          setSearchedSecondWords([]);
         }}
+        className="relative z-50"
       >
         <div className="fixed inset-0 bg-black/30" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
@@ -541,83 +685,156 @@ const AdminCardsPage: React.FC = () => {
               <div className="mt-2 space-y-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-800 mb-1.5">
-                    {t("adminCardsPage.word")}
+                    {t("adminCardsPage.firstWord")}
                   </label>
+                  <div className="flex w-full mb-4">
+                    <input
+                      type="text"
+                      placeholder={t("adminCardsPage.searchWords")}
+                      value={searchData.firstWord}
+                      onChange={(e) =>
+                        setSearchData({
+                          ...searchData,
+                          firstWord: e.target.value,
+                        })
+                      }
+                      className="flex-1 px-4 py-2.5 text-sm rounded-l-lg border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleWordSearch("firstWord")}
+                      className="px-4 py-2.5 bg-indigo-600 text-white rounded-r-lg hover:bg-indigo-700 transition-colors duration-200"
+                    >
+                      <MagnifyingGlassIcon className="h-5 w-5" />
+                    </button>
+                  </div>
                   <select
-                    value={formData.wordId}
-                    onChange={(e) => handleChange("wordId", e.target.value)}
-                    className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
-                  >
-                    <option value="">{t("adminCardsPage.selectWord")}</option>
-                    {words.map((word) => (
-                      <option key={word.id} value={word.id}>
-                        {word.text}
-                      </option>
-                    ))}
-                  </select>
-                  {errors.wordId && (
-                    <p className="mt-1.5 text-xs text-red-500 animate-fade-in">
-                      {errors.wordId}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-800 mb-1.5">
-                    {t("adminCardsPage.translation")}
-                  </label>
-                  <select
-                    value={formData.translationId}
+                    value={formData.firstWordId}
                     onChange={(e) =>
-                      handleChange("translationId", e.target.value)
+                      handleChange("firstWordId", e.target.value)
                     }
                     className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
                   >
-                    <option value="">
-                      {t("adminCardsPage.selectTranslation")}
-                    </option>
-                    {words.map((word) => (
+                    <option value="">{t("adminCardsPage.selectWord")}</option>
+                    {searchedFirstWords.map((word) => (
                       <option key={word.id} value={word.id}>
                         {word.text}
                       </option>
                     ))}
                   </select>
-                  {errors.translationId && (
+                  {errors.firstWordId && (
                     <p className="mt-1.5 text-xs text-red-500 animate-fade-in">
-                      {errors.translationId}
+                      {errors.firstWordId}
                     </p>
                   )}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-800 mb-1.5">
-                    {t("adminCardsPage.module")}
+                    {t("adminCardsPage.secondWord")}
                   </label>
+                  <div className="flex w-full mb-4">
+                    <input
+                      type="text"
+                      placeholder={t("adminCardsPage.searchWords")}
+                      value={searchData.secondWord}
+                      onChange={(e) =>
+                        setSearchData({
+                          ...searchData,
+                          secondWord: e.target.value,
+                        })
+                      }
+                      className="flex-1 px-4 py-2.5 text-sm rounded-l-lg border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleWordSearch("secondWord")}
+                      className="px-4 py-2.5 bg-indigo-600 text-white rounded-r-lg hover:bg-indigo-700 transition-colors duration-200"
+                    >
+                      <MagnifyingGlassIcon className="h-5 w-5" />
+                    </button>
+                  </div>
                   <select
-                    value={formData.moduleId}
-                    onChange={(e) => handleChange("moduleId", e.target.value)}
+                    value={formData.secondWordId}
+                    onChange={(e) =>
+                      handleChange("secondWordId", e.target.value)
+                    }
                     className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
                   >
-                    <option value="">
-                      {t("adminCardsPage.selectModule")}
-                    </option>
-                    {modules.map((mod) => (
+                    <option value="">{t("adminCardsPage.selectWord")}</option>
+                    {searchedSecondWords.map((word) => (
+                      <option key={word.id} value={word.id}>
+                        {word.text}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.secondWordId && (
+                    <p className="mt-1.5 text-xs text-red-500 animate-fade-in">
+                      {errors.secondWordId}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-800 mb-1.5">
+                    {t("adminCardsPage.modules")}
+                  </label>
+                  <div className="flex w-full mb-4">
+                    <input
+                      type="text"
+                      placeholder={t("adminCardsPage.searchModules")}
+                      value={searchData.module}
+                      onChange={(e) =>
+                        setSearchData({ ...searchData, module: e.target.value })
+                      }
+                      className="flex-1 px-4 py-2.5 text-sm rounded-l-lg border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleModuleSearch}
+                      className="px-4 py-2.5 bg-indigo-600 text-white rounded-r-lg hover:bg-indigo-700 transition-colors duration-200"
+                    >
+                      <MagnifyingGlassIcon className="h-5 w-5" />
+                    </button>
+                  </div>
+                  <select
+                    multiple
+                    value={formData.moduleIds}
+                    onChange={(e) => {
+                      const selected = Array.from(
+                        e.target.selectedOptions,
+                        (option) => {
+                          const mod =
+                            searchedModules.find(
+                              (m) => m.id === option.value
+                            ) ||
+                            selectedModules.find((m) => m.id === option.value);
+                          return mod!;
+                        }
+                      ).filter(Boolean) as Module[];
+                      setSelectedModules(selected);
+                      setFormData({
+                        ...formData,
+                        moduleIds: selected.map((m) => m.id),
+                      });
+                    }}
+                    className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all duration-200 h-36"
+                  >
+                    {[
+                      ...selectedModules,
+                      ...searchedModules.filter(
+                        (m) => !selectedModules.some((sm) => sm.id === m.id)
+                      ),
+                    ].map((mod) => (
                       <option key={mod.id} value={mod.id}>
                         {mod.name}
                       </option>
                     ))}
                   </select>
-                  {errors.moduleId && (
+                  {errors.moduleIds && (
                     <p className="mt-1.5 text-xs text-red-500 animate-fade-in">
-                      {errors.moduleId}
+                      {errors.moduleIds}
                     </p>
                   )}
                 </div>
-                <FormInput
-                  label={t("adminCardsPage.example")}
-                  value={formData.example}
-                  onChange={(e) => handleChange("example", e.target.value)}
-                  error={errors.example}
-                  placeholder={t("adminCardsPage.examplePlaceholder")}
-                />
               </div>
               <div className="mt-6 flex justify-center space-x-2">
                 <button
@@ -625,10 +842,9 @@ const AdminCardsPage: React.FC = () => {
                     setIsEditModalOpen(false);
                     setCurrentCard(null);
                     setFormData({
-                      wordId: "",
-                      translationId: "",
-                      moduleId: "",
-                      example: "",
+                      firstWordId: "",
+                      secondWordId: "",
+                      moduleIds: [],
                     });
                     setErrors({});
                     setServerError("");
@@ -665,8 +881,8 @@ const AdminCardsPage: React.FC = () => {
             </DialogTitle>
             <p className="mt-2 text-gray-600">
               {t("adminCardsPage.confirmDeletionMessage", {
-                word: currentCard?.word.text,
-                translation: currentCard?.translation.text,
+                firstWord: currentCard?.firstWord.text,
+                secondWord: currentCard?.secondWord.text,
               })}
             </p>
             {serverError && (

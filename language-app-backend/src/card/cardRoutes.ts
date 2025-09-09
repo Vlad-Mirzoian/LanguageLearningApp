@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import express, { Router } from "express";
 import { authenticate, authorizeRoles } from "../middleware/auth";
 import { validate } from "../middleware/validation";
@@ -11,12 +12,16 @@ router.get(
   "/",
   authenticate,
   [
-    query("moduleId").optional().isMongoId().withMessage("Invalid module ID"),
-    query("example")
+    query("wordText")
       .optional()
       .isString()
       .trim()
-      .withMessage("Text must be a string"),
+      .withMessage("Word text must be a string"),
+    query("moduleName")
+      .optional()
+      .isString()
+      .trim()
+      .withMessage("Module name must be a string"),
     query("limit")
       .optional()
       .isInt({ min: 1, max: 100 })
@@ -48,24 +53,6 @@ router.get(
   ],
   validate,
   cardController.getReviewCards
-);
-
-// GET /api/cards/test
-router.get(
-  "/test",
-  authenticate,
-  authorizeRoles(["user"]),
-  [
-    query("languageId")
-      .exists({ checkFalsy: true })
-      .withMessage("Language is required")
-      .bail()
-      .isMongoId()
-      .withMessage("Invalid language ID"),
-    query("moduleId").optional().isMongoId().withMessage("Invalid module ID"),
-  ],
-  validate,
-  cardController.getTestCards
 );
 
 // POST /api/cards/:id/submit
@@ -107,30 +94,29 @@ router.post(
   authenticate,
   authorizeRoles(["admin"]),
   [
-    body("wordId")
+    body("firstWordId")
       .notEmpty()
-      .withMessage("Original word is required")
+      .withMessage("First word is required")
       .bail()
       .isMongoId()
-      .withMessage("Invalid word ID"),
-    body("translationId")
+      .withMessage("Invalid first word ID"),
+    body("secondWordId")
       .notEmpty()
-      .withMessage("Translation word is required")
+      .withMessage("Second word is required")
       .bail()
       .isMongoId()
-      .withMessage("Invalid translation ID"),
-    body("moduleId")
-      .notEmpty()
-      .withMessage("Module is required")
-      .bail()
-      .isMongoId()
-      .withMessage("Invalid module ID"),
-    body("example")
-      .optional()
-      .isString()
-      .trim()
-      .notEmpty()
-      .withMessage("Example cannot be empty if provided"),
+      .withMessage("Invalid second word ID"),
+    body("moduleIds")
+      .isArray({ min: 1 })
+      .withMessage("moduleIds must be a non-empty array")
+      .custom((value: string[]) => {
+        for (const id of value) {
+          if (!mongoose.Types.ObjectId.isValid(id)) {
+            throw new Error(`Invalid module ID ${id}`);
+          }
+        }
+        return true;
+      }),
   ],
   validate,
   cardController.createCard
@@ -143,28 +129,32 @@ router.put(
   authorizeRoles(["admin"]),
   [
     param("id").isMongoId().withMessage("Invalid card ID"),
-    body("wordId")
+    body("firstWordId")
       .optional()
       .notEmpty()
-      .withMessage("Original word cannot be empty if provided")
+      .withMessage("First word cannot be empty if provided")
       .bail()
       .isMongoId()
-      .withMessage("Invalid word ID"),
-    body("translationId")
+      .withMessage("Invalid first word ID"),
+    body("secondWordId")
       .optional()
       .notEmpty()
-      .withMessage("Translation word cannot be empty if provided")
+      .withMessage("Second word cannot be empty if provided")
       .bail()
       .isMongoId()
-      .withMessage("Invalid translation ID"),
-    body("moduleId")
+      .withMessage("Invalid second word ID"),
+    body("moduleIds")
       .optional()
-      .notEmpty()
-      .withMessage("Module cannot be empty if provided")
-      .bail()
-      .isMongoId()
-      .withMessage("Invalid module ID"),
-    body("example").optional({ checkFalsy: false }).isString().trim(),
+      .isArray({ min: 1 })
+      .withMessage("moduleIds must be a non-empty array")
+      .custom((value: string[]) => {
+        for (const id of value) {
+          if (!mongoose.Types.ObjectId.isValid(id)) {
+            throw new Error(`Invalid module ID ${id}`);
+          }
+        }
+        return true;
+      }),
   ],
   validate,
   cardController.updateCard

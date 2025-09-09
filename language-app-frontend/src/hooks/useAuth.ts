@@ -1,6 +1,7 @@
 import { AuthAPI, UserAPI } from "../services/index";
 import { useAuthStore } from "../store/authStore";
 import { useInterfaceLanguageStore } from "../store/interfaceLanguageStore";
+import { useLanguageStore } from "../store/languageStore";
 import type { ApiError, User } from "../types/index";
 import i18next from "i18next";
 
@@ -15,7 +16,8 @@ interface AuthHook {
   logout: () => Promise<void>;
   refreshToken: () => Promise<string>;
   updateUser: (data: Partial<User>) => Promise<void>;
-  uploadAvatar: (file: File) => Promise<void>;
+  uploadUserAvatar: (file: File) => Promise<void>;
+  deleteUserAvatar: () => Promise<void>;
 }
 
 export const useAuth = (): AuthHook => {
@@ -26,7 +28,7 @@ export const useAuth = (): AuthHook => {
     setAuth(data.user, data.token);
     if (data.user?.interfaceLanguage) {
       const lang = data.user.interfaceLanguage;
-      useInterfaceLanguageStore.getState().setLocale(lang.code, lang._id);
+      useInterfaceLanguageStore.getState().setLocale(lang.code, lang.id);
       await i18next.changeLanguage(lang.code);
     }
   };
@@ -36,6 +38,7 @@ export const useAuth = (): AuthHook => {
       await AuthAPI.logoutAPI();
     } finally {
       clearAuth();
+      useLanguageStore.getState().setSelectedLanguageId(null);
     }
   };
 
@@ -46,6 +49,7 @@ export const useAuth = (): AuthHook => {
       return newToken;
     } catch (error) {
       clearAuth();
+      useLanguageStore.getState().setSelectedLanguageId(null);
       throw error;
     }
   };
@@ -67,7 +71,7 @@ export const useAuth = (): AuthHook => {
     }
   };
 
-  const uploadAvatar = async (file: File) => {
+  const uploadUserAvatar = async (file: File) => {
     try {
       const response = await UserAPI.uploadAvatarAPI(file);
       const authStore = useAuthStore.getState();
@@ -76,6 +80,22 @@ export const useAuth = (): AuthHook => {
           ...authStore.user,
           avatar: response.avatar,
         });
+      }
+    } catch (err) {
+      const error = err as ApiError;
+      if (error.status === 401) {
+        clearAuth();
+      }
+      throw error;
+    }
+  };
+
+  const deleteUserAvatar = async () => {
+    try {
+      await UserAPI.deleteAvatarAPI();
+      const authStore = useAuthStore.getState();
+      if (authStore.user) {
+        authStore.setUser({ ...authStore.user, avatar: "" });
       }
     } catch (err) {
       const error = err as ApiError;
@@ -97,6 +117,7 @@ export const useAuth = (): AuthHook => {
     logout,
     refreshToken,
     updateUser,
-    uploadAvatar,
+    uploadUserAvatar,
+    deleteUserAvatar,
   };
 };

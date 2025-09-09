@@ -41,12 +41,13 @@ export class WordService {
         name: w.languageId.name,
         code: w.languageId.code,
       },
+      ...(w.example !== undefined && { example: w.example }),
     }));
     return { words, total };
   }
 
   static async createWord(data: CreateWordDTO): Promise<WordFullDTO> {
-    const { text, languageId } = data;
+    const { text, languageId, example } = data;
     const language = await Language.findById(languageId).lean();
     if (!language) {
       throw new Error("Language not found");
@@ -55,7 +56,7 @@ export class WordService {
     if (existingWord) {
       throw new Error("Word already exists for this language");
     }
-    const saved = await new Word({ text, languageId }).save();
+    const saved = await new Word({ text, languageId, example }).save();
     const populated = await Word.findById(saved._id)
       .populate({ path: "languageId", select: "name code" })
       .lean<IWordPopulated>();
@@ -70,6 +71,7 @@ export class WordService {
         name: populated.languageId.name,
         code: populated.languageId.code,
       },
+      ...(populated.example !== undefined && { example: populated.example }),
     };
     return wordDTO;
   }
@@ -93,7 +95,7 @@ export class WordService {
     wordId: string,
     data: UpdateWordDTO
   ): Promise<WordFullDTO> {
-    const { text, languageId } = data;
+    const { text, languageId, example } = data;
     if (text && languageId) {
       const language = await Language.findById(languageId).lean();
       if (!language) {
@@ -116,6 +118,8 @@ export class WordService {
     const updateData: Partial<UpdateWordDTO> = {};
     if (text) updateData.text = text;
     if (languageId) updateData.languageId = languageId;
+    if (example !== undefined) updateData.example = example;
+
     const word = await Word.findOneAndUpdate({ _id: wordId }, updateData, {
       new: true,
       runValidators: true,
@@ -133,6 +137,7 @@ export class WordService {
         name: word.languageId.name,
         code: word.languageId.code,
       },
+      ...(word.example !== undefined && { example: word.example }),
     };
     return wordDTO;
   }
@@ -143,7 +148,7 @@ export class WordService {
       throw new Error("Word not found");
     }
     await Card.deleteMany({
-      $or: [{ wordId: wordId }, { translationId: wordId }],
+      $or: [{ firstWordId: wordId }, { secondWordId: wordId }],
     });
   }
 }

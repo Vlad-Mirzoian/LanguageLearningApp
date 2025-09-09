@@ -10,6 +10,7 @@ const wordSchema = new mongoose.Schema<WordDocument>({
     ref: "Language",
     required: true,
   },
+  example: { type: String, default: "" },
 });
 
 wordSchema.index({ text: 1, languageId: 1 }, { unique: true });

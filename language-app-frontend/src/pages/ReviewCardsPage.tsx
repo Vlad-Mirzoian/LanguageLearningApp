@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
 import type {
   ApiError,
-  Card,
   Module,
   Language,
-  TestCard,
   ModuleProgress,
   LevelProgress,
+  ReviewCard,
 } from "../types/index";
 import {
   ModuleAPI,
@@ -39,8 +38,7 @@ const ReviewCardsPage: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { selectedLanguageId, setSelectedLanguageId } = useLanguage();
-  const [cards, setCards] = useState<Card[]>([]);
-  const [testCards, setTestCards] = useState<TestCard[]>([]);
+  const [cards, setCards] = useState<ReviewCard[]>([]);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [showTranslation, setShowTranslation] = useState(false);
   const [showExample, setShowExample] = useState(false);
@@ -97,6 +95,11 @@ const ReviewCardsPage: React.FC = () => {
 
   const handleStartModule = (moduleId: string) => {
     setSelectedModule(moduleId);
+    if (selectedLanguageId) {
+      loadCards(selectedLanguageId, moduleId);
+    } else {
+      setError(t("reviewCardsPage.selectLearningLanguage"));
+    }
   };
 
   const handleStartLevel = (levelId: string) => {
@@ -112,22 +115,17 @@ const ReviewCardsPage: React.FC = () => {
     }
     setSelectedLevel(levelId);
     setExerciseType(taskType);
-    loadCards(taskType, selectedLanguageId!, selectedModule, levelId);
+    setCurrentCardIndex(0);
+    setShowTranslation(false);
+    setCardAnswer("");
+    setAnswerResult(null);
+    setShowCardsModal(true);
   };
 
-  const loadCards = async (
-    type: ExerciseType,
-    languageId: string,
-    moduleId?: string,
-    levelId?: string
-  ) => {
+  const loadCards = async (languageId: string, moduleId?: string) => {
     try {
       if (!languageId) {
         setError(t("reviewCardsPage.selectLearningLanguage"));
-        return;
-      }
-      if (!levelId) {
-        setError(t("reviewCardsPage.selectLevel"));
         return;
       }
       setLoading(true);
@@ -136,21 +134,9 @@ const ReviewCardsPage: React.FC = () => {
       setShareLink(null);
 
       const filters = { languageId, moduleId };
-      let response;
-      if (type === "test") {
-        response = await CardAPI.getTestCards(filters);
-        setTestCards(response.cards);
-      } else {
-        response = await CardAPI.getReviewCards(filters);
-        setCards(response.cards);
-      }
-
+      const response = await CardAPI.getReviewCards(filters);
+      setCards(response.cards);
       setAttemptId(response.attemptId);
-      setCurrentCardIndex(0);
-      setShowTranslation(false);
-      setCardAnswer("");
-      setAnswerResult(null);
-      setShowCardsModal(true);
     } catch (err) {
       const error = err as ApiError;
       setError(error.message || t("reviewCardsPage.failedToLoadCards"));
@@ -268,7 +254,7 @@ const ReviewCardsPage: React.FC = () => {
   };
 
   const handleTestAnswer = async (selectedAnswer: string) => {
-    if (!testCards[currentCardIndex]) return;
+    if (!cards[currentCardIndex]) return;
     if (selectedLanguageId === null || !selectedLevel) {
       setError(t("reviewCardsPage.selectLearningLanguage"));
       return;
@@ -276,7 +262,7 @@ const ReviewCardsPage: React.FC = () => {
     setIsSubmitting(true);
     try {
       const prevProgressData = progress;
-      const result = await CardAPI.submitCard(testCards[currentCardIndex].id, {
+      const result = await CardAPI.submitCard(cards[currentCardIndex].id, {
         languageId: selectedLanguageId,
         answer: selectedAnswer,
         attemptId,
@@ -288,8 +274,7 @@ const ReviewCardsPage: React.FC = () => {
         correctTranslation: result.correctTranslation,
       });
       setTotalScore(
-        (prev) =>
-          prev + ((result.quality as number) / 5) * (100 / testCards.length)
+        (prev) => prev + ((result.quality as number) / 5) * (100 / cards.length)
       );
       toast(
         result.isCorrect
@@ -301,7 +286,7 @@ const ReviewCardsPage: React.FC = () => {
         const nextIndex = currentCardIndex + 1;
         setCurrentCardIndex(nextIndex);
         setAnswerResult(null);
-        if (nextIndex >= testCards.length) {
+        if (nextIndex >= cards.length) {
           const updatedProgress = await LanguageProgressAPI.getLanguageProgress(
             {
               languageId: selectedLanguageId,
@@ -498,10 +483,8 @@ const ReviewCardsPage: React.FC = () => {
 
   const closeModal = () => {
     setShowCardsModal(false);
-    setSelectedModule("");
     setSelectedLevel("");
     setCards([]);
-    setTestCards([]);
     setCurrentCardIndex(0);
     setShowTranslation(false);
     setShowExample(false);
@@ -514,7 +497,6 @@ const ReviewCardsPage: React.FC = () => {
   };
 
   const currentCard = cards[currentCardIndex];
-  const currentTestCard = testCards[currentCardIndex];
 
   const languageProgress = progress.modules.filter(
     (p) => p.languageId === selectedLanguageId
@@ -548,6 +530,8 @@ const ReviewCardsPage: React.FC = () => {
         return null;
     }
   };
+
+  console.log(currentCard);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex flex-col items-center p-4">
@@ -693,11 +677,13 @@ const ReviewCardsPage: React.FC = () => {
                     <AnimatePresence>
                       {isSelected && (
                         <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: "auto", opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
+                          initial={false}
+                          animate={{
+                            height: isSelected ? "auto" : 0,
+                            opacity: isSelected ? 1 : 0,
+                          }}
                           transition={{ duration: 0.3 }}
-                          className="mt-4"
+                          className="overflow-hidden mt-4"
                         >
                           <h5 className="text-sm font-semibold text-gray-800 mb-2">
                             {t("reviewCardsPage.levels")}
@@ -800,7 +786,7 @@ const ReviewCardsPage: React.FC = () => {
                 {!loading &&
                   !error &&
                   cards.length === 0 &&
-                  testCards.length === 0 && (
+                  cards.length === 0 && (
                     <div className="text-center text-gray-600">
                       <p>{t("reviewCardsPage.noCardsAvailable")}</p>
                     </div>
@@ -808,9 +794,7 @@ const ReviewCardsPage: React.FC = () => {
                 {!loading &&
                   !error &&
                   currentCardIndex <
-                    (exerciseType === "test"
-                      ? testCards.length
-                      : cards.length) && (
+                    (exerciseType === "test" ? cards.length : cards.length) && (
                     <div className="flex flex-col items-center space-y-4">
                       {exerciseType === "flash" && currentCard && (
                         <motion.div
@@ -833,7 +817,7 @@ const ReviewCardsPage: React.FC = () => {
                             style={{ backfaceVisibility: "hidden" }}
                           >
                             <h3 className="text-lg font-semibold text-gray-800">
-                              {currentCard.translation.text}
+                              {currentCard.original.text}
                             </h3>
                             {currentCard.example && (
                               <div className="mt-2 w-full">
@@ -903,7 +887,7 @@ const ReviewCardsPage: React.FC = () => {
                             }}
                           >
                             <h3 className="text-lg font-semibold text-gray-800">
-                              {currentCard.word.text}
+                              {currentCard.translation.text}
                             </h3>
                             {answerResult && (
                               <p
@@ -928,10 +912,10 @@ const ReviewCardsPage: React.FC = () => {
                           </div>
                         </motion.div>
                       )}
-                      {exerciseType === "test" && currentTestCard && (
+                      {exerciseType === "test" && currentCard && (
                         <div className="bg-white p-6 rounded-lg text-center shadow-md w-full">
                           <h3 className="text-lg font-semibold text-gray-800">
-                            {currentTestCard.word.text}
+                            {currentCard.translation.text}
                           </h3>
                           {answerResult && (
                             <p
@@ -949,7 +933,7 @@ const ReviewCardsPage: React.FC = () => {
                             </p>
                           )}
                           <div className="mt-4 flex flex-col space-y-2">
-                            {currentTestCard.options.map((option, index) => (
+                            {currentCard.options.map((option, index) => (
                               <button
                                 key={index}
                                 onClick={() => handleTestAnswer(option.text)}
@@ -979,7 +963,7 @@ const ReviewCardsPage: React.FC = () => {
                       {exerciseType === "dictation" && currentCard && (
                         <div className="bg-white p-6 rounded-lg text-center shadow-md w-full">
                           <h3 className="text-lg font-semibold text-gray-800">
-                            {currentCard.word.text}
+                            {currentCard.translation.text}
                           </h3>
                           {answerResult && (
                             <p
@@ -1032,19 +1016,15 @@ const ReviewCardsPage: React.FC = () => {
                       <p className="text-center text-sm text-gray-600">
                         {t("reviewCardsPage.card")} {currentCardIndex + 1}{" "}
                         {t("reviewCardsPage.of")}{" "}
-                        {exerciseType === "test"
-                          ? testCards.length
-                          : cards.length}
+                        {exerciseType === "test" ? cards.length : cards.length}
                       </p>
                     </div>
                   )}
                 {!loading &&
                   !error &&
                   currentCardIndex >=
-                    (exerciseType === "test"
-                      ? testCards.length
-                      : cards.length) &&
-                  (cards.length > 0 || testCards.length > 0) && (
+                    (exerciseType === "test" ? cards.length : cards.length) &&
+                  (cards.length > 0 || cards.length > 0) && (
                     <div className="flex flex-col items-center space-y-4">
                       <h3 className="text-lg font-semibold text-gray-800">
                         {t("reviewCardsPage.levelCompleted")}

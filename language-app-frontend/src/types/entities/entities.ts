@@ -64,6 +64,7 @@ export interface Word {
   id: string;
   text: string;
   language: Language;
+  example?: string;
 }
 
 export interface WordResponse {
@@ -73,10 +74,18 @@ export interface WordResponse {
 
 export interface Card {
   id: string;
-  word: Word;
-  translation: Word;
+  firstWord: Word;
+  secondWord: Word;
+  modules: Module[];
+}
+
+export interface ReviewCard {
+  id: string;
   module: Module;
-  example?: string;
+  translation: Word;
+  original: Word;
+  options: { text: string; isCorrect: boolean }[];
+  example: string | undefined;
 }
 
 export interface CardResponse {
@@ -88,7 +97,6 @@ export interface TestCard {
   id: string;
   word: Word;
   module: Module;
-  example?: string;
   options: { text: string; isCorrect: boolean }[];
 }
 

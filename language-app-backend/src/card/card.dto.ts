@@ -4,8 +4,8 @@ import { ModulePreviewDTO } from "../module/module.dto";
 import { WordPreviewDTO } from "../word/word.dto";
 
 export interface CardFiltersDTO {
-  moduleId?: string;
-  example?: string;
+  wordText?: string;
+  moduleName?: string;
   limit?: number;
   skip?: number;
 }
@@ -17,33 +17,32 @@ export interface ReviewCardsFiltersDTO {
 
 export interface CardDTO {
   id: string;
-  word: WordPreviewDTO;
-  translation: WordPreviewDTO;
-  module: ModulePreviewDTO;
-  example?: string;
+  firstWord: WordPreviewDTO;
+  secondWord: WordPreviewDTO;
+  modules: ModulePreviewDTO[];
 }
 
-export interface TestCardDTO {
+export interface ReviewCardDTO {
   id: string;
-  word: WordPreviewDTO;
   module: ModulePreviewDTO;
-  example?: string;
+  translation: WordPreviewDTO;
+  original: WordPreviewDTO;
   options: { text: string; isCorrect: boolean }[];
+  example: string | undefined;
 }
 
 export interface CreateCardDTO {
-  wordId: string;
-  translationId: string;
-  moduleId: string;
-  example?: string;
+  firstWordId: string;
+  secondWordId: string;
+  moduleIds: string[];
 }
 
-export interface SubmitCardDTO {
+export interface SubmitCardRequest {
   languageId: string;
   type: "flash" | "test" | "dictation";
-  attemptId?: string | null;
+  attemptId: string;
   answer: string;
-  levelId?: string;
+  levelId: string;
 }
 
 export interface SubmitCardResponse {
@@ -57,8 +56,7 @@ export interface SubmitCardResponse {
 }
 
 export interface UpdateCardDTO {
-  wordId?: string;
-  translationId?: string;
-  moduleId?: string;
-  example?: string;
+  firstWordId?: string;
+  secondWordId?: string;
+  moduleIds?: string[];
 }

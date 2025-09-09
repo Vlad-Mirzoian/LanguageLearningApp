@@ -66,6 +66,12 @@ router.post(
       .bail()
       .isMongoId()
       .withMessage("Invalid language ID"),
+    body("example")
+      .optional()
+      .isString()
+      .trim()
+      .notEmpty()
+      .withMessage("Example cannot be empty if provided"),
   ],
   validate,
   wordController.createWord
@@ -91,6 +97,7 @@ router.put(
       .bail()
       .isMongoId()
       .withMessage("Invalid language ID"),
+    body("example").optional({ checkFalsy: false }).isString().trim(),
   ],
   validate,
   wordController.updateWord

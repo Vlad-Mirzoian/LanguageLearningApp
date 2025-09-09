@@ -53,10 +53,7 @@ export const updateModule = async (
   res: Response
 ) => {
   try {
-    const module = await ModuleService.updateModule(
-      req.params.id,
-      req.body
-    );
+    const module = await ModuleService.updateModule(req.params.id, req.body);
     res.json(module);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);

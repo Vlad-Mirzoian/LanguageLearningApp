@@ -1,26 +1,42 @@
-const mongoose = require("mongoose");
-const bcrypt = require("bcrypt");
-require("dotenv").config({
-  path: require("path").resolve(__dirname, "../.env"),
+import mongoose from "mongoose";
+import { hash } from "bcrypt";
+import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
+import User from "../src/user/User";
+import Language from "../src/language/Language";
+import Module from "../src/module/Module";
+import Level from "../src/level/Level";
+import Word from "../src/word/Word";
+import Card from "../src/card/Card";
+import ModuleProgress from "../src/language-progress/ModuleProgress";
+import LevelProgress from "../src/language-progress/LevelProgress";
+import Attempt from "../src/attempt/Attempt";
+
+const { connect } = mongoose;
+const dbConnection = mongoose.connection;
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+dotenv.config({
+  path: path.resolve(__dirname, "../.env"),
 });
-
-mongoose
-  .connect(process.env.MONGODB_URI)
-  .then(() => console.log("Connected to MongoDB"))
-  .catch((err) => console.error("MongoDB connection error:", err));
-
-const User = require("../models/User");
-const Language = require("../models/Language");
-const Module = require("../models/Module");
-const Level = require("../models/Level");
-const Word = require("../models/Word");
-const Card = require("../models/Card");
-const ModuleProgress = require("../models/ModuleProgress");
-const LevelProgress = require("../models/LevelProgress");
-const Attempt = require("../models/Attempt");
 
 async function initDB() {
   try {
+    if (!process.env.MONGODB_URI) {
+      throw new Error("MONGODB_URI is not defined in environment variables");
+    }
+
+    await connect(process.env.MONGODB_URI);
+    dbConnection.on("error", (err) => {
+      console.error("MongoDB connection error:", err);
+    });
+    dbConnection.once("open", () => {
+      console.log("Connected to MongoDB");
+    });
+
     // Clear existing data
     await Promise.all([
       User.deleteMany({}),
@@ -47,10 +63,14 @@ async function initDB() {
     const learningLanguages = createdLanguages.filter(
       (lang) => lang.code !== "uk"
     );
+    if (!createdLanguages) {
+      throw new Error("Language not found");
+    }
+    if (!ukrainianLang) throw new Error("Ukrainian language not found");
 
     // Create Users with hashed passwords and different interface languages
     const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash("password123", saltRounds);
+    const hashedPassword = await hash("password123", saltRounds);
     const users = [
       {
         email: "admin@example.com",
@@ -113,6 +133,38 @@ async function initDB() {
 
     // Define module names and descriptions per language (translated)
     const moduleDataPerLang = {
+      uk: [
+        { name: "Словник", description: "Основні повсякденні слова", order: 1 },
+        {
+          name: "Їжа",
+          description: "Слова, пов'язані з їжею та кулінарією",
+          order: 2,
+        },
+        {
+          name: "Подорожі",
+          description: "Словник для подорожей і туризму",
+          order: 3,
+        },
+        { name: "Сім'я", description: "Сім'я та стосунки", order: 4 },
+        {
+          name: "Природа",
+          description: "Слова про природу та довкілля",
+          order: 5,
+        },
+        {
+          name: "Робота",
+          description: "Слова, пов'язані з роботою та професією",
+          order: 6,
+        },
+        { name: "Одяг", description: "Терміни одягу та моди", order: 7 },
+        { name: "Погода", description: "Словник погоди та клімату", order: 8 },
+        { name: "Емоції", description: "Слова, що описують почуття", order: 9 },
+        {
+          name: "Технології",
+          description: "Словник, пов'язаний з технологіями",
+          order: 10,
+        },
+      ],
       en: [
         { name: "Vocabulary", description: "Basic everyday words", order: 1 },
         {
@@ -295,9 +347,9 @@ async function initDB() {
       ],
     };
 
-    // Create Modules (10 per learning language)
+    // Create Modules (10 per language, including Ukrainian)
     const createdModules = {};
-    for (const lang of learningLanguages) {
+    for (const lang of createdLanguages) {
       const langCode = lang.code;
       const modules = moduleDataPerLang[langCode].map((mod) => ({
         ...mod,
@@ -307,9 +359,16 @@ async function initDB() {
       createdModules[langCode] = await Module.insertMany(modules);
     }
 
+    // Create Levels (3 per module)
     const taskTypes = ["flash", "test", "dictation"];
-    const levels = [];
-    for (const lang of learningLanguages) {
+    const levels: {
+      moduleId: mongoose.Types.ObjectId;
+      order: number;
+      tasks: string;
+      requiredScore: number;
+      pointsReward: number;
+    }[] = [];
+    for (const lang of createdLanguages) {
       for (const module of createdModules[lang.code]) {
         for (let order = 1; order <= 3; order++) {
           levels.push({
@@ -345,6 +404,7 @@ async function initDB() {
             de: "hallo",
           },
           examples: {
+            uk: "Привіт, як справи сьогодні?",
             en: "Hello, how are you today?",
             es: "Hola, ¿cómo estás hoy?",
             fr: "Bonjour, comment vas-tu aujourd'hui ?",
@@ -360,6 +420,7 @@ async function initDB() {
             de: "danke",
           },
           examples: {
+            uk: "Дякую за твою допомогу!",
             en: "Thank you for your help!",
             es: "¡Gracias por tu ayuda!",
             fr: "Merci pour ton aide !",
@@ -375,6 +436,7 @@ async function initDB() {
             de: "bitte",
           },
           examples: {
+            uk: "Будь ласка, передай сіль.",
             en: "Please pass the salt.",
             es: "Por favor, pasa la sal.",
             fr: "S'il vous plaît, passe le sel.",
@@ -393,6 +455,7 @@ async function initDB() {
             de: "Apfel",
           },
           examples: {
+            uk: "Я з'їв соковите яблуко на сніданок.",
             en: "I ate a juicy apple for breakfast.",
             es: "Comí una manzana jugosa para el desayuno.",
             fr: "J'ai mangé une pomme juteuse au petit déjeuner.",
@@ -408,6 +471,7 @@ async function initDB() {
             de: "Brot",
           },
           examples: {
+            uk: "Я спік свіжий хліб цього ранку.",
             en: "I baked fresh bread this morning.",
             es: "Horneé pan fresco esta mañana.",
             fr: "J'ai fait du pain frais ce matin.",
@@ -423,6 +487,7 @@ async function initDB() {
             de: "Milch",
           },
           examples: {
+            uk: "Вона п'є молоко з пластівцями.",
             en: "She drinks milk with her cereal.",
             es: "Ella bebe leche con su cereal.",
             fr: "Elle boit du lait avec ses céréales.",
@@ -441,6 +506,7 @@ async function initDB() {
             de: "Flugzeug",
           },
           examples: {
+            uk: "Літак злетів вчасно.",
             en: "The airplane took off on time.",
             es: "El avión despegó a tiempo.",
             fr: "L'avion a décollé à l'heure.",
@@ -456,6 +522,7 @@ async function initDB() {
             de: "Hotel",
           },
           examples: {
+            uk: "Ми зупинилися в затишному готелі біля пляжу.",
             en: "We stayed at a cozy hotel by the beach.",
             es: "Nos quedamos en un hotel acogedor junto a la playa.",
             fr: "Nous avons séjourné dans un hôtel confortable près de la plage.",
@@ -471,6 +538,7 @@ async function initDB() {
             de: "Karte",
           },
           examples: {
+            uk: "Я використав карту, щоб знайти музей.",
             en: "I used a map to find the museum.",
             es: "Usé un mapa para encontrar el museo.",
             fr: "J'ai utilisé une carte pour trouver le musée.",
@@ -489,6 +557,7 @@ async function initDB() {
             de: "Mutter",
           },
           examples: {
+            uk: "Моя мати готує смачні страви.",
             en: "My mother cooks delicious meals.",
             es: "Mi madre cocina comidas deliciosas.",
             fr: "Ma mère cuisine des plats délicieux.",
@@ -504,6 +573,7 @@ async function initDB() {
             de: "Vater",
           },
           examples: {
+            uk: "Мій батько навчив мене кататися на велосипеді.",
             en: "My father taught me how to ride a bike.",
             es: "Mi padre me enseñó a montar en bicicleta.",
             fr: "Mon père m'a appris à faire du vélo.",
@@ -519,6 +589,7 @@ async function initDB() {
             de: "Bruder",
           },
           examples: {
+            uk: "Мій брат добре грає у футбол.",
             en: "My brother is good at soccer.",
             es: "Mi hermano es bueno en fútbol.",
             fr: "Mon frère est doué pour le football.",
@@ -537,6 +608,7 @@ async function initDB() {
             de: "Baum",
           },
           examples: {
+            uk: "Дерево в нашому дворі дуже старе.",
             en: "The tree in our yard is very old.",
             es: "El árbol en nuestro patio es muy viejo.",
             fr: "L'arbre dans notre jardin est très vieux.",
@@ -552,6 +624,7 @@ async function initDB() {
             de: "Fluss",
           },
           examples: {
+            uk: "Ми ходили рибалити на річку.",
             en: "We went fishing by the river.",
             es: "Fuimos a pescar al río.",
             fr: "Nous sommes allés pêcher près de la rivière.",
@@ -567,6 +640,7 @@ async function initDB() {
             de: "Berg",
           },
           examples: {
+            uk: "Ми піднялися на гору минулими вихідними.",
             en: "We hiked up the mountain last weekend.",
             es: "Subimos la montaña el fin de semana pasado.",
             fr: "Nous avons escaladé la montagne le week-end dernier.",
@@ -585,6 +659,7 @@ async function initDB() {
             de: "Arbeit",
           },
           examples: {
+            uk: "Вона любить свою нову роботу в лікарні.",
             en: "She loves her new job at the hospital.",
             es: "Ella ama su nuevo trabajo en el hospital.",
             fr: "Elle adore son nouveau travail à l'hôpital.",
@@ -600,6 +675,7 @@ async function initDB() {
             de: "Büro",
           },
           examples: {
+            uk: "Офіс відкритий з 9 до 17.",
             en: "The office is open from 9 to 5.",
             es: "La oficina está abierta de 9 a 5.",
             fr: "Le bureau est ouvert de 9h à 17h.",
@@ -615,6 +691,7 @@ async function initDB() {
             de: "Computer",
           },
           examples: {
+            uk: "Я використовую комп'ютер для роботи та ігор.",
             en: "I use my computer for work and gaming.",
             es: "Uso mi computadora para trabajar y jugar.",
             fr: "J'utilise mon ordinateur pour travailler et jouer.",
@@ -633,6 +710,7 @@ async function initDB() {
             de: "Hemd",
           },
           examples: {
+            uk: "Він одягнув синю сорочку на вечірку.",
             en: "He wore a blue shirt to the party.",
             es: "Llevó una camisa azul a la fiesta.",
             fr: "Il a porté une chemise bleue à la fête.",
@@ -648,6 +726,7 @@ async function initDB() {
             de: "Hose",
           },
           examples: {
+            uk: "Ці штани дуже зручні.",
             en: "These pants are very comfortable.",
             es: "Estos pantalones son muy cómodos.",
             fr: "Ce pantalon est très confortable.",
@@ -663,6 +742,7 @@ async function initDB() {
             de: "Schuhe",
           },
           examples: {
+            uk: "Мені потрібне нове взуття для бігу.",
             en: "I need new shoes for running.",
             es: "Necesito zapatos nuevos para correr.",
             fr: "J'ai besoin de nouvelles chaussures pour courir.",
@@ -681,6 +761,7 @@ async function initDB() {
             de: "Regen",
           },
           examples: {
+            uk: "Сьогодні вдень буде дощ.",
             en: "It's going to rain this afternoon.",
             es: "Va a llover esta tarde.",
             fr: "Il va pleuvoir cet après-midi.",
@@ -696,6 +777,7 @@ async function initDB() {
             de: "Sonne",
           },
           examples: {
+            uk: "Сонце сьогодні яскраво світить.",
             en: "The sun is shining brightly today.",
             es: "El sol brilla intensamente hoy.",
             fr: "Le soleil brille fort aujourd'hui.",
@@ -711,6 +793,7 @@ async function initDB() {
             de: "Wind",
           },
           examples: {
+            uk: "Сьогодні сильно дме вітер.",
             en: "The wind is blowing strongly today.",
             es: "El viento sopla fuerte hoy.",
             fr: "Le vent souffle fort aujourd'hui.",
@@ -729,6 +812,7 @@ async function initDB() {
             de: "glücklich",
           },
           examples: {
+            uk: "Вона була так щаслива побачити друзів.",
             en: "She was so happy to see her friends.",
             es: "Estaba tan feliz de ver a sus amigos.",
             fr: "Elle était si heureuse de voir ses amis.",
@@ -744,6 +828,7 @@ async function initDB() {
             de: "traurig",
           },
           examples: {
+            uk: "Він почувався сумним після фільму.",
             en: "He felt sad after the movie.",
             es: "Se sintió triste después de la película.",
             fr: "Il s'est senti triste après le film.",
@@ -759,6 +844,7 @@ async function initDB() {
             de: "wütend",
           },
           examples: {
+            uk: "Вона була зла через помилку.",
             en: "She was angry about the mistake.",
             es: "Estaba enojada por el error.",
             fr: "Elle était en colère à cause de l'erreur.",
@@ -777,6 +863,7 @@ async function initDB() {
             de: "Telefon",
           },
           examples: {
+            uk: "Я залишив телефон вдома.",
             en: "I left my phone at home.",
             es: "Dejé mi teléfono en casa.",
             fr: "J'ai oublié mon téléphone à la maison.",
@@ -792,6 +879,7 @@ async function initDB() {
             de: "Internet",
           },
           examples: {
+            uk: "Інтернет знову не працює.",
             en: "The internet is down again.",
             es: "El internet está caído otra vez.",
             fr: "L'internet ne fonctionne plus.",
@@ -807,6 +895,7 @@ async function initDB() {
             de: "App",
           },
           examples: {
+            uk: "Я завантажив новий додаток для навчання.",
             en: "I downloaded a new app for learning.",
             es: "Descargué una nueva aplicación para aprender.",
             fr: "J'ai téléchargé une nouvelle application pour apprendre.",
@@ -817,7 +906,11 @@ async function initDB() {
     ];
 
     // Create Words (150 words, 30 per language)
-    const words = [];
+    const words: {
+      text: string;
+      languageId: mongoose.Types.ObjectId;
+      example?: string;
+    }[] = [];
     for (let modIdx = 0; modIdx < conceptsPerModule.length; modIdx++) {
       const modConcepts = conceptsPerModule[modIdx];
       for (const concept of modConcepts) {
@@ -825,6 +918,7 @@ async function initDB() {
           words.push({
             text: concept.trans[lang.code],
             languageId: lang._id,
+            example: concept.examples[lang.code],
           });
         }
       }
@@ -840,13 +934,19 @@ async function initDB() {
     });
 
     // Create Cards (120 cards, Ukrainian to each learning language, grouped by module)
-    const cards = [];
+    const cards: {
+      firstWordId: mongoose.Types.ObjectId;
+      secondWordId: mongoose.Types.ObjectId;
+      moduleIds: mongoose.Types.ObjectId[];
+    }[] = [];
     for (const targetLang of learningLanguages) {
       const ukWordMap = wordMap[ukrainianLang._id.toString()];
       const targetWordMap = wordMap[targetLang._id.toString()];
       const langModules = createdModules[targetLang.code];
+      const ukModules = createdModules.uk;
       for (let modIdx = 0; modIdx < langModules.length; modIdx++) {
-        const moduleId = langModules[modIdx]._id;
+        const targetModuleId = langModules[modIdx]._id;
+        const ukModuleId = ukModules[modIdx]._id; // Corresponding Ukrainian module
         const modConcepts = conceptsPerModule[modIdx];
         for (const concept of modConcepts) {
           const ukText = concept.trans.uk;
@@ -854,59 +954,20 @@ async function initDB() {
           const ukWordId = ukWordMap[ukText];
           const targetWordId = targetWordMap[targetText];
           cards.push({
-            wordId: ukWordId,
-            translationId: targetWordId,
-            moduleId,
-            example: concept.examples[targetLang.code],
+            firstWordId: ukWordId,
+            secondWordId: targetWordId,
+            moduleIds: [targetModuleId, ukModuleId], // Include both target and Ukrainian module IDs
           });
         }
       }
     }
     await Card.insertMany(cards);
 
-    // Create ModuleProgress and LevelProgress for all users and all learning languages/modules/levels
-    /*
-    const moduleProgress = [];
-    const levelProgress = [];
-    for (const user of createdUsers) {
-      for (const lang of learningLanguages) {
-        const langModules = createdModules[lang.code];
-        for (const module of langModules) {
-          moduleProgress.push({
-            userId: user._id,
-            languageId: lang._id,
-            moduleId: module._id,
-            totalLevels: 3,
-            completedLevels: 0,
-            bestScore: 0,
-            unlocked: module.order === 1,
-            achievements: [],
-          });
-
-          const modLevels = levelsByModule[module._id.toString()];
-          for (const level of modLevels) {
-            levelProgress.push({
-              userId: user._id,
-              languageId: lang._id,
-              moduleId: module._id,
-              levelId: level._id,
-              bestScore: 0,
-              unlocked: level.order === 1,
-            });
-          }
-        }
-      }
-    }
-    await ModuleProgress.insertMany(moduleProgress);
-    await LevelProgress.insertMany(levelProgress);
-
-    */
-
     console.log("Database initialized successfully");
   } catch (error) {
     console.error("Error initializing database:", error);
   } finally {
-    await mongoose.connection.close();
+    await dbConnection.close();
     console.log("MongoDB connection closed");
   }
 }

@@ -10,6 +10,9 @@ import Language from "../language/Language";
 import Module from "../module/Module";
 import Card from "../card/Card";
 import Level from "../level/Level";
+import Attempt from "../attempt/Attempt";
+import LevelProgress from "../language-progress/LevelProgress";
+import ModuleProgress from "../language-progress/ModuleProgress";
 
 export class ModuleService {
   static async getModules(
@@ -179,15 +182,15 @@ export class ModuleService {
   }
 
   static async deleteModule(moduleId: string): Promise<void> {
-    const module = await Module.findOneAndDelete({
-      _id: moduleId,
-    }).lean();
-    if (!module) {
-      throw new Error("Module not found");
-    }
+    const module = await Module.findOneAndDelete({ _id: moduleId }).lean();
+    if (!module) throw new Error("Module not found");
+
     await Promise.all([
-      Card.deleteMany({ moduleId: moduleId }),
-      Level.deleteMany({ moduleId: moduleId }),
+      Card.deleteMany({ moduleIds: moduleId }),
+      Level.deleteMany({ moduleId }),
+      Attempt.deleteMany({ moduleId }),
+      LevelProgress.deleteMany({ moduleId }),
+      ModuleProgress.deleteMany({ moduleId }),
     ]);
   }
 }

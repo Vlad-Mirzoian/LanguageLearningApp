@@ -20,6 +20,7 @@ const AdminWordsPage: React.FC = () => {
   const [formData, setFormData] = useState({
     text: "",
     languageId: "",
+    example: "",
   });
   const [filters, setFilters] = useState({
     languageId: "",
@@ -128,7 +129,7 @@ const AdminWordsPage: React.FC = () => {
       setWords([...words, newWord]);
       setTotalWords(totalWords + 1);
       setIsAddModalOpen(false);
-      setFormData({ text: "", languageId: "" });
+      setFormData({ text: "", languageId: "", example: "" });
       setErrors({});
       setServerError("");
     } catch (err) {
@@ -154,6 +155,8 @@ const AdminWordsPage: React.FC = () => {
       if (formData.text !== currentWord.text) updateData.text = formData.text;
       if (formData.languageId !== currentWord.language.id)
         updateData.languageId = formData.languageId;
+      if ((formData.example || "") !== (currentWord.example || ""))
+        updateData.example = formData.example || undefined;
 
       if (Object.keys(updateData).length > 0) {
         const updatedWord = await WordAPI.updateWord(
@@ -161,14 +164,12 @@ const AdminWordsPage: React.FC = () => {
           updateData
         );
         setWords(
-          words.map((word) =>
-            word.id === updatedWord.id ? updatedWord : word
-          )
+          words.map((word) => (word.id === updatedWord.id ? updatedWord : word))
         );
       }
       setIsEditModalOpen(false);
       setCurrentWord(null);
-      setFormData({ text: "", languageId: "" });
+      setFormData({ text: "", languageId: "", example: "" });
       setErrors({});
       setServerError("");
     } catch (err) {
@@ -232,7 +233,7 @@ const AdminWordsPage: React.FC = () => {
           </div>
           <button
             onClick={() => {
-              setFormData({ text: "", languageId: "" });
+              setFormData({ text: "", languageId: "", example: "" });
               setErrors({});
               setServerError("");
               setIsAddModalOpen(true);
@@ -273,6 +274,9 @@ const AdminWordsPage: React.FC = () => {
                       {t("adminWordsPage.language")}
                     </th>
                     <th className="p-4 font-semibold text-indigo-700">
+                      {t("adminWordsPage.example")}
+                    </th>
+                    <th className="p-4 font-semibold text-indigo-700">
                       {t("adminWordsPage.actions")}
                     </th>
                   </tr>
@@ -284,6 +288,7 @@ const AdminWordsPage: React.FC = () => {
                       <td className="p-4 text-gray-800">
                         {word.language.name}
                       </td>
+                      <td className="p-4 text-gray-800">{word.example}</td>
                       <td className="p-4">
                         <button
                           onClick={() => {
@@ -291,6 +296,7 @@ const AdminWordsPage: React.FC = () => {
                             setFormData({
                               text: word.text,
                               languageId: word.language.id,
+                              example: word.example ?? "",
                             });
                             setErrors({});
                             setServerError("");
@@ -344,7 +350,7 @@ const AdminWordsPage: React.FC = () => {
         open={isAddModalOpen}
         onClose={() => {
           setIsAddModalOpen(false);
-          setFormData({ text: "", languageId: "" });
+          setFormData({ text: "", languageId: "", example: "" });
           setErrors({});
           setServerError("");
         }}
@@ -393,12 +399,19 @@ const AdminWordsPage: React.FC = () => {
                     </p>
                   )}
                 </div>
+                <FormInput
+                  label={t("adminWordsPage.example")}
+                  value={formData.example}
+                  onChange={(e) => handleChange("example", e.target.value)}
+                  error={errors.example}
+                  placeholder={t("adminWordsPage.examplePlaceholder")}
+                />
               </div>
               <div className="mt-6 flex justify-center space-x-2">
                 <button
                   onClick={() => {
                     setIsAddModalOpen(false);
-                    setFormData({ text: "", languageId: "" });
+                    setFormData({ text: "", languageId: "", example: "" });
                     setErrors({});
                     setServerError("");
                   }}
@@ -423,7 +436,7 @@ const AdminWordsPage: React.FC = () => {
         onClose={() => {
           setIsEditModalOpen(false);
           setCurrentWord(null);
-          setFormData({ text: "", languageId: "" });
+          setFormData({ text: "", languageId: "", example: "" });
           setErrors({});
           setServerError("");
         }}
@@ -472,13 +485,20 @@ const AdminWordsPage: React.FC = () => {
                     </p>
                   )}
                 </div>
+                <FormInput
+                  label={t("adminWordsPage.example")}
+                  value={formData.example}
+                  onChange={(e) => handleChange("example", e.target.value)}
+                  error={errors.example}
+                  placeholder={t("adminWordsPage.examplePlaceholder")}
+                />
               </div>
               <div className="mt-6 flex justify-center space-x-2">
                 <button
                   onClick={() => {
                     setIsEditModalOpen(false);
                     setCurrentWord(null);
-                    setFormData({ text: "", languageId: "" });
+                    setFormData({ text: "", languageId: "", example: "" });
                     setErrors({});
                     setServerError("");
                   }}

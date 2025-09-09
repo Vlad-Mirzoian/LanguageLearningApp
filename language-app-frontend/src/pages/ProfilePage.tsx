@@ -8,6 +8,7 @@ import type { ApiError, Language } from "../types/index";
 import { useAuth } from "../hooks/useAuth";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "../hooks/useLanguage";
+import { XMarkIcon } from "@heroicons/react/24/solid";
 
 interface FormData {
   email: string;
@@ -22,7 +23,7 @@ const baseUrl = import.meta.env.VITE_BASE_URL || "";
 
 const ProfilePage: React.FC = () => {
   const { t } = useTranslation();
-  const { user, updateUser, uploadAvatar } = useAuth();
+  const { user, updateUser, uploadUserAvatar, deleteUserAvatar } = useAuth();
   const { setSelectedLanguageId } = useLanguage();
   const navigate = useNavigate();
   const [formData, setFormData] = useState<FormData>({
@@ -41,6 +42,7 @@ const ProfilePage: React.FC = () => {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(
     user?.avatar ? `${baseUrl}${user.avatar}` : null
   );
+  const [deleteAvatar, setDeleteAvatar] = useState(false);
 
   const { data: languages } = useQuery<Language[]>({
     queryKey: ["languages"],
@@ -128,6 +130,14 @@ const ProfilePage: React.FC = () => {
     }
   };
 
+  const handleAvatarDelete = async () => {
+    setAvatarError("");
+    setSuccessMessage("");
+    setDeleteAvatar(true);
+    setAvatarPreview(null);
+    setAvatarFile(null);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setServerError("");
@@ -135,6 +145,26 @@ const ProfilePage: React.FC = () => {
     if (!validateForm()) return;
     try {
       const updateData: Partial<FormData> = {};
+      let avatarChanged = false;
+
+      if (deleteAvatar && !avatarFile && user?.avatar) {
+        await deleteUserAvatar();
+        avatarChanged = true;
+      }
+
+      if (avatarFile) {
+        if (avatarFile.size > 5 * 1024 * 1024) {
+          setAvatarError(t("profilePage.fileSizeError"));
+          return;
+        }
+        if (!["image/jpeg", "image/png"].includes(avatarFile.type)) {
+          setAvatarError(t("profilePage.fileTypeError"));
+          return;
+        }
+        await uploadUserAvatar(avatarFile);
+        avatarChanged = true;
+      }
+
       if (formData.email !== user?.email) updateData.email = formData.email;
       if (formData.username !== user?.username)
         updateData.username = formData.username;
@@ -148,27 +178,18 @@ const ProfilePage: React.FC = () => {
         updateData.learningLanguagesIds = formData.learningLanguagesIds.length
           ? formData.learningLanguagesIds
           : [];
-      let avatarChanged = false;
-      if (avatarFile) {
-        if (avatarFile.size > 5 * 1024 * 1024) {
-          setAvatarError(t("profilePage.fileSizeError"));
-          return;
-        }
-        if (!["image/jpeg", "image/png"].includes(avatarFile.type)) {
-          setAvatarError(t("profilePage.fileTypeError"));
-          return;
-        }
-        await uploadAvatar(avatarFile);
-        avatarChanged = true;
-      }
+
       if (Object.keys(updateData).length > 0) {
         await updateUser(updateData);
       }
+
       if (!avatarChanged && Object.keys(updateData).length === 0) {
         setServerError(t("profilePage.noChangesToSave"));
         return;
       }
+
       setSuccessMessage(t("profilePage.profileUpdatedSuccessfully"));
+      setDeleteAvatar(false);
       setTimeout(() => {
         setSuccessMessage("");
         navigate("/dashboard");
@@ -236,7 +257,7 @@ const ProfilePage: React.FC = () => {
           </div>
         )}
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="flex justify-center mb-6">
+          <div className="flex justify-center mb-6 relative">
             {avatarPreview ? (
               <img
                 src={avatarPreview}
@@ -255,12 +276,24 @@ const ProfilePage: React.FC = () => {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               {t("profilePage.profilePicture")}
             </label>
-            <input
-              type="file"
-              onChange={handleAvatarChange}
-              accept="image/jpeg,image/png"
-              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-            />
+            <div className="flex flex-row">
+              <input
+                type="file"
+                onChange={handleAvatarChange}
+                accept="image/jpeg,image/png"
+                className="block w-[90%] text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+              />
+              {avatarPreview && (
+                <button
+                  type="button"
+                  onClick={handleAvatarDelete}
+                  className="p-2.5 ml-auto bg-indigo-600 text-white rounded-full hover:bg-indigo-700 transition-colors duration-200"
+                  title={t("profilePage.deleteAvatar")}
+                >
+                  <XMarkIcon className="h-4 w-4" />
+                </button>
+              )}
+            </div>
             {avatarError && (
               <p className="mt-1 text-sm text-red-600">{avatarError}</p>
             )}

@@ -4,23 +4,28 @@ import { ICard } from "./card.interface";
 export interface CardDocument extends Document, ICard {}
 
 const cardSchema = new mongoose.Schema<CardDocument>({
-  wordId: { type: mongoose.Schema.Types.ObjectId, ref: "Word", required: true },
-  translationId: {
+  firstWordId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Word",
     required: true,
   },
-  moduleId: {
+  secondWordId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "Module",
+    ref: "Word",
     required: true,
   },
-  example: { type: String, default: "" },
+  moduleIds: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Module",
+      required: true,
+    },
+  ],
 });
 
-cardSchema.index({ wordId: 1, translationId: 1 }, { unique: true });
-cardSchema.index({ wordId: 1 });
-cardSchema.index({ translationId: 1 });
-cardSchema.index({ moduleId: 1 });
+cardSchema.index({ firstWordId: 1, secondWordId: 1 }, { unique: true });
+cardSchema.index({ firstWordId: 1 });
+cardSchema.index({ secondWordId: 1 });
+cardSchema.index({ moduleIds: 1 });
 
 export default mongoose.model<CardDocument>("Card", cardSchema);

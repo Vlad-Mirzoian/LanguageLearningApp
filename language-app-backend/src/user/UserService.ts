@@ -35,14 +35,14 @@ export class UserService {
     const user = await User.findById(userId).lean();
     if (!user) throw new Error("User not found");
     if (user.avatar) {
-      const filePath = path.join(__dirname, "..", "uploads", user.avatar);
+      const filePath = path.join(process.cwd(), "uploads/avatars", path.basename(user.avatar));
       try {
         await fs.unlink(filePath);
       } catch (err) {
         throw new Error(`Failed to delete avatar file: ${filePath}`);
       }
     }
-    await User.findByIdAndUpdate(userId, { avatar: null });
+    await User.findByIdAndUpdate(userId, { avatar: "" }, { new: true });
   }
 
   static async updateInterfaceLanguage(

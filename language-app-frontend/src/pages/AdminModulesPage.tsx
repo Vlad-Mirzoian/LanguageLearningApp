@@ -8,7 +8,7 @@ import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import type { DropResult } from "@hello-pangea/dnd";
 import { useTranslation } from "react-i18next";
 
-const AdminCategoriesPage: React.FC = () => {
+const AdminModulesPage: React.FC = () => {
   const { t } = useTranslation();
   const [totalModules, setTotalModules] = useState(0);
   const [modules, setModules] = useState<Module[]>([]);
@@ -56,7 +56,7 @@ const AdminCategoriesPage: React.FC = () => {
       } catch (err) {
         const error = err as ApiError;
         setError(
-          error.message || t("adminCategoriesPage.failedToLoadCategories")
+          error.message || t("adminModulesPage.failedToLoadCategories")
         );
       } finally {
         setLoading(false);
@@ -68,26 +68,26 @@ const AdminCategoriesPage: React.FC = () => {
   const validateField = useCallback(
     (field: keyof typeof formData, value: string): string | null => {
       if (field === "name") {
-        if (!value.trim()) return t("adminCategoriesPage.nameRequired");
+        if (!value.trim()) return t("adminModulesPage.nameRequired");
       }
       if (field === "languageId") {
-        if (!value.trim()) return t("adminCategoriesPage.languageRequired");
+        if (!value.trim()) return t("adminModulesPage.languageRequired");
       }
       if (field === "order") {
         if (!value || isNaN(Number(value)) || Number(value) < 1) {
-          return t("adminCategoriesPage.orderRequired");
+          return t("adminModulesPage.orderRequired");
         }
         if (
           modules.some(
             (mod) => mod.order === Number(value) && mod.id !== currentModule?.id
           )
         ) {
-          return t("adminCategoriesPage.orderTaken");
+          return t("adminModulesPage.orderTaken");
         }
       }
       if (field === "requiredScore") {
         if (!value || isNaN(Number(value)) || Number(value) < 0) {
-          return t("adminCategoriesPage.requiredScoreInvalid");
+          return t("adminModulesPage.requiredScoreInvalid");
         }
       }
       return null;
@@ -164,7 +164,7 @@ const AdminCategoriesPage: React.FC = () => {
     } catch (err) {
       const error = err as ApiError;
       setServerError(
-        error.message || t("adminCategoriesPage.failedToCreateCategory")
+        error.message || t("adminModulesPage.failedToCreateCategory")
       );
     }
   };
@@ -212,7 +212,7 @@ const AdminCategoriesPage: React.FC = () => {
     } catch (err) {
       const error = err as ApiError;
       setServerError(
-        error.message || t("adminCategoriesPage.failedToUpdateCategory")
+        error.message || t("adminModulesPage.failedToUpdateCategory")
       );
     }
   };
@@ -231,7 +231,7 @@ const AdminCategoriesPage: React.FC = () => {
     } catch (err) {
       const error = err as ApiError;
       setServerError(
-        error.message || t("adminCategoriesPage.failedToDeleteCategory")
+        error.message || t("adminModulesPage.failedToDeleteCategory")
       );
     }
   };
@@ -263,7 +263,7 @@ const AdminCategoriesPage: React.FC = () => {
     } catch (err) {
       const error = err as ApiError;
       setError(
-        error.message || t("adminCategoriesPage.failedToUpdateCategoryOrder")
+        error.message || t("adminModulesPage.failedToUpdateCategoryOrder")
       );
       const data = await ModuleAPI.getModules();
       setModules(data.modules.sort((a, b) => a.order - b.order));
@@ -274,19 +274,19 @@ const AdminCategoriesPage: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex justify-center p-4">
       <div className="w-full max-w-4xl">
         <h2 className="text-3xl font-bold text-center text-indigo-700">
-          {t("adminCategoriesPage.adminPanel")}
+          {t("adminModulesPage.adminPanel")}
         </h2>
         <div className="flex flex-col sm:flex-row justify-center items-end gap-8 mt-4 mb-6 space-y-4 sm:space-y-0 sm:space-x-4">
           <div className="flex flex-col items-center w-full sm:w-auto">
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t("adminCategoriesPage.filterByLanguage")}
+              {t("adminModulesPage.filterByLanguage")}
             </label>
             <select
               value={filters.languageId}
               onChange={(e) => handleFilterChange("languageId", e.target.value)}
               className="w-full py-2.5 px-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300"
             >
-              <option value="">{t("adminCategoriesPage.allLanguages")}</option>
+              <option value="">{t("adminModulesPage.allLanguages")}</option>
               {languages.map((lang) => (
                 <option key={lang.id} value={lang.id}>
                   {lang.name}
@@ -296,13 +296,13 @@ const AdminCategoriesPage: React.FC = () => {
           </div>
           <div className="flex flex-col items-center w-full sm:w-auto">
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t("adminCategoriesPage.filterByName")}
+              {t("adminModulesPage.filterByName")}
             </label>
             <input
               type="name"
               value={filters.name}
               onChange={(e) => handleFilterChange("name", e.target.value)}
-              placeholder={t("adminCategoriesPage.searchByNamePlaceholder")}
+              placeholder={t("adminModulesPage.searchByNamePlaceholder")}
               className="w-full py-2.5 px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-300"
             />
           </div>
@@ -321,14 +321,14 @@ const AdminCategoriesPage: React.FC = () => {
             }}
             className="bg-indigo-600 text-white py-2.5 px-8 rounded-lg font-semibold hover:bg-indigo-700 transition-colors duration-200 cursor-pointer"
           >
-            {t("adminCategoriesPage.addCategory")}
+            {t("adminModulesPage.addCategory")}
           </button>
         </div>
         {loading && (
           <div className="flex items-center mb-4">
             <ArrowPathIcon className="h-5 w-5 text-indigo-600 animate-spin" />
             <span className="ml-2 text-gray-600">
-              {t("adminCategoriesPage.loadingCategories")}
+              {t("adminModulesPage.loadingCategories")}
             </span>
           </div>
         )}
@@ -339,7 +339,7 @@ const AdminCategoriesPage: React.FC = () => {
         )}
         {!loading && !error && modules.length === 0 && (
           <div className="text-center text-gray-600">
-            {t("adminCategoriesPage.noCategoriesAvailable")}
+            {t("adminModulesPage.noCategoriesAvailable")}
           </div>
         )}
         {!loading && !error && modules.length > 0 && (
@@ -357,22 +357,22 @@ const AdminCategoriesPage: React.FC = () => {
                         <thead>
                           <tr className="bg-indigo-50">
                             <th className="p-4 font-semibold text-indigo-700">
-                              {t("adminCategoriesPage.order")}
+                              {t("adminModulesPage.order")}
                             </th>
                             <th className="p-4 font-semibold text-indigo-700">
-                              {t("adminCategoriesPage.name")}
+                              {t("adminModulesPage.name")}
                             </th>
                             <th className="p-4 font-semibold text-indigo-700">
-                              {t("adminCategoriesPage.description")}
+                              {t("adminModulesPage.description")}
                             </th>
                             <th className="p-4 font-semibold text-indigo-700">
-                              {t("adminCategoriesPage.language")}
+                              {t("adminModulesPage.language")}
                             </th>
                             <th className="p-4 font-semibold text-indigo-700">
-                              {t("adminCategoriesPage.requiredScore")}
+                              {t("adminModulesPage.requiredScore")}
                             </th>
                             <th className="p-4 font-semibold text-indigo-700">
-                              {t("adminCategoriesPage.actions")}
+                              {t("adminModulesPage.actions")}
                             </th>
                           </tr>
                         </thead>
@@ -427,7 +427,7 @@ const AdminCategoriesPage: React.FC = () => {
                                       }}
                                       className="text-indigo-600 hover:text-indigo-800 mr-4 cursor-pointer"
                                     >
-                                      {t("adminCategoriesPage.edit")}
+                                      {t("adminModulesPage.edit")}
                                     </button>
                                     <button
                                       onClick={() => {
@@ -436,7 +436,7 @@ const AdminCategoriesPage: React.FC = () => {
                                       }}
                                       className="text-red-600 hover:text-red-800 cursor-pointer"
                                     >
-                                      {t("adminCategoriesPage.delete")}
+                                      {t("adminModulesPage.delete")}
                                     </button>
                                   </td>
                                 </tr>
@@ -456,22 +456,22 @@ const AdminCategoriesPage: React.FC = () => {
                   <thead>
                     <tr className="bg-indigo-50">
                       <th className="p-4 font-semibold text-indigo-700">
-                        {t("adminCategoriesPage.order")}
+                        {t("adminModulesPage.order")}
                       </th>
                       <th className="p-4 font-semibold text-indigo-700">
-                        {t("adminCategoriesPage.name")}
+                        {t("adminModulesPage.name")}
                       </th>
                       <th className="p-4 font-semibold text-indigo-700">
-                        {t("adminCategoriesPage.description")}
+                        {t("adminModulesPage.description")}
                       </th>
                       <th className="p-4 font-semibold text-indigo-700">
-                        {t("adminCategoriesPage.language")}
+                        {t("adminModulesPage.language")}
                       </th>
                       <th className="p-4 font-semibold text-indigo-700">
-                        {t("adminCategoriesPage.requiredScore")}
+                        {t("adminModulesPage.requiredScore")}
                       </th>
                       <th className="p-4 font-semibold text-indigo-700">
-                        {t("adminCategoriesPage.actions")}
+                        {t("adminModulesPage.actions")}
                       </th>
                     </tr>
                   </thead>
@@ -506,7 +506,7 @@ const AdminCategoriesPage: React.FC = () => {
                             }}
                             className="text-indigo-600 hover:text-indigo-800 mr-4 cursor-pointer"
                           >
-                            {t("adminCategoriesPage.edit")}
+                            {t("adminModulesPage.edit")}
                           </button>
                           <button
                             onClick={() => {
@@ -515,7 +515,7 @@ const AdminCategoriesPage: React.FC = () => {
                             }}
                             className="text-red-600 hover:text-red-800 cursor-pointer"
                           >
-                            {t("adminCategoriesPage.delete")}
+                            {t("adminModulesPage.delete")}
                           </button>
                         </td>
                       </tr>
@@ -530,10 +530,10 @@ const AdminCategoriesPage: React.FC = () => {
                 disabled={filters.page === 1}
                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
-                {t("adminCategoriesPage.previous")}
+                {t("adminModulesPage.previous")}
               </button>
               <span>
-                {t("adminCategoriesPage.pageInfo", {
+                {t("adminModulesPage.pageInfo", {
                   currentPage: filters.page,
                   totalPages,
                 })}
@@ -543,7 +543,7 @@ const AdminCategoriesPage: React.FC = () => {
                 disabled={filters.page === totalPages}
                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
-                {t("adminCategoriesPage.next")}
+                {t("adminModulesPage.next")}
               </button>
             </div>
           </>
@@ -568,7 +568,7 @@ const AdminCategoriesPage: React.FC = () => {
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <DialogPanel className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md">
             <DialogTitle className="text-lg font-bold text-indigo-700">
-              {t("adminCategoriesPage.addCategoryModalTitle")}
+              {t("adminModulesPage.addCategoryModalTitle")}
             </DialogTitle>
             {serverError && (
               <div className="mb-3 mt-3 p-3 bg-red-100 text-red-700 text-sm rounded-lg text-center animate-fade-in">
@@ -578,22 +578,22 @@ const AdminCategoriesPage: React.FC = () => {
             <form onSubmit={handleAddCategory} className="space-y-2">
               <div className="mt-2 space-y-4">
                 <FormInput
-                  label={t("adminCategoriesPage.name")}
+                  label={t("adminModulesPage.name")}
                   value={formData.name}
                   onChange={(e) => handleChange("name", e.target.value)}
                   error={errors.name}
-                  placeholder={t("adminCategoriesPage.namePlaceholder")}
+                  placeholder={t("adminModulesPage.namePlaceholder")}
                 />
                 <FormInput
-                  label={t("adminCategoriesPage.description")}
+                  label={t("adminModulesPage.description")}
                   value={formData.description}
                   onChange={(e) => handleChange("description", e.target.value)}
                   error={errors.description}
-                  placeholder={t("adminCategoriesPage.descriptionPlaceholder")}
+                  placeholder={t("adminModulesPage.descriptionPlaceholder")}
                 />
                 <div>
                   <label className="block text-sm font-semibold text-gray-800 mb-1.5">
-                    {t("adminCategoriesPage.language")}
+                    {t("adminModulesPage.language")}
                   </label>
                   <select
                     value={formData.languageId}
@@ -601,7 +601,7 @@ const AdminCategoriesPage: React.FC = () => {
                     className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
                   >
                     <option value="">
-                      {t("adminCategoriesPage.selectLanguage")}
+                      {t("adminModulesPage.selectLanguage")}
                     </option>
                     {languages.map((lang) => (
                       <option key={lang.id} value={lang.id}>
@@ -616,15 +616,15 @@ const AdminCategoriesPage: React.FC = () => {
                   )}
                 </div>
                 <FormInput
-                  label={t("adminCategoriesPage.order")}
+                  label={t("adminModulesPage.order")}
                   type="number"
                   value={formData.order}
                   onChange={(e) => handleChange("order", e.target.value)}
                   error={errors.order}
-                  placeholder={t("adminCategoriesPage.orderPlaceholder")}
+                  placeholder={t("adminModulesPage.orderPlaceholder")}
                 />
                 <FormInput
-                  label={t("adminCategoriesPage.requiredScore")}
+                  label={t("adminModulesPage.requiredScore")}
                   type="number"
                   value={formData.requiredScore}
                   onChange={(e) =>
@@ -632,7 +632,7 @@ const AdminCategoriesPage: React.FC = () => {
                   }
                   error={errors.requiredScore}
                   placeholder={t(
-                    "adminCategoriesPage.requiredScorePlaceholder"
+                    "adminModulesPage.requiredScorePlaceholder"
                   )}
                 />
               </div>
@@ -652,14 +652,14 @@ const AdminCategoriesPage: React.FC = () => {
                   }}
                   className="px-4 py-2 text-gray-600 rounded-lg hover:bg-gray-100 cursor-pointer"
                 >
-                  {t("adminCategoriesPage.cancel")}
+                  {t("adminModulesPage.cancel")}
                 </button>
                 <button
                   type="submit"
                   disabled={Object.keys(errors).length > 0}
                   className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 cursor-pointer transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
-                  {t("adminCategoriesPage.add")}
+                  {t("adminModulesPage.add")}
                 </button>
               </div>
             </form>
@@ -686,7 +686,7 @@ const AdminCategoriesPage: React.FC = () => {
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <DialogPanel className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md">
             <DialogTitle className="text-lg font-bold text-indigo-700">
-              {t("adminCategoriesPage.editCategoryModalTitle")}
+              {t("adminModulesPage.editCategoryModalTitle")}
             </DialogTitle>
             {serverError && (
               <div className="mb-3 mt-3 p-3 bg-red-100 text-red-700 text-sm rounded-lg text-center animate-fade-in">
@@ -696,22 +696,22 @@ const AdminCategoriesPage: React.FC = () => {
             <form onSubmit={handleEditCategory} className="space-y-2">
               <div className="mt-2 space-y-4">
                 <FormInput
-                  label={t("adminCategoriesPage.name")}
+                  label={t("adminModulesPage.name")}
                   value={formData.name}
                   onChange={(e) => handleChange("name", e.target.value)}
                   error={errors.name}
-                  placeholder={t("adminCategoriesPage.namePlaceholder")}
+                  placeholder={t("adminModulesPage.namePlaceholder")}
                 />
                 <FormInput
-                  label={t("adminCategoriesPage.description")}
+                  label={t("adminModulesPage.description")}
                   value={formData.description}
                   onChange={(e) => handleChange("description", e.target.value)}
                   error={errors.description}
-                  placeholder={t("adminCategoriesPage.descriptionPlaceholder")}
+                  placeholder={t("adminModulesPage.descriptionPlaceholder")}
                 />
                 <div>
                   <label className="block text-sm font-semibold text-gray-800 mb-1.5">
-                    {t("adminCategoriesPage.language")}
+                    {t("adminModulesPage.language")}
                   </label>
                   <select
                     value={formData.languageId}
@@ -719,7 +719,7 @@ const AdminCategoriesPage: React.FC = () => {
                     className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
                   >
                     <option value="">
-                      {t("adminCategoriesPage.selectLanguage")}
+                      {t("adminModulesPage.selectLanguage")}
                     </option>
                     {languages.map((lang) => (
                       <option key={lang.id} value={lang.id}>
@@ -734,15 +734,15 @@ const AdminCategoriesPage: React.FC = () => {
                   )}
                 </div>
                 <FormInput
-                  label={t("adminCategoriesPage.order")}
+                  label={t("adminModulesPage.order")}
                   type="number"
                   value={formData.order}
                   onChange={(e) => handleChange("order", e.target.value)}
                   error={errors.order}
-                  placeholder={t("adminCategoriesPage.orderPlaceholder")}
+                  placeholder={t("adminModulesPage.orderPlaceholder")}
                 />
                 <FormInput
-                  label={t("adminCategoriesPage.requiredScore")}
+                  label={t("adminModulesPage.requiredScore")}
                   type="number"
                   value={formData.requiredScore}
                   onChange={(e) =>
@@ -750,7 +750,7 @@ const AdminCategoriesPage: React.FC = () => {
                   }
                   error={errors.requiredScore}
                   placeholder={t(
-                    "adminCategoriesPage.requiredScorePlaceholder"
+                    "adminModulesPage.requiredScorePlaceholder"
                   )}
                 />
               </div>
@@ -771,14 +771,14 @@ const AdminCategoriesPage: React.FC = () => {
                   }}
                   className="px-4 py-2 text-gray-600 rounded-lg hover:bg-gray-100 cursor-pointer"
                 >
-                  {t("adminCategoriesPage.cancel")}
+                  {t("adminModulesPage.cancel")}
                 </button>
                 <button
                   type="submit"
                   disabled={Object.keys(errors).length > 0}
                   className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 cursor-pointer transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
-                  {t("adminCategoriesPage.save")}
+                  {t("adminModulesPage.save")}
                 </button>
               </div>
             </form>
@@ -797,10 +797,10 @@ const AdminCategoriesPage: React.FC = () => {
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <DialogPanel className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md">
             <DialogTitle className="text-lg font-bold text-indigo-700">
-              {t("adminCategoriesPage.confirmDeletionTitle")}
+              {t("adminModulesPage.confirmDeletionTitle")}
             </DialogTitle>
             <p className="mt-2 text-gray-600">
-              {t("adminCategoriesPage.confirmDeletionMessage", {
+              {t("adminModulesPage.confirmDeletionMessage", {
                 name: currentModule?.name,
               })}
             </p>
@@ -819,13 +819,13 @@ const AdminCategoriesPage: React.FC = () => {
                   }}
                   className="px-4 py-2 text-gray-600 rounded-lg hover:bg-gray-100 cursor-pointer"
                 >
-                  {t("adminCategoriesPage.cancel")}
+                  {t("adminModulesPage.cancel")}
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 cursor-pointer"
                 >
-                  {t("adminCategoriesPage.delete")}
+                  {t("adminModulesPage.delete")}
                 </button>
               </div>
             </form>
@@ -836,4 +836,4 @@ const AdminCategoriesPage: React.FC = () => {
   );
 };
 
-export default AdminCategoriesPage;
+export default AdminModulesPage;

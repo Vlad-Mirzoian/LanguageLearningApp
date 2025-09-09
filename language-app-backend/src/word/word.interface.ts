@@ -4,6 +4,7 @@ export interface IWord {
   _id: mongoose.Types.ObjectId;
   text: string;
   languageId: mongoose.Types.ObjectId;
+  example?: string;
 }
 
 export interface IWordPopulated extends Omit<IWord, "languageId"> {

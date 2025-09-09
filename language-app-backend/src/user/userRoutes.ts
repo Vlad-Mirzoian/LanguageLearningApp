@@ -8,9 +8,9 @@ import * as userController from "./userController";
 
 const router: Router = express.Router();
 
-// POST /api/user/upload-avatar
+// POST /api/user/avatar
 router.post(
-  "/upload-avatar",
+  "/avatar",
   authenticate,
   upload.single("avatar"),
   userController.uploadAvatar
@@ -70,8 +70,8 @@ router.put(
   userController.updateUser
 );
 
-// DELETE /api/user/delete-avatar
-router.delete("/delete-avatar", authenticate, userController.deleteAvatar);
+// DELETE /api/user/avatar
+router.delete("/avatar", authenticate, userController.deleteAvatar);
 
 // DELETE /api/user
 router.delete("/", authenticate, userController.deleteUser);

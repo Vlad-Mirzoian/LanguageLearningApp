@@ -1,11 +1,9 @@
-import mongoose from "mongoose";
-import { v4 as uuidv4 } from "uuid";
 import { Request, Response } from "express";
 import {
   CardFiltersDTO,
   CreateCardDTO,
   ReviewCardsFiltersDTO,
-  SubmitCardDTO,
+  SubmitCardRequest,
   UpdateCardDTO,
 } from "./card.dto";
 import { CardService } from "./CardService";
@@ -52,25 +50,6 @@ export const getReviewCards = async (
   }
 };
 
-export const getTestCards = async (
-  req: Request<{}, {}, {}, ReviewCardsFiltersDTO>,
-  res: Response
-) => {
-  try {
-    if (!req.userId) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    const { cards, attemptId } = await CardService.getTestCards(
-      req.userId,
-      req.query
-    );
-    res.json({ cards, attemptId });
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    res.status(500).json({ error: `Failed to fetch test cards: ${message}` });
-  }
-};
-
 export const createCard = async (
   req: Request<{}, {}, CreateCardDTO>,
   res: Response
@@ -85,7 +64,7 @@ export const createCard = async (
 };
 
 export const submitCard = async (
-  req: Request<{ id: string }, {}, SubmitCardDTO>,
+  req: Request<{ id: string }, {}, SubmitCardRequest>,
   res: Response
 ) => {
   try {

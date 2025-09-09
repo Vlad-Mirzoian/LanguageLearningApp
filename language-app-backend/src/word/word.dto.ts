@@ -10,6 +10,7 @@ export interface WordFiltersDTO {
 export interface CreateWordDTO {
   text: string;
   languageId: string;
+  example?: string;
 }
 
 export interface CheckWordUniqueDTO {
@@ -20,6 +21,7 @@ export interface CheckWordUniqueDTO {
 export interface UpdateWordDTO {
   text?: string;
   languageId?: string;
+  example?: string;
 }
 
 export interface WordPreviewDTO {
@@ -32,4 +34,5 @@ export interface WordFullDTO {
   id: string;
   text: string;
   language: LanguageDTO;
+  example?: string;
 }
