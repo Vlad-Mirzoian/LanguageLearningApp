@@ -20,13 +20,7 @@ import { ICard, ICardPopulated } from "./card.interface";
 import { AttemptService } from "../attempt/AttemptService";
 import { LanguageProgressService } from "../language-progress/LanguageProgressService";
 import { FilterQuery } from "mongoose";
-
-interface ProgressQuery {
-  userId: string;
-  languageId?: string;
-  unlocked: boolean;
-  moduleId?: string;
-}
+import { ILanguage } from "../language/language.interface";
 
 export class CardService {
   static async getCards(
@@ -125,12 +119,11 @@ export class CardService {
   static async getReviewCards(
     userId: string,
     data: ReviewCardsFiltersDTO
-  ): Promise<{ cards: ReviewCardDTO[]; attemptId: string }> {
-    const { languageId, moduleId } = data;
-    const [user, language, module] = await Promise.all([
+  ): Promise<ReviewCardDTO[]> {
+    const { languageId } = data;
+    const [user, language] = await Promise.all([
       User.findById(userId),
-      Language.findById(languageId).lean(),
-      Module.findById(moduleId).lean(),
+      Language.findById(languageId).lean<ILanguage>(),
     ]);
     if (!user) {
       throw new Error("User not found");
@@ -138,9 +131,7 @@ export class CardService {
     if (!language) {
       throw new Error("Language not found");
     }
-    if (!module) {
-      throw new Error("Module not found");
-    }
+
     if (
       !(
         user.nativeLanguageId &&
@@ -152,14 +143,6 @@ export class CardService {
     ) {
       throw new Error("Access to this language is restricted");
     }
-    const progress = await ModuleProgress.findOne({
-      userId,
-      languageId,
-      moduleId,
-    }).lean();
-    if (!progress?.unlocked) {
-      throw new Error("Module is locked");
-    }
 
     const [nativeWordIds, learningWordIds] = await Promise.all([
       Word.find({
@@ -169,16 +152,6 @@ export class CardService {
         languageId,
       }).distinct("_id"),
     ]);
-
-    const progressQuery: ProgressQuery = {
-      userId,
-      unlocked: true,
-    };
-    if (languageId) progressQuery.languageId = languageId;
-    if (moduleId) progressQuery.moduleId = moduleId;
-    const unlockedModules = await ModuleProgress.find(progressQuery).distinct(
-      "moduleId"
-    );
 
     const query = {
       $or: [
@@ -191,13 +164,15 @@ export class CardService {
           secondWordId: { $in: nativeWordIds },
         },
       ],
-      moduleIds: { $in: unlockedModules },
     };
 
     const cardsRaw = await Card.find(query)
       .populate({ path: "firstWordId", select: "text languageId example" })
       .populate({ path: "secondWordId", select: "text languageId example" })
-      .populate({ path: "moduleIds", select: "name order requiredScore" })
+      .populate({
+        path: "moduleIds",
+        select: "name order requiredScore languageId",
+      })
       .lean<ICardPopulated[]>();
 
     const cards: ReviewCardDTO[] = await Promise.all(
@@ -209,11 +184,14 @@ export class CardService {
         const translationWord = isNativeFirst ? c.firstWordId : c.secondWordId;
         const originalWord = isNativeFirst ? c.secondWordId : c.firstWordId;
 
-        const selectedModule = c.moduleIds.find(
-          (mod) => mod._id.toString() === moduleId?.toString()
+        const module = c.moduleIds.find(
+          (mod) => mod.languageId.toString() === language._id.toString()
         );
-        if (!selectedModule)
-          throw new Error(`Card ${c._id} does not contain the required module`);
+        if (!module) {
+          throw new Error(
+            `Card ${c._id} is not linked to a module of this language`
+          );
+        }
 
         const allTranslations = await Word.find({
           languageId: originalWord.languageId,
@@ -235,10 +213,11 @@ export class CardService {
         const card: ReviewCardDTO = {
           id: c._id.toString(),
           module: {
-            id: selectedModule._id.toString(),
-            name: selectedModule.name,
-            order: selectedModule.order,
-            requiredScore: selectedModule.requiredScore,
+            id: module._id.toString(),
+            name: module.name,
+            languageId: module.languageId.toString(),
+            order: module.order,
+            requiredScore: module.requiredScore,
           },
           translation: {
             id: translationWord._id.toString(),
@@ -251,14 +230,13 @@ export class CardService {
             languageId: originalWord.languageId.toString(),
           },
           example: originalWord.example,
-          options
+          options,
         };
 
         return card;
       })
     );
-    const attemptId = uuidv4();
-    return { cards, attemptId };
+    return cards;
   }
 
   static async createCard(data: CreateCardDTO): Promise<CardDTO> {
@@ -398,7 +376,7 @@ export class CardService {
           secondWordId: { $in: nativeWordIds },
         },
       ],
-      moduleIds: level.moduleId,
+      moduleIds: { $in: [level.moduleId] },
     })
       .populate("moduleIds", "name order requiredScore")
       .lean<ICardPopulated>();

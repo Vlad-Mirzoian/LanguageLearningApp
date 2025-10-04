@@ -25,6 +25,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
+import { motion } from "framer-motion";
 
 const StatisticsPage: React.FC = () => {
   const { t } = useTranslation();
@@ -265,33 +266,53 @@ const StatisticsPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex flex-col items-center p-4">
-      <div className="w-full max-w-4xl">
-        <h2 className="text-3xl font-bold text-center text-indigo-700 mb-6">
+    <div className="min-h-screen bg-background flex flex-col items-center p-4 sm:p-6">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-4xl bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg p-8"
+      >
+        <h2 className="text-3xl font-poppins font-bold text-center text-primary mb-6">
           {t("statisticsPage.statistics")}:{" "}
           {languages.find((lang) => lang.id === selectedLanguageId)?.name ||
             t("statisticsPage.selectLanguage")}
         </h2>
         {loading && (
-          <div className="flex items-center mb-4">
-            <ArrowPathIcon className="h-5 w-5 text-indigo-600 animate-spin" />
-            <span className="ml-2 text-gray-600">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className="flex items-center justify-center mb-6"
+          >
+            <ArrowPathIcon className="h-5 w-5 text-primary animate-spin" />
+            <span className="ml-2 text-dark font-poppins">
               {t("statisticsPage.loading")}
             </span>
-          </div>
+          </motion.div>
         )}
         {error && (
-          <div className="mb-4 p-2 bg-red-600 text-white text-sm rounded-lg">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className="mb-6 p-4 bg-red-50 text-red-600 text-sm font-poppins rounded-lg text-center animate-fade-in"
+          >
             {error}
-          </div>
+          </motion.div>
         )}
         {!loading && !error && selectedLanguageId && stats && (
           <>
-            <div className="mb-4 flex flex-col sm:flex-row gap-4">
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5, duration: 0.3 }}
+              className="mb-6 flex flex-col sm:flex-row gap-4 justify-center"
+            >
               <div>
                 <label
                   htmlFor="dateFilter"
-                  className="mr-2 text-gray-700 font-medium"
+                  className="mr-2 text-dark font-poppins font-medium"
                 >
                   {t("statisticsPage.filterByDate")}:
                 </label>
@@ -301,67 +322,79 @@ const StatisticsPage: React.FC = () => {
                   onChange={(e) =>
                     setDateFilter(e.target.value as "7days" | "30days" | "all")
                   }
-                  className="p-2 border rounded-md bg-white shadow-sm focus:ring-2 focus:ring-indigo-500"
+                  className="p-2 border border-gray-100 rounded-lg bg-white/90 shadow-sm focus:outline-none focus:ring-2 focus:ring-accent hover:bg-white/80 font-poppins transition-all duration-200"
                 >
-                  <option value="7 days">{t("statisticsPage.7days")}</option>
-                  <option value="30 days">{t("statisticsPage.30days")}</option>
+                  <option value="7days">{t("statisticsPage.7days")}</option>
+                  <option value="30days">{t("statisticsPage.30days")}</option>
                   <option value="all">{t("statisticsPage.all")}</option>
                 </select>
               </div>
-              <button
-                onClick={() => {
-                  setDateFilter("all");
-                }}
-                className="p-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => setDateFilter("all")}
+                className="p-2 bg-gradient-primary text-white rounded-lg font-poppins font-semibold hover:bg-gradient-primary-hover transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-accent shadow-md"
               >
                 {t("statisticsPage.resetFilters")}
-              </button>
-              <button
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
                 onClick={handleExportToPDF}
-                className="p-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors duration-200"
+                className="p-2 bg-secondary text-white rounded-lg font-poppins font-semibold hover:bg-secondary/80 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-accent shadow-md"
               >
                 {t("statisticsPage.exportToPDF")}
-              </button>
-            </div>
-            <div className="mb-6 bg-white p-6 rounded-lg shadow-lg">
-              <h3 className="text-xl font-semibold text-gray-800 mb-4">
+              </motion.button>
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6, duration: 0.3 }}
+              className="mb-6 bg-white/98 backdrop-blur-sm p-6 rounded-lg shadow-lg"
+            >
+              <h3 className="text-xl font-poppins font-semibold text-dark mb-4">
                 {t("statisticsPage.summary")}
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <p className="text-gray-600">
+                <div className="p-4 bg-gray-50/80 rounded-lg">
+                  <p className="text-dark font-poppins">
                     {t("statisticsPage.totalModules")}:{" "}
                     {stats.summary.totalModules}
                   </p>
-                  <p className="text-gray-600">
+                  <p className="text-dark font-poppins">
                     {t("statisticsPage.completedModules")}:{" "}
                     {stats.summary.completedModules}
                   </p>
                 </div>
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <p className="text-gray-600">
+                <div className="p-4 bg-gray-50/80 rounded-lg">
+                  <p className="text-dark font-poppins">
                     {t("statisticsPage.totalLevels")}:{" "}
                     {stats.summary.totalLevels}
                   </p>
-                  <p className="text-gray-600">
+                  <p className="text-dark font-poppins">
                     {t("statisticsPage.completedLevels")}:{" "}
                     {stats.summary.completedLevels}
                   </p>
                 </div>
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <p className="text-gray-600">
+                <div className="p-4 bg-gray-50/80 rounded-lg">
+                  <p className="text-dark font-poppins">
                     {t("statisticsPage.totalAchievements")}:{" "}
                     {stats.summary.totalAchievements}
                   </p>
                 </div>
               </div>
-            </div>
-            <div className="mb-6 bg-white p-6 rounded-lg shadow-lg">
-              <h3 className="text-xl font-semibold text-gray-800 mb-4">
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.7, duration: 0.3 }}
+              className="mb-6 bg-white/98 backdrop-blur-sm p-6 rounded-lg shadow-lg"
+            >
+              <h3 className="text-xl font-poppins font-semibold text-dark mb-4">
                 {t("statisticsPage.moduleProgress")}
               </h3>
               {Object.values(stats.statsByModule).length === 0 ? (
-                <div className="text-center text-gray-600 py-8">
+                <div className="text-center text-dark font-poppins py-8">
                   <p className="mb-2">{t("statisticsPage.noAttemptData")}</p>
                   <p className="text-sm">
                     {t("statisticsPage.completeExercisesPrompt")}
@@ -377,13 +410,13 @@ const StatisticsPage: React.FC = () => {
                       <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                       <XAxis
                         dataKey="date"
-                        tick={{ fontSize: 12, fill: "#4B5563" }}
+                        tick={{ fontSize: 12, fill: "#2D3748" }}
                         tickLine={false}
                         axisLine={{ stroke: "#D1D5DB" }}
                       />
                       <YAxis
                         domain={[0, 100]}
-                        tick={{ fontSize: 12, fill: "#4B5563" }}
+                        tick={{ fontSize: 12, fill: "#2D3748" }}
                         tickLine={false}
                         axisLine={{ stroke: "#D1D5DB" }}
                         label={{
@@ -391,8 +424,9 @@ const StatisticsPage: React.FC = () => {
                           angle: -90,
                           position: "insideLeft",
                           offset: -5,
-                          fill: "#4B5563",
+                          fill: "#2D3748",
                           fontSize: 14,
+                          fontFamily: "Poppins",
                         }}
                       />
                       <Tooltip
@@ -401,6 +435,7 @@ const StatisticsPage: React.FC = () => {
                           border: "1px solid #E5E7EB",
                           borderRadius: "8px",
                           boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                          fontFamily: "Poppins",
                         }}
                         formatter={(value, name, props) => {
                           const moduleName = String(name).replace(
@@ -434,7 +469,8 @@ const StatisticsPage: React.FC = () => {
                         wrapperStyle={{
                           paddingTop: "10px",
                           fontSize: 14,
-                          color: "#1F2937",
+                          color: "#2D3748",
+                          fontFamily: "Poppins",
                         }}
                         formatter={(value) => {
                           const moduleStats = Object.values(
@@ -462,13 +498,18 @@ const StatisticsPage: React.FC = () => {
                   </ResponsiveContainer>
                 </div>
               )}
-            </div>
-            <div className="mb-6 bg-white p-6 rounded-lg shadow-lg">
-              <h3 className="text-xl font-semibold text-gray-800 mb-4">
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.8, duration: 0.3 }}
+              className="mb-6 bg-white/98 backdrop-blur-sm p-6 rounded-lg shadow-lg"
+            >
+              <h3 className="text-xl font-poppins font-semibold text-dark mb-4">
                 {t("statisticsPage.accuracyByExerciseType")}
               </h3>
               {accuracyData.every((d) => d.accuracy === 0) ? (
-                <p className="text-gray-600">
+                <p className="text-dark font-poppins">
                   {t("statisticsPage.noAccuracyData")}
                 </p>
               ) : (
@@ -481,13 +522,13 @@ const StatisticsPage: React.FC = () => {
                       <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                       <XAxis
                         dataKey="type"
-                        tick={{ fontSize: 12, fill: "#4B5563" }}
+                        tick={{ fontSize: 12, fill: "#2D3748" }}
                         tickLine={false}
                         axisLine={{ stroke: "#D1D5DB" }}
                       />
                       <YAxis
                         domain={[0, 100]}
-                        tick={{ fontSize: 12, fill: "#4B5563" }}
+                        tick={{ fontSize: 12, fill: "#2D3748" }}
                         tickLine={false}
                         axisLine={{ stroke: "#D1D5DB" }}
                         label={{
@@ -495,8 +536,9 @@ const StatisticsPage: React.FC = () => {
                           angle: -90,
                           position: "insideLeft",
                           offset: -5,
-                          fill: "#4B5563",
+                          fill: "#2D3748",
                           fontSize: 14,
+                          fontFamily: "Poppins",
                         }}
                       />
                       <Tooltip
@@ -505,6 +547,7 @@ const StatisticsPage: React.FC = () => {
                           border: "1px solid #E5E7EB",
                           borderRadius: "8px",
                           boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                          fontFamily: "Poppins",
                         }}
                         formatter={(value) => [
                           `${value}%`,
@@ -515,22 +558,23 @@ const StatisticsPage: React.FC = () => {
                         wrapperStyle={{
                           paddingTop: "10px",
                           fontSize: 14,
-                          color: "#1F2937",
+                          color: "#2D3748",
+                          fontFamily: "Poppins",
                         }}
                       />
                       <Bar
                         dataKey="accuracy"
-                        fill="#4B0082"
+                        fill="#4C78D6"
                         name={t("statisticsPage.accuracy")}
                       />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
               )}
-            </div>
+            </motion.div>
           </>
         )}
-      </div>
+      </motion.div>
     </div>
   );
 };

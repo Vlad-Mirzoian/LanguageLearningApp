@@ -39,11 +39,8 @@ export const getReviewCards = async (
     if (!req.userId) {
       return res.status(401).json({ error: "Unauthorized" });
     }
-    const { cards, attemptId } = await CardService.getReviewCards(
-      req.userId,
-      req.query
-    );
-    res.json({ cards, attemptId });
+    const cards = await CardService.getReviewCards(req.userId, req.query);
+    res.json(cards);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     res.status(500).json({ error: `Failed to fetch review cards: ${message}` });

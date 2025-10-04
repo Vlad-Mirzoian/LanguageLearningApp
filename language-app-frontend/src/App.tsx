@@ -16,6 +16,7 @@ import AdminModulesPage from "./pages/AdminModulesPage";
 import AdminWordsPage from "./pages/AdminWordsPage";
 import AdminCardsPage from "./pages/AdminCardsPage";
 import Layout from "./components/layout/Layout";
+import LandingPage from "./pages/LandingPage";
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
       <Route path="/attempts/view/:token" element={<ViewAttemptPage />} />
       <Route path="/" element={<LoginPage />} />
       <Route element={<Layout />}>
+        <Route path="/about" element={<LandingPage />} />
         <Route
           path="/dashboard"
           element={

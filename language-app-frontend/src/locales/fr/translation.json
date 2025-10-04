@@ -341,7 +341,7 @@
     "filterByName": "Filtrer par nom",
     "allLanguages": "Toutes les langues",
     "searchByNamePlaceholder": "Rechercher par nom...",
-    "failedToUpdateCategoryOrder": "Échec de la mise à jour de l'ordre du module",
+    "failedToUpdateModuleOrder": "Échec de la mise à jour de l'ordre du module",
     "namePlaceholder": "Salutations",
     "descriptionPlaceholder": "Mots pour les salutations et les présentations",
     "selectLanguage": "Sélectionner une langue",

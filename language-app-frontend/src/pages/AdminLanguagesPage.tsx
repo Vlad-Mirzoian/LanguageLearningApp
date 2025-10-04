@@ -5,6 +5,7 @@ import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
 import FormInput from "../components/ui/FormInput";
 import { ArrowPathIcon } from "@heroicons/react/24/solid";
 import { useTranslation } from "react-i18next";
+import { motion } from "framer-motion";
 
 const AdminLanguagesPage: React.FC = () => {
   const { t } = useTranslation();
@@ -14,6 +15,7 @@ const AdminLanguagesPage: React.FC = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
   const [currentLanguage, setCurrentLanguage] = useState<Language | null>(null);
   const [formData, setFormData] = useState({
     code: "",
@@ -91,16 +93,23 @@ const AdminLanguagesPage: React.FC = () => {
     try {
       const newLanguage = await LanguageAPI.createLanguage(formData);
       setLanguages([...languages, newLanguage]);
-      setIsAddModalOpen(false);
-      setFormData({ code: "", name: "" });
-      setErrors({});
-      setServerError("");
+      closeAddModal();
     } catch (err) {
       const error = err as ApiError;
       setServerError(
         error.message || t("adminLanguagesPage.failedToCreateLanguage")
       );
     }
+  };
+
+  const closeAddModal = () => {
+    setIsVisible(false);
+    setTimeout(() => {
+      setIsAddModalOpen(false);
+      setFormData({ code: "", name: "" });
+      setErrors({});
+      setServerError("");
+    }, 300);
   };
 
   const handleEditLanguage = async (e: React.FormEvent) => {
@@ -128,17 +137,24 @@ const AdminLanguagesPage: React.FC = () => {
           )
         );
       }
-      setIsEditModalOpen(false);
-      setCurrentLanguage(null);
-      setFormData({ code: "", name: "" });
-      setErrors({});
-      setServerError("");
+      closeEditModal();
     } catch (err) {
       const error = err as ApiError;
       setServerError(
         error.message || t("adminLanguagesPage.failedToUpdateLanguage")
       );
     }
+  };
+
+  const closeEditModal = () => {
+    setIsVisible(false);
+    setTimeout(() => {
+      setIsEditModalOpen(false);
+      setCurrentLanguage(null);
+      setFormData({ code: "", name: "" });
+      setErrors({});
+      setServerError("");
+    }, 300);
   };
 
   const handleDeleteLanguage = async (e: React.FormEvent) => {
@@ -149,8 +165,7 @@ const AdminLanguagesPage: React.FC = () => {
     try {
       await LanguageAPI.deleteLanguage(currentLanguage.id);
       setLanguages(languages.filter((lang) => lang.id !== currentLanguage.id));
-      setIsDeleteModalOpen(false);
-      setCurrentLanguage(null);
+      closeDeleteModal();
     } catch (err) {
       const error = err as ApiError;
       setServerError(
@@ -159,116 +174,190 @@ const AdminLanguagesPage: React.FC = () => {
     }
   };
 
+  const closeDeleteModal = () => {
+    setIsVisible(false);
+    setTimeout(() => {
+      setIsDeleteModalOpen(false);
+      setCurrentLanguage(null);
+      setServerError("");
+    }, 300);
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex justify-center p-4">
-      <div className="w-full max-w-4xl">
-        <h2 className="text-3xl font-bold text-center text-indigo-700">
+    <div className="min-h-screen bg-background flex flex-col items-center p-4 sm:p-6">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-5xl bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg p-8"
+      >
+        <h2 className="text-3xl font-poppins font-bold text-center text-primary mb-6">
           {t("adminLanguagesPage.adminPanel")}
         </h2>
-        <div className="flex justify-center mt-4 mb-6">
-          <button
-            onClick={() => {
-              setFormData({ code: "", name: "" });
-              setErrors({});
-              setServerError("");
-              setIsAddModalOpen(true);
-            }}
-            className="bg-indigo-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-indigo-700 transition-colors duration-200 cursor-pointer"
-          >
-            {t("adminLanguagesPage.addLanguage")}
-          </button>
-        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2, duration: 0.3 }}
+          className="flex justify-center mt-4 mb-6"
+        >
+          <div className="flex flex-col items-center w-full sm:w-auto">
+            <label className="block text-sm font-poppins font-bold text-dark mb-1">
+              {t("adminLanguagesPage.addLanguage")}
+            </label>
+            <motion.button
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => {
+                setFormData({ code: "", name: "" });
+                setErrors({});
+                setServerError("");
+                setIsAddModalOpen(true);
+                setIsVisible(true);
+              }}
+              className="w-48 sm:w-64 bg-gradient-primary text-white py-2.75 px-4 rounded-lg font-poppins font-semibold hover:bg-gradient-primary-hover transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-accent shadow-md"
+            >
+              {t("adminLanguagesPage.addLanguage")}
+            </motion.button>
+          </div>
+        </motion.div>
         {loading && (
-          <div className="flex items-center mb-4">
-            <ArrowPathIcon className="h-5 w-5 text-indigo-600 animate-spin" />
-            <span className="ml-2 text-gray-600">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className="flex items-center justify-center mb-6"
+          >
+            <ArrowPathIcon className="h-5 w-5 text-primary animate-spin" />
+            <span className="ml-2 text-dark font-poppins">
               {t("adminLanguagesPage.loadingLanguages")}
             </span>
-          </div>
+          </motion.div>
         )}
         {error && (
-          <div className="mb-6 p-3 bg-red-100 text-red-700 text-sm rounded-lg text-center animate-fade-in">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className="mb-6 p-4 bg-red-50 text-red-600 text-sm font-poppins rounded-lg text-center animate-fade-in"
+          >
             {error}
-          </div>
+          </motion.div>
         )}
         {!loading && !error && languages.length === 0 && (
-          <div className="text-center text-gray-600">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className="text-center text-dark font-poppins text-lg"
+          >
             {t("adminLanguagesPage.noLanguagesAvailable")}
-          </div>
+          </motion.div>
         )}
         {!loading && !error && languages.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-xl overflow-x-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.3 }}
+            className="bg-white/98 backdrop-blur-sm rounded-2xl shadow-lg overflow-x-auto"
+          >
             <table className="w-full text-left">
               <thead>
-                <tr className="bg-indigo-50">
-                  <th className="p-4 font-semibold text-indigo-700">
+                <tr className="bg-gradient-primary text-white">
+                  <th className="p-4 font-poppins font-semibold rounded-tl-lg">
                     {t("adminLanguagesPage.name")}
                   </th>
-                  <th className="p-4 font-semibold text-indigo-700">
+                  <th className="p-4 font-poppins font-semibold">
                     {t("adminLanguagesPage.code")}
                   </th>
-                  <th className="p-4 font-semibold text-indigo-700">
+                  <th className="p-4 font-poppins font-semibold rounded-tr-lg">
                     {t("adminLanguagesPage.actions")}
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {languages.map((lang) => (
-                  <tr key={lang.id} className="border-t hover:bg-gray-50">
-                    <td className="p-4 text-gray-800">{lang.name}</td>
-                    <td className="p-4 text-gray-800">{lang.code}</td>
-                    <td className="p-4">
-                      <button
+                {languages.map((lang, index) => (
+                  <motion.tr
+                    key={lang.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1, duration: 0.3 }}
+                    className="border-t border-gray-100 hover:bg-accent-opacity-10 transition-all duration-200"
+                  >
+                    <td className="p-4 text-dark font-poppins">{lang.name}</td>
+                    <td className="p-4 text-dark font-poppins">{lang.code}</td>
+                    <td className="p-4 space-x-4">
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
                         onClick={() => {
                           setCurrentLanguage(lang);
                           setFormData({ code: lang.code, name: lang.name });
                           setErrors({});
                           setServerError("");
                           setIsEditModalOpen(true);
+                          setIsVisible(true);
                         }}
-                        className="text-indigo-600 hover:text-indigo-800 mr-4 cursor-pointer"
+                        className="text-accent hover:text-primary font-poppins font-medium hover:underline transition-all duration-200"
                       >
                         {t("adminLanguagesPage.edit")}
-                      </button>
-                      <button
+                      </motion.button>
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
                         onClick={() => {
                           setCurrentLanguage(lang);
                           setIsDeleteModalOpen(true);
+                          setIsVisible(true);
                         }}
-                        className="text-red-600 hover:text-red-800 cursor-pointer"
+                        className="text-red-600 hover:text-red-800 font-poppins font-medium hover:underline transition-all duration-200"
                       >
                         {t("adminLanguagesPage.delete")}
-                      </button>
+                      </motion.button>
                     </td>
-                  </tr>
+                  </motion.tr>
                 ))}
               </tbody>
             </table>
-          </div>
+          </motion.div>
         )}
-      </div>
-      <Dialog
-        open={isAddModalOpen}
-        onClose={() => {
-          setIsAddModalOpen(false);
-          setFormData({ code: "", name: "" });
-          setErrors({});
-          setServerError("");
-        }}
-      >
-        <div className="fixed inset-0 bg-black/30" />
+      </motion.div>
+      <Dialog open={isAddModalOpen} onClose={closeAddModal}>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: isVisible ? 1 : 0 }}
+          transition={{ duration: 0.3 }}
+          className="fixed inset-0 bg-black/30"
+        />
         <div className="fixed inset-0 flex items-center justify-center p-4">
-          <DialogPanel className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md">
-            <DialogTitle className="text-lg font-bold text-indigo-700">
+          <DialogPanel
+            as={motion.div}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{
+              opacity: isVisible ? 1 : 0,
+              scale: isVisible ? 1 : 0.95,
+            }}
+            className="bg-white/98 backdrop-blur-sm p-6 rounded-2xl shadow-lg w-full max-w-md"
+          >
+            <DialogTitle className="text-lg font-poppins font-bold text-primary">
               {t("adminLanguagesPage.addLanguageModalTitle")}
             </DialogTitle>
             {serverError && (
-              <div className="mb-3 mt-3 p-3 bg-red-100 text-red-700 text-sm rounded-lg text-center animate-fade-in">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                className="mb-3 mt-3 p-3 bg-red-50 text-red-600 text-sm font-poppins rounded-lg text-center animate-fade-in"
+              >
                 {serverError}
-              </div>
+              </motion.div>
             )}
-            <form onSubmit={handleAddLanguage} className="space-y-2">
-              <div className="mt-2 space-y-4">
+            <form onSubmit={handleAddLanguage} className="space-y-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                className="mt-2 space-y-4"
+              >
                 <FormInput
                   label={t("adminLanguagesPage.code")}
                   value={formData.code}
@@ -283,54 +372,68 @@ const AdminLanguagesPage: React.FC = () => {
                   error={errors.name}
                   placeholder={t("adminLanguagesPage.namePlaceholder")}
                 />
-              </div>
+              </motion.div>
               <div className="mt-6 flex justify-center space-x-2">
-                <button
-                  onClick={() => {
-                    setIsAddModalOpen(false);
-                    setFormData({ code: "", name: "" });
-                    setErrors({});
-                    setServerError("");
-                  }}
-                  className="px-4 py-2 text-gray-600 rounded-lg hover:bg-gray-100 cursor-pointer"
+                <motion.button
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  type="button"
+                  onClick={closeAddModal}
+                  className="px-4 py-2 text-dark font-poppins font-medium rounded-lg hover:bg-gray-100 transition-all duration-200"
                 >
                   {t("adminLanguagesPage.cancel")}
-                </button>
-                <button
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
                   type="submit"
                   disabled={Object.keys(errors).length > 0}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 cursor-pointer transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  className="px-4 py-2 bg-gradient-primary text-white rounded-lg font-poppins font-semibold hover:bg-gradient-primary-hover transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-accent shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
                   {t("adminLanguagesPage.add")}
-                </button>
+                </motion.button>
               </div>
             </form>
           </DialogPanel>
         </div>
       </Dialog>
-      <Dialog
-        open={isEditModalOpen}
-        onClose={() => {
-          setIsEditModalOpen(false);
-          setCurrentLanguage(null);
-          setFormData({ code: "", name: "" });
-          setErrors({});
-          setServerError("");
-        }}
-      >
-        <div className="fixed inset-0 bg-black/30" />
+      <Dialog open={isEditModalOpen} onClose={closeEditModal}>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: isVisible ? 1 : 0 }}
+          transition={{ duration: 0.3 }}
+          className="fixed inset-0 bg-black/30"
+        />
         <div className="fixed inset-0 flex items-center justify-center p-4">
-          <DialogPanel className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md">
-            <DialogTitle className="text-lg font-bold text-indigo-700">
+          <DialogPanel
+            as={motion.div}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{
+              opacity: isVisible ? 1 : 0,
+              scale: isVisible ? 1 : 0.95,
+            }}
+            className="bg-white/98 backdrop-blur-sm p-6 rounded-2xl shadow-lg w-full max-w-md"
+          >
+            <DialogTitle className="text-lg font-poppins font-bold text-primary">
               {t("adminLanguagesPage.editLanguageModalTitle")}
             </DialogTitle>
             {serverError && (
-              <div className="mb-3 mt-3 p-3 bg-red-100 text-red-700 text-sm rounded-lg text-center animate-fade-in">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                className="mb-3 mt-3 p-3 bg-red-50 text-red-600 text-sm font-poppins rounded-lg text-center animate-fade-in"
+              >
                 {serverError}
-              </div>
+              </motion.div>
             )}
-            <form onSubmit={handleEditLanguage} className="space-y-2">
-              <div className="mt-2 space-y-4">
+            <form onSubmit={handleEditLanguage} className="space-y-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                className="mt-2 space-y-4"
+              >
                 <FormInput
                   label={t("adminLanguagesPage.code")}
                   value={formData.code}
@@ -345,74 +448,85 @@ const AdminLanguagesPage: React.FC = () => {
                   error={errors.name}
                   placeholder={t("adminLanguagesPage.namePlaceholder")}
                 />
-              </div>
+              </motion.div>
               <div className="mt-6 flex justify-center space-x-2">
-                <button
-                  onClick={() => {
-                    setIsEditModalOpen(false);
-                    setCurrentLanguage(null);
-                    setFormData({ code: "", name: "" });
-                    setErrors({});
-                    setServerError("");
-                  }}
-                  className="px-4 py-2 text-gray-600 rounded-lg hover:bg-gray-100 cursor-pointer"
+                <motion.button
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  type="button"
+                  onClick={closeEditModal}
+                  className="px-4 py-2 text-dark font-poppins font-medium rounded-lg hover:bg-gray-100 transition-all duration-200"
                 >
                   {t("adminLanguagesPage.cancel")}
-                </button>
-                <button
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
                   type="submit"
                   disabled={Object.keys(errors).length > 0}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 cursor-pointer transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  className="px-4 py-2 bg-gradient-primary text-white rounded-lg font-poppins font-semibold hover:bg-gradient-primary-hover transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-accent shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
                   {t("adminLanguagesPage.save")}
-                </button>
+                </motion.button>
               </div>
             </form>
           </DialogPanel>
         </div>
       </Dialog>
-      <Dialog
-        open={isDeleteModalOpen}
-        onClose={() => {
-          setIsDeleteModalOpen(false);
-          setCurrentLanguage(null);
-          setServerError("");
-        }}
-      >
-        <div className="fixed inset-0 bg-black/30" />
+      <Dialog open={isDeleteModalOpen} onClose={closeDeleteModal}>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: isVisible ? 1 : 0 }}
+          transition={{ duration: 0.3 }}
+          className="fixed inset-0 bg-black/30"
+        />
         <div className="fixed inset-0 flex items-center justify-center p-4">
-          <DialogPanel className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md">
-            <DialogTitle className="text-lg font-bold text-indigo-700">
+          <DialogPanel
+            as={motion.div}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{
+              opacity: isVisible ? 1 : 0,
+              scale: isVisible ? 1 : 0.95,
+            }}
+            className="bg-white/98 backdrop-blur-sm p-6 rounded-2xl shadow-lg w-full max-w-md"
+          >
+            <DialogTitle className="text-lg font-poppins font-bold text-primary">
               {t("adminLanguagesPage.confirmDeletionTitle")}
             </DialogTitle>
-            <p className="mt-2 text-gray-600">
+            <p className="mt-2 text-dark font-poppins">
               {t("adminLanguagesPage.confirmDeletionMessage", {
                 name: currentLanguage?.name,
               })}
             </p>
             {serverError && (
-              <div className="mb-3 mt-3 p-3 bg-red-100 text-red-700 text-sm rounded-lg text-center animate-fade-in">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                className="mb-3 mt-3 p-3 bg-red-50 text-red-600 text-sm font-poppins rounded-lg text-center animate-fade-in"
+              >
                 {serverError}
-              </div>
+              </motion.div>
             )}
-            <form onSubmit={handleDeleteLanguage} className="space-y-2">
+            <form onSubmit={handleDeleteLanguage} className="space-y-4">
               <div className="mt-6 flex justify-center space-x-2">
-                <button
-                  onClick={() => {
-                    setIsDeleteModalOpen(false);
-                    setCurrentLanguage(null);
-                    setServerError("");
-                  }}
-                  className="px-4 py-2 text-gray-600 rounded-lg hover:bg-gray-100 cursor-pointer"
+                <motion.button
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  type="button"
+                  onClick={closeDeleteModal}
+                  className="px-4 py-2 text-dark font-poppins font-medium rounded-lg hover:bg-gray-100 transition-all duration-200"
                 >
                   {t("adminLanguagesPage.cancel")}
-                </button>
-                <button
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
                   type="submit"
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 cursor-pointer"
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg font-poppins font-semibold hover:bg-red-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-accent shadow-md"
                 >
                   {t("adminLanguagesPage.delete")}
-                </button>
+                </motion.button>
               </div>
             </form>
           </DialogPanel>

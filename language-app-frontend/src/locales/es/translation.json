@@ -341,7 +341,7 @@
     "filterByName": "Filtrar por nombre",
     "allLanguages": "Todos los idiomas",
     "searchByNamePlaceholder": "Buscar por nombre...",
-    "failedToUpdateCategoryOrder": "No se pudo actualizar el orden del módulo",
+    "failedToUpdateModuleOrder": "No se pudo actualizar el orden del módulo",
     "namePlaceholder": "Saludos",
     "descriptionPlaceholder": "Palabras para saludos e introducciones",
     "selectLanguage": "Seleccionar idioma",

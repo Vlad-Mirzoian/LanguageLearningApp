@@ -13,6 +13,14 @@ export interface ModulePreviewDTO {
   requiredScore: number;
 }
 
+export interface ModuleReviewDTO {
+  id: string;
+  name: string;
+  order: number;
+  languageId: string;
+  requiredScore: number;
+}
+
 export interface ModuleFullDTO {
   id: string;
   name: string;

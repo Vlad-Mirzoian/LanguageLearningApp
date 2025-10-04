@@ -26,5 +26,6 @@ export interface ICardPopulated
     name: string;
     order: number;
     requiredScore: number;
+    languageId: mongoose.Types.ObjectId;
   }[];
 }

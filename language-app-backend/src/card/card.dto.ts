@@ -1,6 +1,6 @@
 import { AttemptDTO } from "../attempt/attempt.dto";
 import { ModuleProgressPreviewDTO } from "../language-progress/language-progress.dto";
-import { ModulePreviewDTO } from "../module/module.dto";
+import { ModulePreviewDTO, ModuleReviewDTO } from "../module/module.dto";
 import { WordPreviewDTO } from "../word/word.dto";
 
 export interface CardFiltersDTO {
@@ -24,7 +24,7 @@ export interface CardDTO {
 
 export interface ReviewCardDTO {
   id: string;
-  module: ModulePreviewDTO;
+  module: ModuleReviewDTO;
   translation: WordPreviewDTO;
   original: WordPreviewDTO;
   options: { text: string; isCorrect: boolean }[];

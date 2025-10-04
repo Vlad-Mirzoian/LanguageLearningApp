@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import type { ApiError, Attempt } from "../types/index";
 import { AttemptAPI } from "../services/index";
 import { motion } from "framer-motion";
-import { ArrowPathIcon } from "@heroicons/react/24/solid";
+import { ArrowPathIcon, ArrowRightIcon } from "@heroicons/react/24/solid";
 import { useTranslation } from "react-i18next";
 
 const ViewAttemptPage: React.FC = () => {
@@ -36,28 +36,38 @@ const ViewAttemptPage: React.FC = () => {
   }, [token, setAttempt, t]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background backdrop-blur-sm flex items-center justify-center py-12 sm:py-16 px-4 sm:px-6">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8"
+        className="w-full max-w-md sm:max-w-2xl bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg p-6 sm:p-8"
       >
-        <h2 className="text-3xl font-bold text-center text-indigo-700 mb-6">
+        <h2 className="text-3xl sm:text-4xl font-poppins font-bold text-center text-primary mb-6 tracking-tight">
           {t("viewAttemptPage.attemptDetails")}
         </h2>
         {loading && (
-          <div className="flex items-center mb-4">
-            <ArrowPathIcon className="h-5 w-5 text-indigo-600 animate-spin" />
-            <span className="ml-2 text-gray-600">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className="flex items-center justify-center mb-6"
+          >
+            <ArrowPathIcon className="h-5 w-5 text-primary animate-spin" />
+            <span className="ml-2 text-dark font-poppins">
               {t("viewAttemptPage.loadingAttemptData")}
             </span>
-          </div>
+          </motion.div>
         )}
         {error && (
-          <div className="mb-6 p-3 bg-red-100 text-red-700 text-sm rounded-lg text-center animate-fade-in">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className="mb-6 p-4 bg-red-50 text-red-600 text-sm font-poppins rounded-lg text-center animate-fade-in"
+          >
             {error}
-          </div>
+          </motion.div>
         )}
         {attempt && !loading && !error && (
           <motion.div
@@ -66,48 +76,57 @@ const ViewAttemptPage: React.FC = () => {
             transition={{ duration: 0.3 }}
             className="space-y-4"
           >
-            <p className="text-gray-600">
+            <p className="text-dark font-poppins text-base sm:text-lg">
               <span className="font-semibold">
                 {t("viewAttemptPage.user")}:
               </span>{" "}
               {attempt.user.username}
             </p>
-            <p className="text-gray-600">
+            <p className="text-dark font-poppins text-base sm:text-lg">
               <span className="font-semibold">
                 {t("viewAttemptPage.language")}:
               </span>{" "}
               {attempt.language.name}
             </p>
-            <p className="text-gray-600">
+            <p className="text-dark font-poppins text-base sm:text-lg">
               <span className="font-semibold">
                 {t("viewAttemptPage.module")}:
               </span>{" "}
-              {attempt.module?.name}
+              {attempt.module?.name || t("viewAttemptPage.noModule")}
             </p>
-            <p className="text-gray-600">
+            <p className="text-dark font-poppins text-base sm:text-lg">
               <span className="font-semibold">
                 {t("viewAttemptPage.exerciseType")}:
               </span>{" "}
               {t(`statisticsPage.${attempt.type}`)}
             </p>
-            <p className="text-gray-600">
+            <p className="text-dark font-poppins text-base sm:text-lg">
               <span className="font-semibold">
                 {t("viewAttemptPage.score")}:
               </span>{" "}
-              {attempt.score}%
+              <span className="text-secondary">{attempt.score}%</span>
             </p>
-            <p className="text-gray-600">
+            <p className="text-dark font-poppins text-base sm:text-lg">
               <span className="font-semibold">
                 {t("viewAttemptPage.date")}:
               </span>{" "}
               {new Date(attempt.date).toLocaleDateString()}
             </p>
-            <a
-              href="/register"
-              className="block text-center mt-4 text-indigo-600 hover:text-indigo-800 font-semibold hover:underline transition-colors duration-200"
-            >
-              {t("viewAttemptPage.joinLangster")}
-            </a>
+            <div className="mt-6 text-center">
+              <p className="text-dark font-poppins text-base sm:text-lg mb-4">
+                {t("viewAttemptPage.ctaDescription")}
+              </p>
+              <motion.a
+                href="/register"
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                transition={{ duration: 0.2 }}
+                className="inline-flex items-center bg-primary text-white py-2 px-4 rounded-lg font-poppins font-semibold hover:bg-accent focus:outline-none focus:ring-2 focus:ring-accent transition-all duration-200"
+              >
+                {t("viewAttemptPage.joinLangster")}
+                <ArrowRightIcon className="h-5 w-5 ml-2" />
+              </motion.a>
+            </div>
           </motion.div>
         )}
       </motion.div>

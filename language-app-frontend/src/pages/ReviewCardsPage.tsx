@@ -27,9 +27,11 @@ import {
   XMarkIcon,
 } from "@heroicons/react/24/solid";
 import toast from "react-hot-toast";
+import { v4 as uuidv4 } from "uuid";
 import { CheckIcon } from "@heroicons/react/24/solid";
 import { ClipboardIcon } from "@heroicons/react/24/solid";
 import { useTranslation } from "react-i18next";
+import Confetti from "react-confetti";
 
 type ExerciseType = "flash" | "test" | "dictation" | null;
 type AnswerResult = { isCorrect?: boolean; correctTranslation?: string } | null;
@@ -73,16 +75,16 @@ const ReviewCardsPage: React.FC = () => {
           setModules([]);
           return;
         }
-        const [modData, progressData] = await Promise.all([
-          ModuleAPI.getModules(
-            selectedLanguageId ? { languageId: selectedLanguageId } : {}
-          ),
-          LanguageProgressAPI.getLanguageProgress(
-            selectedLanguageId ? { languageId: selectedLanguageId } : {}
-          ),
+        const [modData, progressData, cardsData] = await Promise.all([
+          ModuleAPI.getModules({ languageId: selectedLanguageId }),
+          LanguageProgressAPI.getLanguageProgress({
+            languageId: selectedLanguageId,
+          }),
+          CardAPI.getReviewCards({ languageId: selectedLanguageId }),
         ]);
         setModules(modData.modules);
         setProgress(progressData);
+        setCards(cardsData);
       } catch (err) {
         const error = err as ApiError;
         setError(error.message || t("reviewCardsPage.failedToLoadFilters"));
@@ -95,11 +97,11 @@ const ReviewCardsPage: React.FC = () => {
 
   const handleStartModule = (moduleId: string) => {
     setSelectedModule(moduleId);
-    if (selectedLanguageId) {
-      loadCards(selectedLanguageId, moduleId);
-    } else {
-      setError(t("reviewCardsPage.selectLearningLanguage"));
-    }
+    setCurrentCardIndex(0);
+    setShowTranslation(false);
+    setShowExample(false);
+    setCardAnswer("");
+    setAnswerResult(null);
   };
 
   const handleStartLevel = (levelId: string) => {
@@ -113,6 +115,8 @@ const ReviewCardsPage: React.FC = () => {
       setError(t("reviewCardsPage.noTaskType"));
       return;
     }
+    const clientAttempt = uuidv4();
+    setAttemptId(clientAttempt);
     setSelectedLevel(levelId);
     setExerciseType(taskType);
     setCurrentCardIndex(0);
@@ -120,33 +124,18 @@ const ReviewCardsPage: React.FC = () => {
     setCardAnswer("");
     setAnswerResult(null);
     setShowCardsModal(true);
+    setError("");
+    setTotalScore(0);
+    setShareLink(null);
   };
 
-  const loadCards = async (languageId: string, moduleId?: string) => {
-    try {
-      if (!languageId) {
-        setError(t("reviewCardsPage.selectLearningLanguage"));
-        return;
-      }
-      setLoading(true);
-      setError("");
-      setTotalScore(0);
-      setShareLink(null);
-
-      const filters = { languageId, moduleId };
-      const response = await CardAPI.getReviewCards(filters);
-      setCards(response.cards);
-      setAttemptId(response.attemptId);
-    } catch (err) {
-      const error = err as ApiError;
-      setError(error.message || t("reviewCardsPage.failedToLoadCards"));
-    } finally {
-      setLoading(false);
-    }
-  };
+  const cardsForSelectedModule = selectedModule
+    ? cards.filter((card) => card.module.id === selectedModule)
+    : cards;
+  const currentCard = cardsForSelectedModule[currentCardIndex];
 
   const handleFlashReview = async () => {
-    if (!cards[currentCardIndex]) return;
+    if (!cardsForSelectedModule[currentCardIndex]) return;
     if (selectedLanguageId === null || !selectedLevel) {
       setError(t("reviewCardsPage.selectLearningLanguage"));
       return;
@@ -154,19 +143,25 @@ const ReviewCardsPage: React.FC = () => {
     setIsSubmitting(true);
     try {
       const prevProgressData = progress;
-      const result = await CardAPI.submitCard(cards[currentCardIndex].id, {
-        languageId: selectedLanguageId,
-        answer: cardAnswer,
-        attemptId,
-        type: "flash",
-        levelId: selectedLevel,
-      });
+      const result = await CardAPI.submitCard(
+        cardsForSelectedModule[currentCardIndex].id,
+        {
+          languageId: selectedLanguageId,
+          answer: cardAnswer,
+          attemptId,
+          type: "flash",
+          levelId: selectedLevel,
+        }
+      );
       setAnswerResult({
         isCorrect: result.isCorrect,
         correctTranslation: result.correctTranslation,
       });
       setTotalScore(
-        (prev) => prev + ((result.quality as number) / 5) * (100 / cards.length)
+        (prev) =>
+          prev +
+          ((result.quality as number) / 5) *
+            (100 / cardsForSelectedModule.length)
       );
       toast(
         result.isCorrect
@@ -180,7 +175,7 @@ const ReviewCardsPage: React.FC = () => {
         setCardAnswer("");
         setAnswerResult(null);
         setShowTranslation(false);
-        if (nextIndex >= cards.length) {
+        if (nextIndex >= cardsForSelectedModule.length) {
           const updatedProgress = await LanguageProgressAPI.getLanguageProgress(
             {
               languageId: selectedLanguageId,
@@ -254,7 +249,7 @@ const ReviewCardsPage: React.FC = () => {
   };
 
   const handleTestAnswer = async (selectedAnswer: string) => {
-    if (!cards[currentCardIndex]) return;
+    if (!cardsForSelectedModule[currentCardIndex]) return;
     if (selectedLanguageId === null || !selectedLevel) {
       setError(t("reviewCardsPage.selectLearningLanguage"));
       return;
@@ -262,19 +257,25 @@ const ReviewCardsPage: React.FC = () => {
     setIsSubmitting(true);
     try {
       const prevProgressData = progress;
-      const result = await CardAPI.submitCard(cards[currentCardIndex].id, {
-        languageId: selectedLanguageId,
-        answer: selectedAnswer,
-        attemptId,
-        type: "test",
-        levelId: selectedLevel,
-      });
+      const result = await CardAPI.submitCard(
+        cardsForSelectedModule[currentCardIndex].id,
+        {
+          languageId: selectedLanguageId,
+          answer: selectedAnswer,
+          attemptId,
+          type: "test",
+          levelId: selectedLevel,
+        }
+      );
       setAnswerResult({
         isCorrect: result.isCorrect,
         correctTranslation: result.correctTranslation,
       });
       setTotalScore(
-        (prev) => prev + ((result.quality as number) / 5) * (100 / cards.length)
+        (prev) =>
+          prev +
+          ((result.quality as number) / 5) *
+            (100 / cardsForSelectedModule.length)
       );
       toast(
         result.isCorrect
@@ -286,7 +287,7 @@ const ReviewCardsPage: React.FC = () => {
         const nextIndex = currentCardIndex + 1;
         setCurrentCardIndex(nextIndex);
         setAnswerResult(null);
-        if (nextIndex >= cards.length) {
+        if (nextIndex >= cardsForSelectedModule.length) {
           const updatedProgress = await LanguageProgressAPI.getLanguageProgress(
             {
               languageId: selectedLanguageId,
@@ -360,7 +361,7 @@ const ReviewCardsPage: React.FC = () => {
   };
 
   const handleDictationSubmit = async () => {
-    if (!cards[currentCardIndex] || !cardAnswer.trim()) return;
+    if (!cardsForSelectedModule[currentCardIndex] || !cardAnswer.trim()) return;
     if (selectedLanguageId === null || !selectedLevel) {
       setError(t("reviewCardsPage.selectLearningLanguage"));
       return;
@@ -368,19 +369,25 @@ const ReviewCardsPage: React.FC = () => {
     setIsSubmitting(true);
     try {
       const prevProgressData = progress;
-      const result = await CardAPI.submitCard(cards[currentCardIndex].id, {
-        languageId: selectedLanguageId,
-        answer: cardAnswer,
-        attemptId,
-        type: "dictation",
-        levelId: selectedLevel,
-      });
+      const result = await CardAPI.submitCard(
+        cardsForSelectedModule[currentCardIndex].id,
+        {
+          languageId: selectedLanguageId,
+          answer: cardAnswer,
+          attemptId,
+          type: "dictation",
+          levelId: selectedLevel,
+        }
+      );
       setAnswerResult({
         isCorrect: result.isCorrect,
         correctTranslation: result.correctTranslation,
       });
       setTotalScore(
-        (prev) => prev + ((result.quality as number) / 5) * (100 / cards.length)
+        (prev) =>
+          prev +
+          ((result.quality as number) / 5) *
+            (100 / cardsForSelectedModule.length)
       );
       toast(
         result.isCorrect
@@ -393,7 +400,7 @@ const ReviewCardsPage: React.FC = () => {
         setCurrentCardIndex(nextIndex);
         setCardAnswer("");
         setAnswerResult(null);
-        if (nextIndex >= cards.length) {
+        if (nextIndex >= cardsForSelectedModule.length) {
           const updatedProgress = await LanguageProgressAPI.getLanguageProgress(
             {
               languageId: selectedLanguageId,
@@ -484,7 +491,6 @@ const ReviewCardsPage: React.FC = () => {
   const closeModal = () => {
     setShowCardsModal(false);
     setSelectedLevel("");
-    setCards([]);
     setCurrentCardIndex(0);
     setShowTranslation(false);
     setShowExample(false);
@@ -495,8 +501,6 @@ const ReviewCardsPage: React.FC = () => {
     setAnswerResult(null);
     setShareLink(null);
   };
-
-  const currentCard = cards[currentCardIndex];
 
   const languageProgress = progress.modules.filter(
     (p) => p.languageId === selectedLanguageId
@@ -518,80 +522,92 @@ const ReviewCardsPage: React.FC = () => {
 
   const toggleExample = () => setShowExample((prev) => !prev);
 
-  const getTaskIcon = (taskType: string) => {
+  const getTaskIcon = (taskType: string, unlocked: boolean) => {
+    const baseClass = unlocked
+      ? "text-accent w-5 h-5"
+      : "text-gray-400 w-5 h-5";
+
     switch (taskType) {
       case "flash":
-        return <ArrowUpIcon className="w-5 h-5 text-indigo-600" />;
+        return <ArrowUpIcon className={baseClass} />;
       case "test":
-        return <CheckCircleIcon className="w-5 h-5 text-indigo-600" />;
+        return <CheckCircleIcon className={baseClass} />;
       case "dictation":
-        return <PencilIcon className="w-5 h-5 text-indigo-600" />;
+        return <PencilIcon className={baseClass} />;
       default:
         return null;
     }
   };
 
-  console.log(currentCard);
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex flex-col items-center p-4">
+    <div className="min-h-screen bg-background flex flex-col items-center p-6">
       <div className="w-full max-w-4xl">
-        <h2 className="text-3xl font-bold text-center text-indigo-700 mb-6">
+        <h2 className="text-4xl font-poppins font-bold text-center text-primary mb-8 tracking-tight">
           {t("reviewCardsPage.course")}:{" "}
           {languages.find((lang) => lang.id === selectedLanguageId)?.name ||
             t("reviewCardsPage.selectLanguage")}
         </h2>
         {selectedLanguageId && (
-          <div className="mb-6 bg-gray-50 p-4 rounded-lg shadow-md">
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">
+          <div className="mb-8 bg-white/95 backdrop-blur-sm p-6 rounded-2xl shadow-md border border-gray-100">
+            <h3 className="text-xl font-poppins font-semibold text-primary mb-3 tracking-tight">
               {t("reviewCardsPage.courseProgress")}
             </h3>
-            <p className="text-gray-600">
-              {t("reviewCardsPage.totalScore")}:{" "}
-              {languageTotalPoints.toFixed(2)}
-            </p>
-            <p className="text-gray-600">
-              {t("reviewCardsPage.completedModules")}:{" "}
-              {Math.max(
-                languageProgress.filter((p) => p.unlocked).length - 1,
-                0
-              )}{" "}
-              / {languageModules.length}
-            </p>
-            <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
-              <div
-                className="bg-indigo-600 h-2.5 rounded-full"
-                style={{
-                  width: `${
-                    languageProgress.length
-                      ? (languageProgress.filter((p) => p.unlocked).length - 1,
-                        0 / languageProgress.length) * 100
-                      : 0
-                  }%`,
-                }}
-              ></div>
+            <div className="space-y-2">
+              <p className="text-base font-poppins text-primary">
+                {t("reviewCardsPage.totalScore")}:{" "}
+                <span className="font-semibold text-secondary">
+                  {languageTotalPoints.toFixed(2)}
+                </span>
+              </p>
+              <p className="text-base font-poppins text-primary">
+                {t("reviewCardsPage.completedModules")}:{" "}
+                <span className="font-semibold">
+                  {Math.max(
+                    languageProgress.filter((p) => p.unlocked).length - 1,
+                    0
+                  )}{" "}
+                  / {languageModules.length}
+                </span>
+              </p>
+              <div className="w-full bg-gray-100 rounded-full h-4 mt-2 overflow-hidden shadow-sm">
+                <motion.div
+                  className="bg-gradient-primary h-4 rounded-full shadow-sm"
+                  initial={{ width: 0 }}
+                  animate={{
+                    width: `${
+                      languageProgress.length > 1
+                        ? ((languageProgress.filter((p) => p.unlocked).length -
+                            1) /
+                            languageModules.length) *
+                          100
+                        : 0
+                    }%`,
+                  }}
+                  transition={{ duration: 0.5, ease: "easeOut" }}
+                ></motion.div>
+              </div>
             </div>
           </div>
         )}
-        <div className="mb-6">
-          <h3 className="text-xl font-semibold text-gray-800 mb-4">
-            {t("reviewCardsPage.modules")}
+        <div className="mb-8">
+          <h3 className="text-xl font-poppins font-semibold text-primary mb-4 tracking-tight">
+            📚 {t("reviewCardsPage.modules")}
           </h3>
           {loading && (
-            <div className="flex items-center mb-4">
-              <ArrowPathIcon className="h-5 w-5 text-indigo-600 animate-spin" />
-              <span className="ml-2 text-gray-600">
+            <div className="flex items-center mb-4 animate-fade-in">
+              <ArrowPathIcon className="h-5 w-5 text-primary animate-spin" />
+              <span className="ml-2 text-primary font-poppins text-sm">
                 {t("reviewCardsPage.loading")}
               </span>
             </div>
           )}
           {error && (
-            <div className="mb-4 p-3 bg-red-100 text-red-700 text-sm rounded-lg text-center animate-fade-in">
+            <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm font-poppins rounded-lg text-center animate-fade-in">
               {error}
             </div>
           )}
           {!loading && !error && modules.length === 0 && (
-            <div className="text-center text-gray-600">
+            <div className="text-center text-primary font-poppins text-sm">
               {t("reviewCardsPage.noModulesAvailable")}
             </div>
           )}
@@ -612,34 +628,37 @@ const ReviewCardsPage: React.FC = () => {
                     key={mod.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
+                    whileHover={{
+                      scale: 1.03,
+                      boxShadow: "0 8px 20px rgba(0, 0, 0, 0.08)",
+                    }}
                     transition={{ duration: 0.3 }}
-                    className={`relative p-6 rounded-xl shadow-lg transition-all duration-200 ${
-                      isUnlocked
-                        ? "bg-white hover:shadow-xl"
-                        : "bg-gray-100 opacity-70"
+                    className={`relative p-6 rounded-2xl shadow-md bg-white/95 backdrop-blur-sm border border-gray-100 ${
+                      isUnlocked ? "hover:shadow-lg" : "opacity-70"
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="text-lg font-semibold text-gray-800">
-                        {t("reviewCardsPage.module")} {mod.order}: {mod.name}
+                    <div className="flex items-center space-x-3 mb-4">
+                      <span className="text-2xl">📖</span>
+                      <h4 className="text-xl font-poppins font-semibold text-primary tracking-tight">
+                        {mod.name}
                       </h4>
                       {isUnlocked ? (
-                        <LockOpenIcon className="w-5 h-5 text-green-500" />
+                        <LockOpenIcon className="w-5 h-5 text-accent" />
                       ) : (
-                        <LockClosedIcon className="w-5 h-5 text-gray-500" />
+                        <LockClosedIcon className="w-5 h-5 text-gray-400" />
                       )}
                     </div>
-                    <p className="text-sm text-gray-600 mb-2">
+                    <p className="text-sm font-poppins text-primary mb-2 tracking-tight">
                       {t("reviewCardsPage.completedLevels")}:{" "}
-                      <span className="font-medium">
+                      <span className="font-semibold">
                         {modProgress?.completedLevels || 0} /{" "}
                         {modProgress?.totalLevels || 0}
                       </span>
                     </p>
-                    <p className="text-sm text-gray-600 mb-3">
+                    <p className="text-sm font-poppins text-primary mb-3 tracking-tight">
                       {t("reviewCardsPage.totalScore")}:{" "}
                       <span
-                        className={`font-medium ${getScoreColor(
+                        className={`font-semibold ${getScoreColor(
                           modProgress?.totalScore || 0,
                           mod.requiredScore
                         )}`}
@@ -647,33 +666,33 @@ const ReviewCardsPage: React.FC = () => {
                         {modProgress?.totalScore.toFixed(2) || 0}
                       </span>
                     </p>
-                    <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden mb-4">
-                      <div
-                        className="bg-gradient-to-r from-indigo-500 to-purple-600 h-3 rounded-full transition-all duration-300"
-                        style={{
+                    <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden mb-4">
+                      <motion.div
+                        className="bg-gradient-primary h-3 rounded-full shadow-sm"
+                        initial={{ width: 0 }}
+                        animate={{
                           width: `${
                             modProgress?.totalScore
                               ? Math.min(modProgress.totalScore, 100)
                               : 0
                           }%`,
                         }}
-                      ></div>
+                        transition={{ duration: 0.5, ease: "easeOut" }}
+                      ></motion.div>
                     </div>
-                    <button
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                       onClick={() => handleStartModule(mod.id)}
                       disabled={!isUnlocked}
-                      className={`w-full py-2 rounded-lg font-semibold transition-colors duration-200 ${
-                        isUnlocked
-                          ? isSelected
-                            ? "bg-indigo-100 text-indigo-700"
-                            : "bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
-                          : "bg-gray-300 text-gray-600 cursor-not-allowed"
+                      className={`w-full py-2 rounded-lg font-poppins font-semibold bg-gradient-primary text-white hover:bg-gradient-primary-hover transition-all duration-200 ${
+                        isUnlocked ? "" : "opacity-50 cursor-not-allowed"
                       }`}
                     >
                       {isUnlocked
                         ? t("reviewCardsPage.selectModule")
                         : t("reviewCardsPage.locked")}
-                    </button>
+                    </motion.button>
                     <AnimatePresence>
                       {isSelected && (
                         <motion.div
@@ -685,55 +704,64 @@ const ReviewCardsPage: React.FC = () => {
                           transition={{ duration: 0.3 }}
                           className="overflow-hidden mt-4"
                         >
-                          <h5 className="text-sm font-semibold text-gray-800 mb-2">
-                            {t("reviewCardsPage.levels")}
-                          </h5>
-                          <div className="space-y-3">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-lg">📚</span>
+                            <h5 className="text-sm font-poppins font-semibold text-primary mb-2 tracking-tight">
+                              {t("reviewCardsPage.levels")}
+                            </h5>
+                          </div>
+                          <div className="space-y-3 sm:p-6">
                             {moduleLevels.map((lvl) => (
                               <motion.div
                                 key={lvl.level.id}
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
+                                whileHover={{ scale: 1.02 }}
                                 transition={{ duration: 0.2 }}
                                 className={`p-4 rounded-lg shadow-sm transition-all duration-200 ${
                                   lvl.unlocked
-                                    ? "bg-gray-50 hover:bg-gray-100"
-                                    : "bg-gray-200 opacity-70"
+                                    ? "bg-white/95 backdrop-blur-sm hover:bg-primary-opacity-10"
+                                    : "bg-gray-100 opacity-70"
                                 }`}
                               >
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center space-x-2">
-                                    {getTaskIcon(lvl.level.tasks as string)}
-                                    <p className="text-sm font-medium text-gray-700">
+                                    {getTaskIcon(
+                                      lvl.level.tasks as string,
+                                      lvl.unlocked
+                                    )}
+                                    <p className="text-sm font-poppins font-medium text-primary">
                                       {t("reviewCardsPage.level")}{" "}
                                       {lvl.level.order}
                                     </p>
                                   </div>
                                   {lvl.unlocked ? (
-                                    <LockOpenIcon className="w-4 h-4 text-green-500" />
+                                    <LockOpenIcon className="w-4 h-4 text-accent" />
                                   ) : (
-                                    <LockClosedIcon className="w-4 h-4 text-gray-500" />
+                                    <LockClosedIcon className="w-4 h-4 text-gray-400" />
                                   )}
                                 </div>
-                                <p className="text-xs text-gray-600 mt-1">
+                                <p className="text-xs font-poppins text-primary mt-1">
                                   {t("reviewCardsPage.taskType")}:{" "}
                                   <span className="capitalize">
                                     {lvl.level.tasks}
                                   </span>
                                 </p>
-                                <button
+                                <motion.button
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
                                   onClick={() => handleStartLevel(lvl.level.id)}
                                   disabled={!lvl.unlocked}
-                                  className={`mt-2 w-full py-1.5 rounded-lg text-sm font-semibold transition-colors duration-200 ${
+                                  className={`mt-2 w-full py-1.5 rounded-lg text-sm font-poppins font-semibold transition-all duration-200 ${
                                     lvl.unlocked
-                                      ? "bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
-                                      : "bg-gray-300 text-gray-600 cursor-not-allowed"
+                                      ? "bg-primary-opacity-10 text-primary hover:bg-primary-opacity-20"
+                                      : "bg-gray-100 text-dark cursor-not-allowed"
                                   }`}
                                 >
                                   {lvl.unlocked
                                     ? t("reviewCardsPage.studyLevel")
                                     : t("reviewCardsPage.locked")}
-                                </button>
+                                </motion.button>
                               </motion.div>
                             ))}
                           </div>
@@ -749,63 +777,77 @@ const ReviewCardsPage: React.FC = () => {
 
         {showCardsModal && (
           <>
-            <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"></div>
-            <div className="fixed inset-0 flex items-center justify-center z-50">
-              <div className="bg-gray-50 pt-10 pb-5 px-10 rounded-lg shadow-lg w-full max-w-md relative">
-                <button
+            <div
+              className="fixed inset-0 flex items-center justify-center bg-black/20 backdrop-blur-sm z-40"
+              onClick={closeModal}
+            >
+              <motion.div
+                initial={{ opacity: 0, y: 50 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 50 }}
+                transition={{ duration: 0.3 }}
+                className="bg-white/90 backdrop-blur-md pt-10 pb-5 px-10 rounded-2xl shadow-xl w-full max-w-lg relative border border-gray-100"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={closeModal}
-                  className="absolute top-2 right-2 text-gray-600 hover:text-gray-800"
+                  className="absolute top-2 right-2 text-primary hover:text-accent"
                 >
                   <XMarkIcon className="h-6 w-6" />
-                </button>
+                </motion.button>
                 <div className="mb-4">
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm font-poppins text-primary">
                     {t("reviewCardsPage.attemptProgress")}:{" "}
-                    {totalScore.toFixed(1)}%
+                    <span className="font-semibold text-secondary">
+                      {totalScore.toFixed(1)}%
+                    </span>
                   </p>
-                  <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
-                    <div
-                      className="bg-indigo-600 h-2.5 rounded-full"
-                      style={{ width: `${Math.min(totalScore, 100)}%` }}
-                    ></div>
+                  <div className="w-full bg-gray-100 rounded-full h-4 overflow-hidden shadow-sm">
+                    <motion.div
+                      className="bg-gradient-primary h-4 rounded-full shadow-sm"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min(totalScore, 100)}%` }}
+                      transition={{ duration: 0.5, ease: "easeOut" }}
+                    ></motion.div>
                   </div>
                 </div>
                 {loading && (
-                  <div className="flex items-center mb-4">
-                    <ArrowPathIcon className="h-5 w-5 text-indigo-600 animate-spin" />
-                    <span className="ml-2 text-gray-600">
+                  <div className="flex items-center mb-4 animate-fade-in">
+                    <ArrowPathIcon className="h-5 w-5 text-primary animate-spin" />
+                    <span className="ml-2 text-primary font-poppins text-sm">
                       {t("reviewCardsPage.loading")}
                     </span>
                   </div>
                 )}
                 {error && (
-                  <div className="mb-4 p-2 bg-red-600 text-white text-sm rounded-lg">
+                  <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm font-poppins rounded-lg text-center animate-fade-in">
                     {error}
+                  </div>
+                )}
+                {!loading && !error && cardsForSelectedModule.length === 0 && (
+                  <div className="text-center text-primary font-poppins text-sm">
+                    {t("reviewCardsPage.noCardsAvailable")}
                   </div>
                 )}
                 {!loading &&
                   !error &&
-                  cards.length === 0 &&
-                  cards.length === 0 && (
-                    <div className="text-center text-gray-600">
-                      <p>{t("reviewCardsPage.noCardsAvailable")}</p>
-                    </div>
-                  )}
-                {!loading &&
-                  !error &&
                   currentCardIndex <
-                    (exerciseType === "test" ? cards.length : cards.length) && (
+                    (exerciseType === "test"
+                      ? cardsForSelectedModule.length
+                      : cardsForSelectedModule.length) && (
                     <div className="flex flex-col items-center space-y-4">
                       {exerciseType === "flash" && currentCard && (
                         <motion.div
                           animate={{ rotateY: showTranslation ? 180 : 0 }}
                           transition={{ duration: 0.3 }}
-                          className={`bg-white p-6 rounded-lg text-center shadow-md w-full h-70 relative ${
+                          className={`bg-white/95 p-6 rounded-2xl text-center shadow-md w-full h-70 relative border ${
                             answerResult
                               ? answerResult.isCorrect
-                                ? "border-2 border-green-500"
-                                : "border-2 border-red-500"
-                              : ""
+                                ? "border-2 border-secondary"
+                                : "border-2 border-red-400"
+                              : "border-gray-100"
                           }`}
                           style={{
                             transformStyle: "preserve-3d",
@@ -816,23 +858,25 @@ const ReviewCardsPage: React.FC = () => {
                             className="absolute inset-0 backface-hidden flex flex-col items-center justify-center"
                             style={{ backfaceVisibility: "hidden" }}
                           >
-                            <h3 className="text-lg font-semibold text-gray-800">
+                            <h3 className="text-lg font-poppins font-semibold text-primary">
                               {currentCard.original.text}
                             </h3>
                             {currentCard.example && (
                               <div className="mt-2 w-full">
-                                <button
+                                <motion.button
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
                                   onClick={toggleExample}
-                                  className="py-2 px-15 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 hover:text-indigo-800 focus:ring-2 focus:ring-indigo-300 focus:outline-none transition-colors duration-200"
+                                  className="py-2 px-4 text-sm font-poppins font-medium text-primary bg-primary-opacity-10 rounded-lg hover:bg-primary-opacity-20 focus:ring-2 focus-ring-primary transition-all duration-200"
                                 >
                                   {showExample
                                     ? t("reviewCardsPage.hideExample")
                                     : t("reviewCardsPage.showExample")}
-                                </button>
+                                </motion.button>
                                 <AnimatePresence>
                                   {showExample && (
                                     <motion.p
-                                      className="mt-2 text-gray-600"
+                                      className="mt-2 text-primary font-poppins text-sm"
                                       initial={{ opacity: 0, height: 0 }}
                                       animate={{ opacity: 1, height: "auto" }}
                                       exit={{ opacity: 0, height: 0 }}
@@ -850,15 +894,17 @@ const ReviewCardsPage: React.FC = () => {
                               onChange={(e) => setCardAnswer(e.target.value)}
                               placeholder={t("reviewCardsPage.typeTranslation")}
                               disabled={isSubmitting || !!answerResult}
-                              className={`mt-4 w-3/4 py-2 px-4 border rounded-lg focus:ring-2 focus:ring-indigo-300 ${
+                              className={`mt-4 w-3/4 py-2 px-4 border rounded-lg focus:ring-2 focus-ring-primary ${
                                 answerResult
                                   ? answerResult.isCorrect
-                                    ? "border-green-600 bg-green-50"
-                                    : "border-red-600 bg-red-50"
-                                  : "border-gray-300"
+                                    ? "border-secondary bg-secondary/10"
+                                    : "border-red-400 bg-red-50"
+                                  : "border-gray-100"
                               }`}
                             />
-                            <button
+                            <motion.button
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
                               onClick={async () => {
                                 await handleFlashReview();
                                 setShowTranslation(true);
@@ -868,16 +914,16 @@ const ReviewCardsPage: React.FC = () => {
                                 !cardAnswer.trim() ||
                                 !!answerResult
                               }
-                              className={`mt-3 w-3/4 py-2 rounded-lg font-semibold ${
+                              className={`mt-3 w-3/4 py-2 rounded-lg font-poppins font-semibold bg-gradient-primary text-white hover:bg-gradient-primary-hover transition-all duration-200 ${
                                 isSubmitting ||
                                 !cardAnswer.trim() ||
                                 !!answerResult
-                                  ? "bg-gray-400 cursor-not-allowed"
-                                  : "bg-indigo-600 text-white hover:bg-indigo-700"
-                              } transition-colors duration-200`}
+                                  ? "opacity-50 cursor-not-allowed"
+                                  : ""
+                              }`}
                             >
                               {t("reviewCardsPage.check")}
-                            </button>
+                            </motion.button>
                           </div>
                           <div
                             className="absolute inset-0 backface-hidden flex flex-col items-center justify-center"
@@ -886,15 +932,15 @@ const ReviewCardsPage: React.FC = () => {
                               transform: "rotateY(180deg)",
                             }}
                           >
-                            <h3 className="text-lg font-semibold text-gray-800">
+                            <h3 className="text-lg font-poppins font-semibold text-primary">
                               {currentCard.translation.text}
                             </h3>
                             {answerResult && (
                               <p
-                                className={`mt-2 text-sm ${
+                                className={`mt-2 text-sm font-poppins ${
                                   answerResult.isCorrect
-                                    ? "text-green-600"
-                                    : "text-red-600"
+                                    ? "text-secondary"
+                                    : "text-red-400"
                                 }`}
                               >
                                 {answerResult.isCorrect
@@ -905,7 +951,7 @@ const ReviewCardsPage: React.FC = () => {
                               </p>
                             )}
                             {!answerResult?.isCorrect && cardAnswer && (
-                              <p className="mt-1 text-sm text-red-500">
+                              <p className="mt-1 text-sm text-red-400 font-poppins">
                                 {t("reviewCardsPage.yourAnswer")}: {cardAnswer}
                               </p>
                             )}
@@ -913,16 +959,16 @@ const ReviewCardsPage: React.FC = () => {
                         </motion.div>
                       )}
                       {exerciseType === "test" && currentCard && (
-                        <div className="bg-white p-6 rounded-lg text-center shadow-md w-full">
-                          <h3 className="text-lg font-semibold text-gray-800">
+                        <div className="bg-white/95 p-6 rounded-2xl text-center shadow-md w-full border border-gray-100">
+                          <h3 className="text-lg font-poppins font-semibold text-primary">
                             {currentCard.translation.text}
                           </h3>
                           {answerResult && (
                             <p
-                              className={`mt-2 text-sm ${
+                              className={`mt-2 text-sm font-poppins ${
                                 answerResult.isCorrect
-                                  ? "text-green-600"
-                                  : "text-red-600"
+                                  ? "text-secondary"
+                                  : "text-red-400"
                               }`}
                             >
                               {answerResult.isCorrect
@@ -934,43 +980,45 @@ const ReviewCardsPage: React.FC = () => {
                           )}
                           <div className="mt-4 flex flex-col space-y-2">
                             {currentCard.options.map((option, index) => (
-                              <button
+                              <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
                                 key={index}
                                 onClick={() => handleTestAnswer(option.text)}
                                 disabled={isSubmitting || !!answerResult}
-                                className={`px-4 py-2 rounded-lg font-semibold transition-colors duration-200 ${
+                                className={`px-4 py-2 rounded-lg font-poppins font-semibold transition-all duration-200 ${
                                   answerResult
                                     ? option.isCorrect
-                                      ? "bg-green-600 text-white"
+                                      ? "bg-secondary text-white"
                                       : option.text ===
                                         answerResult.correctTranslation
-                                      ? "bg-green-600 text-white"
+                                      ? "bg-secondary text-white"
                                       : answerResult.correctTranslation !==
                                           option.text && !answerResult.isCorrect
-                                      ? "bg-red-600 text-white"
-                                      : "bg-gray-200 text-gray-800"
+                                      ? "bg-red-400 text-white"
+                                      : "bg-gray-100 text-dark"
                                     : isSubmitting
-                                    ? "bg-gray-400 cursor-not-allowed"
-                                    : "bg-indigo-600 text-white hover:bg-indigo-700"
+                                    ? "bg-gray-100 cursor-not-allowed"
+                                    : "bg-gradient-primary text-white hover:bg-gradient-primary-hover"
                                 }`}
                               >
                                 {option.text}
-                              </button>
+                              </motion.button>
                             ))}
                           </div>
                         </div>
                       )}
                       {exerciseType === "dictation" && currentCard && (
-                        <div className="bg-white p-6 rounded-lg text-center shadow-md w-full">
-                          <h3 className="text-lg font-semibold text-gray-800">
+                        <div className="bg-white/95 p-6 rounded-2xl text-center shadow-md w-full border border-gray-100">
+                          <h3 className="text-lg font-poppins font-semibold text-primary">
                             {currentCard.translation.text}
                           </h3>
                           {answerResult && (
                             <p
-                              className={`mt-2 text-sm ${
+                              className={`mt-2 text-sm font-poppins ${
                                 answerResult.isCorrect
-                                  ? "text-green-600"
-                                  : "text-red-600"
+                                  ? "text-secondary"
+                                  : "text-red-400"
                               }`}
                             >
                               {answerResult.isCorrect
@@ -986,114 +1034,126 @@ const ReviewCardsPage: React.FC = () => {
                             onChange={(e) => setCardAnswer(e.target.value)}
                             placeholder={t("reviewCardsPage.typeTranslation")}
                             disabled={isSubmitting || !!answerResult}
-                            className={`mt-4 w-full py-2 px-4 border rounded-lg focus:ring-2 focus:ring-indigo-300 ${
+                            className={`mt-4 w-full py-2 px-4 border rounded-lg focus:ring-2 focus-ring-primary ${
                               answerResult
                                 ? answerResult.isCorrect
-                                  ? "border-green-600 bg-green-50"
-                                  : "border-red-600 bg-red-50"
-                                : "border-gray-300"
+                                  ? "border-secondary bg-secondary/10"
+                                  : "border-red-400 bg-red-50"
+                                : "border-gray-100"
                             }`}
                           />
-                          <button
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
                             onClick={handleDictationSubmit}
                             disabled={
                               isSubmitting ||
                               !cardAnswer.trim() ||
                               !!answerResult
                             }
-                            className={`mt-4 w-full py-2 rounded-lg font-semibold ${
+                            className={`mt-4 w-full py-2 rounded-lg font-poppins font-semibold bg-gradient-primary text-white hover:bg-gradient-primary-hover transition-all duration-200 ${
                               isSubmitting ||
                               !cardAnswer.trim() ||
                               !!answerResult
-                                ? "bg-gray-400 cursor-not-allowed"
-                                : "bg-indigo-600 text-white hover:bg-indigo-700"
-                            } transition-colors duration-200`}
+                                ? "opacity-50 cursor-not-allowed"
+                                : ""
+                            }`}
                           >
                             {t("reviewCardsPage.submit")}
-                          </button>
+                          </motion.button>
                         </div>
                       )}
-                      <p className="text-center text-sm text-gray-600">
+                      <p className="text-center text-sm font-poppins text-primary">
                         {t("reviewCardsPage.card")} {currentCardIndex + 1}{" "}
                         {t("reviewCardsPage.of")}{" "}
-                        {exerciseType === "test" ? cards.length : cards.length}
+                        {cardsForSelectedModule.length}
                       </p>
                     </div>
                   )}
                 {!loading &&
                   !error &&
                   currentCardIndex >=
-                    (exerciseType === "test" ? cards.length : cards.length) &&
-                  (cards.length > 0 || cards.length > 0) && (
+                    (exerciseType === "test"
+                      ? cardsForSelectedModule.length
+                      : cardsForSelectedModule.length) &&
+                  (cardsForSelectedModule.length > 0 ||
+                    cardsForSelectedModule.length > 0) && (
                     <div className="flex flex-col items-center space-y-4">
-                      <h3 className="text-lg font-semibold text-gray-800">
-                        {t("reviewCardsPage.levelCompleted")}
+                      <Confetti
+                        width={window.innerWidth}
+                        height={window.innerHeight}
+                        recycle={false}
+                        numberOfPieces={100}
+                      />
+                      <h3 className="text-xl font-poppins font-semibold text-primary">
+                        🎉 {t("reviewCardsPage.levelCompleted")}
                       </h3>
-                      <p
-                        className={`text-xl font-bold ${getScoreColor(
-                          totalScore,
-                          100
-                        )}`}
-                      >
+                      <p className="text-2xl font-poppins font-bold text-secondary">
                         {t("reviewCardsPage.totalScore")}:{" "}
                         {totalScore.toFixed(1)}%
                       </p>
                       <div className="flex flex-col space-y-2 w-48">
-                        <button
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
                           onClick={handleShareAttempt}
                           disabled={
                             !attemptId || !selectedLanguageId || isSubmitting
                           }
-                          className={`py-2 px-4 rounded-lg font-semibold ${
+                          className={`py-2 px-4 rounded-lg font-poppins font-semibold bg-gradient-primary text-white hover:bg-gradient-primary-hover transition-all duration-200 ${
                             !attemptId || isSubmitting
-                              ? "bg-gray-400 cursor-not-allowed"
-                              : "bg-green-600 text-white hover:bg-green-700"
-                          } transition-colors duration-200`}
+                              ? "opacity-50 cursor-not-allowed"
+                              : ""
+                          }`}
                         >
                           {t("reviewCardsPage.shareAttemptLink")}
-                        </button>
+                        </motion.button>
                         {shareLink && (
                           <div className="flex flex-col w-full">
-                            <div className="flex items-center border rounded-lg overflow-hidden">
+                            <div className="flex items-center justify-center border rounded-lg border-gray-100">
                               <input
                                 type="text"
                                 value={shareLink}
                                 readOnly
-                                className="flex-1 py-2 px-4 focus:outline-none"
+                                className="flex-1 py-2 px-1 ml-15 focus:outline-none bg-white/95"
                                 onClick={(e) => e.currentTarget.select()}
                               />
-                              <button
+                              <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
                                 onClick={() => {
                                   navigator.clipboard.writeText(shareLink);
                                   setCopied(true);
                                   setTimeout(() => setCopied(false), 1500);
                                 }}
-                                className="flex items-center justify-center px-3 bg-gray-100 hover:bg-gray-200 transition-colors"
+                                className="flex items-center justify-center px-5 ml-2.5 transition-all duration-200 bg-primary-opacity-10 hover:bg-primary-opacity-20"
                               >
                                 {copied ? (
-                                  <CheckIcon className="text-green-500 w-5 h-5" />
+                                  <CheckIcon className="text-secondary w-5 h-10" />
                                 ) : (
-                                  <ClipboardIcon className="text-gray-600 w-5 h-5" />
+                                  <ClipboardIcon className="text-primary w-5 h-10" />
                                 )}
-                              </button>
+                              </motion.button>
                             </div>
                             {copied && (
-                              <p className="text-sm text-green-500 mt-1 animate-fadeIn">
+                              <p className="text-sm text-secondary mt-1 animate-fade-in">
                                 {t("reviewCardsPage.copiedToClipboard")}
                               </p>
                             )}
                           </div>
                         )}
-                        <button
-                          onClick={closeModal}
-                          className="bg-indigo-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-indigo-700 transition-colors duration-200"
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => handleStartLevel(selectedLevel)}
+                          className="bg-gradient-primary text-white py-2 px-4 rounded-lg font-poppins font-semibold hover:bg-gradient-primary-hover transition-all duration-200"
                         >
-                          {t("reviewCardsPage.returnToLevels")}
-                        </button>
+                          {t("reviewCardsPage.retryLevel")}
+                        </motion.button>
                       </div>
                     </div>
                   )}
-              </div>
+              </motion.div>
             </div>
           </>
         )}

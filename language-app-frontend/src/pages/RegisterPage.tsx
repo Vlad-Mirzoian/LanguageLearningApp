@@ -1,22 +1,39 @@
-import { useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useCallback, Fragment } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import FormInput from "../components/ui/FormInput";
-import FormSelect from "../components/ui/FormSelect";
 import { LanguageAPI, AuthAPI } from "../services/index";
 import { useQuery } from "@tanstack/react-query";
 import type { ApiError, Language } from "../types/index";
 import { useTranslation } from "react-i18next";
+import { motion } from "framer-motion";
+import {
+  Listbox,
+  ListboxButton,
+  ListboxOption,
+  ListboxOptions,
+  Transition,
+} from "@headlessui/react";
+import { ChevronDownIcon } from "@heroicons/react/24/solid";
+
+type FormData = {
+  email: string;
+  username: string;
+  password: string;
+  interfaceLanguageId: string;
+  nativeLanguageId: string | null;
+  learningLanguagesIds: string[];
+};
 
 const RegisterPage: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     email: "",
     username: "",
     password: "",
     interfaceLanguageId: "",
-    nativeLanguageId: "",
-    learningLanguagesIds: [] as string[],
+    nativeLanguageId: null,
+    learningLanguagesIds: [],
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState("");
@@ -74,22 +91,41 @@ const RegisterPage: React.FC = () => {
     return Object.keys(newErrors).length === 0;
   }, [formData, validateField]);
 
-  const handleChange = (
-    field: keyof typeof formData,
-    value: string | string[]
+  const handleChange = <K extends keyof FormData>(
+    field: K,
+    value: FormData[K]
   ) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setFormData((prev) => {
+      const newForm: FormData = { ...prev, [field]: value };
+      if (field === "learningLanguagesIds") {
+        const arr = value as FormData["learningLanguagesIds"];
+        if (arr.includes("")) {
+          newForm.learningLanguagesIds = [""];
+        } else {
+          newForm.learningLanguagesIds = arr.filter(
+            (id) => id !== "" && id !== prev.nativeLanguageId
+          );
+        }
+      }
+      if (field === "nativeLanguageId") {
+        const native = value as FormData["nativeLanguageId"];
+        newForm.learningLanguagesIds = prev.learningLanguagesIds.filter(
+          (id) => id !== native
+        );
+      }
+      return newForm;
+    });
     setErrors((prev) => {
       const newErrors = { ...prev };
-      const error = validateField(field, value);
-      if (error) {
-        newErrors[field] = error;
-      } else {
-        delete newErrors[field];
+      if (typeof value === "string") {
+        const error = validateField(field, value);
+        if (error) {
+          newErrors[field] = error;
+        } else {
+          delete newErrors[field];
+        }
       }
+
       return newErrors;
     });
   };
@@ -105,8 +141,10 @@ const RegisterPage: React.FC = () => {
       await AuthAPI.register({
         ...formData,
         nativeLanguageId: formData.nativeLanguageId || undefined,
-        learningLanguagesIds: formData.learningLanguagesIds.length
-          ? formData.learningLanguagesIds
+        learningLanguagesIds: formData.learningLanguagesIds.filter(
+          (id) => id !== ""
+        ).length
+          ? formData.learningLanguagesIds.filter((id) => id !== "")
           : undefined,
       });
       setSuccessMessage(t("registerPage.registrationSuccessful"));
@@ -121,7 +159,7 @@ const RegisterPage: React.FC = () => {
 
   const languageOptions =
     languages?.map((lang) => ({
-      value: lang._id,
+      value: lang.id,
       label: lang.name,
     })) || [];
 
@@ -130,22 +168,37 @@ const RegisterPage: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
-        <h2 className="text-3xl font-bold text-center text-indigo-700 mb-6">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-md bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg p-8 my-20"
+      >
+        <h2 className="text-3xl font-poppins font-bold text-center text-primary mb-6">
           {t("registerPage.createYourAccount")}
         </h2>
         {serverError && (
-          <div className="mb-6 p-3 bg-red-100 text-red-700 text-sm rounded-lg text-center animate-fade-in">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className="mb-6 p-3 bg-red-50 text-red-600 text-sm rounded-lg text-center animate-fade-in"
+          >
             {serverError}
-          </div>
+          </motion.div>
         )}
         {successMessage && (
-          <div className="mb-6 p-3 bg-green-100 text-green-700 text-sm rounded-lg text-center animate-fade-in">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className="mb-6 p-3 bg-green-50 text-green-600 text-sm rounded-lg text-center animate-fade-in"
+          >
             {successMessage}
-          </div>
+          </motion.div>
         )}
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="space-y-4">
           <FormInput
             label={t("registerPage.email")}
             type="email"
@@ -172,59 +225,313 @@ const RegisterPage: React.FC = () => {
             autoComplete="new-password"
             placeholder={t("registerPage.enterYourPassword")}
           />
-          <FormSelect
-            label={t("registerPage.interfaceLanguage")}
-            value={formData.interfaceLanguageId}
-            onChange={(e) =>
-              handleChange("interfaceLanguageId", e.target.value)
-            }
-            options={languageOptions}
-            error={errors.interfaceLanguageId}
-          />
-          <FormSelect
-            label={t("registerPage.nativeLanguage")}
-            value={formData.nativeLanguageId}
-            onChange={(e) => handleChange("nativeLanguageId", e.target.value)}
-            options={[
-              { value: "", label: t("registerPage.none") },
-              ...languageOptions,
-            ]}
-            error={errors.nativeLanguageId}
-          />
-          <FormSelect
-            label={t("registerPage.learningLanguages")}
-            multiple
-            value={formData.learningLanguagesIds}
-            onChange={(e) =>
-              handleChange(
-                "learningLanguagesIds",
-                Array.from(e.target.selectedOptions, (option) => option.value)
-              )
-            }
-            options={[
-              { value: "", label: t("registerPage.none") },
-              ...filteredLearningOptions,
-            ]}
-            error={errors.learningLanguagesIds}
-          />
-          <button
-            type="submit"
-            disabled={Object.keys(errors).length > 0}
-            className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-indigo-700 transition-colors duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 0.3 }}
           >
-            {t("registerPage.register")}
-          </button>
+            <label className="block text-sm font-poppins font-bold text-dark mb-1">
+              {t("registerPage.interfaceLanguage")}
+            </label>
+            <Listbox
+              value={formData.interfaceLanguageId}
+              onChange={(value) => handleChange("interfaceLanguageId", value)}
+            >
+              {({ open }) => (
+                <>
+                  <motion.div
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <ListboxButton className="relative w-96 bg-gradient-primary text-white py-3 px-4 pr-8 rounded-lg font-poppins font-semibold hover:bg-gradient-primary-hover transition-all duration-200 focus:outline-none focus:ring-2 focus-ring-accent shadow-md">
+                      <span className="block truncate">
+                        {languageOptions.find(
+                          (option) =>
+                            option.value === formData.interfaceLanguageId
+                        )?.label || t("registerPage.selectLanguage")}
+                      </span>
+                      <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                        <ChevronDownIcon
+                          className="h-4 w-4 text-white"
+                          aria-hidden="true"
+                        />
+                      </span>
+                    </ListboxButton>
+                  </motion.div>
+                  <Transition
+                    as={Fragment}
+                    show={open}
+                    enter="transition ease-out duration-100"
+                    enterFrom="transform scale-95"
+                    enterTo="transform scale-100"
+                    leave="transition ease-in duration-75"
+                    leaveFrom="transform scale-100"
+                    leaveTo="transform scale-95"
+                  >
+                    <ListboxOptions className="absolute z-50 mt-1 max-h-60 w-96 overflow-auto rounded-lg bg-white/98 backdrop-blur-sm py-1 text-base shadow-lg ring-1 ring-gray-100 focus:outline-none">
+                      {languageOptions.map((option) => (
+                        <ListboxOption
+                          key={option.value}
+                          value={option.value}
+                          className={({ selected }) =>
+                            `relative cursor-pointer select-none py-2 px-4 font-poppins font-medium transition-all duration-200 ${
+                              selected
+                                ? "bg-primary text-white"
+                                : "text-primary hover:bg-accent-opacity-10 hover:text-accent"
+                            }`
+                          }
+                        >
+                          {({ selected }) => (
+                            <span
+                              className={`block truncate ${
+                                selected ? "font-semibold" : "font-medium"
+                              }`}
+                            >
+                              {option.label}
+                            </span>
+                          )}
+                        </ListboxOption>
+                      ))}
+                    </ListboxOptions>
+                  </Transition>
+                </>
+              )}
+            </Listbox>
+            {errors.interfaceLanguageId && (
+              <p className="mt-1 text-sm text-red-600 font-poppins">
+                {errors.interfaceLanguageId}
+              </p>
+            )}
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6, duration: 0.3 }}
+          >
+            <label className="block text-sm font-poppins font-bold text-dark mb-1">
+              {t("registerPage.nativeLanguage")}
+            </label>
+            <Listbox
+              value={formData.nativeLanguageId}
+              onChange={(value) => handleChange("nativeLanguageId", value)}
+            >
+              {({ open }) => (
+                <>
+                  <motion.div
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <ListboxButton className="relative w-96 bg-gradient-primary text-white py-3 px-4 pr-8 rounded-lg font-poppins font-semibold hover:bg-gradient-primary-hover transition-all duration-200 focus:outline-none focus:ring-2 focus-ring-accent shadow-md">
+                      <span className="block truncate">
+                        {formData.nativeLanguageId === null
+                          ? t("registerPage.selectLanguage")
+                          : formData.nativeLanguageId === ""
+                          ? t("registerPage.none")
+                          : languageOptions.find(
+                              (option) =>
+                                option.value === formData.nativeLanguageId
+                            )?.label}
+                      </span>
+                      <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                        <ChevronDownIcon
+                          className="h-4 w-4 text-white"
+                          aria-hidden="true"
+                        />
+                      </span>
+                    </ListboxButton>
+                  </motion.div>
+                  <Transition
+                    as={Fragment}
+                    show={open}
+                    enter="transition ease-out duration-100"
+                    enterFrom="transform scale-95"
+                    enterTo="transform scale-100"
+                    leave="transition ease-in duration-75"
+                    leaveFrom="transform scale-100"
+                    leaveTo="transform scale-95"
+                  >
+                    <ListboxOptions className="absolute z-50 mt-1 max-h-60 w-96 overflow-auto rounded-lg bg-white/98 backdrop-blur-sm py-1 text-base shadow-lg ring-1 ring-gray-100 focus:outline-none">
+                      {[
+                        { value: "", label: t("registerPage.none") },
+                        ...languageOptions,
+                      ].map((option) => (
+                        <ListboxOption
+                          key={option.value}
+                          value={option.value}
+                          className={({ selected }) =>
+                            `relative cursor-pointer select-none py-2 px-4 font-poppins font-medium transition-all duration-200 ${
+                              selected
+                                ? "bg-primary text-white"
+                                : "text-primary hover:bg-accent-opacity-10 hover:text-accent"
+                            }`
+                          }
+                        >
+                          {({ selected }) => (
+                            <span
+                              className={`block truncate ${
+                                selected ? "font-semibold" : "font-medium"
+                              }`}
+                            >
+                              {option.label}
+                            </span>
+                          )}
+                        </ListboxOption>
+                      ))}
+                    </ListboxOptions>
+                  </Transition>
+                </>
+              )}
+            </Listbox>
+            {errors.nativeLanguageId && (
+              <p className="mt-1 text-sm text-red-600 font-poppins">
+                {errors.nativeLanguageId}
+              </p>
+            )}
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7, duration: 0.3 }}
+          >
+            <label className="block text-sm font-poppins font-bold text-dark mb-1">
+              {t("registerPage.learningLanguages")}
+            </label>
+            <Listbox
+              value={formData.learningLanguagesIds}
+              onChange={(value) => handleChange("learningLanguagesIds", value)}
+              multiple
+            >
+              {({ open }) => (
+                <>
+                  <motion.div
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <ListboxButton className="relative w-96 bg-gradient-primary text-white py-3 px-4 pr-8 rounded-lg font-poppins font-semibold hover:bg-gradient-primary-hover transition-all duration-200 focus:outline-none focus:ring-2 focus-ring-accent shadow-md">
+                      <span className="block truncate">
+                        {formData.learningLanguagesIds.length > 0
+                          ? formData.learningLanguagesIds
+                              .slice(0, 2)
+                              .map(
+                                (id) =>
+                                  [
+                                    {
+                                      value: "",
+                                      label: t("registerPage.none"),
+                                    },
+                                    ...filteredLearningOptions,
+                                  ].find((option) => option.value === id)?.label
+                              )
+                              .join(", ") +
+                              (formData.learningLanguagesIds.length > 2
+                                ? "..."
+                                : "") || t("registerPage.selectLanguages")
+                          : t("registerPage.selectLanguages")}
+                      </span>
+                      <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                        <ChevronDownIcon
+                          className="h-4 w-4 text-white"
+                          aria-hidden="true"
+                        />
+                      </span>
+                    </ListboxButton>
+                  </motion.div>
+                  <Transition
+                    as={Fragment}
+                    show={open}
+                    enter="transition ease-out duration-100"
+                    enterFrom="transform scale-95"
+                    enterTo="transform scale-100"
+                    leave="transition ease-in duration-75"
+                    leaveFrom="transform scale-100"
+                    leaveTo="transform scale-95"
+                  >
+                    <ListboxOptions className="absolute z-50 mt-1 max-h-60 w-96 overflow-auto rounded-lg bg-white/98 backdrop-blur-sm py-1 text-base shadow-lg ring-1 ring-gray-100 focus:outline-none">
+                      {[
+                        { value: "", label: t("registerPage.none") },
+                        ...filteredLearningOptions,
+                      ].map((option) => (
+                        <ListboxOption
+                          key={option.value}
+                          value={option.value}
+                          className={({ selected }) =>
+                            `relative cursor-pointer select-none py-2 px-4 font-poppins font-medium transition-all duration-200 ${
+                              selected
+                                ? "bg-primary text-white"
+                                : "text-primary hover:bg-accent-opacity-10 hover:text-accent"
+                            }`
+                          }
+                        >
+                          {({ selected }) => (
+                            <span
+                              className={`block truncate ${
+                                selected ? "font-semibold" : "font-medium"
+                              }`}
+                            >
+                              {option.label}
+                            </span>
+                          )}
+                        </ListboxOption>
+                      ))}
+                    </ListboxOptions>
+                  </Transition>
+                </>
+              )}
+            </Listbox>
+            {errors.learningLanguagesIds && (
+              <p className="mt-1 text-sm text-red-600 font-poppins">
+                {errors.learningLanguagesIds}
+              </p>
+            )}
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8, duration: 0.3 }}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+          >
+            <button
+              type="submit"
+              disabled={Object.keys(errors).length > 0}
+              className="w-full bg-gradient-primary text-white py-3 px-4 rounded-lg font-poppins font-semibold hover:bg-gradient-primary-hover transition-all duration-200 focus:outline-none focus:ring-2 focus-ring-accent shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              {t("registerPage.register")}
+            </button>
+          </motion.div>
         </form>
-        <p className="mt-6 text-center text-sm text-gray-600">
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.9, duration: 0.3 }}
+          className="mt-6 text-center text-sm text-dark font-poppins"
+        >
           {t("registerPage.alreadyHaveAccount")}{" "}
-          <a
-            href="/login"
-            className="text-indigo-600 hover:text-indigo-800 font-semibold hover:underline transition-colors duration-200"
+          <Link
+            to="/login"
+            className="text-accent hover:text-primary font-semibold hover:underline transition-all duration-200"
           >
             {t("registerPage.login")}
-          </a>
-        </p>
-      </div>
+          </Link>
+        </motion.p>
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.0, duration: 0.3 }}
+          className="mt-2 text-center text-sm text-dark font-poppins"
+        >
+          {t("registerPage.forgotPassword")}{" "}
+          <Link
+            to="/forgot-password"
+            className="text-accent hover:text-primary font-semibold hover:underline transition-all duration-200"
+          >
+            {t("registerPage.reset")}
+          </Link>
+        </motion.p>
+      </motion.div>
     </div>
   );
 };

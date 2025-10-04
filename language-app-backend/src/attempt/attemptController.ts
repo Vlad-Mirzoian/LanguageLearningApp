@@ -11,7 +11,7 @@ export const shareAttempt = async (
       return res.status(401).json({ error: "Unauthorized" });
     }
     const shareUrl = await AttemptService.shareAttempt(id, req.userId);
-    res.json({ url: shareUrl });
+    res.json(shareUrl);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     res.status(500).json({ error: `Failed to share attempt link: ${message}` });

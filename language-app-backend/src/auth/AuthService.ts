@@ -151,19 +151,25 @@ export class AuthService {
     if (!refreshToken) {
       throw new Error("Refresh token not provided");
     }
-    const user = await User.findOne({
+    const users: IUser[] = await User.find({
       refreshTokenExpires: { $gt: new Date() },
       refreshToken: { $exists: true },
     });
-    if (!user?.refreshToken) {
-      throw new Error("Invalid or expired refresh token");
+    let matchedUser: IUser | null = null;
+    for (const u of users) {
+      if (
+        u.refreshToken &&
+        (await bcrypt.compare(refreshToken, u.refreshToken))
+      ) {
+        matchedUser = u;
+        break;
+      }
     }
-    const isMatch = await bcrypt.compare(refreshToken, user.refreshToken);
-    if (!isMatch) {
+    if (!matchedUser) {
       throw new Error("Invalid refresh token");
     }
     const accessToken = jwt.sign(
-      { userId: user._id, role: user.role },
+      { userId: matchedUser._id, role: matchedUser.role },
       process.env.JWT_SECRET as string,
       { expiresIn: "15m" }
     );
@@ -173,7 +179,7 @@ export class AuthService {
       Date.now() + 7 * 24 * 60 * 60 * 1000
     );
     await User.updateOne(
-      { _id: user._id },
+      { _id: matchedUser._id },
       {
         refreshToken: newRefreshTokenHash,
         refreshTokenExpires: newRefreshTokenExpires,

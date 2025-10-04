@@ -1,9 +1,10 @@
 import { useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import FormInput from "../components/ui/FormInput";
 import { useAuth } from "../hooks/useAuth";
 import { useTranslation } from "react-i18next";
 import type { ApiError } from "../types/index";
+import { motion } from "framer-motion";
 
 const LoginPage: React.FC = () => {
   const { t } = useTranslation();
@@ -85,17 +86,27 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
-        <h2 className="text-3xl font-bold text-center text-indigo-700 mb-6">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-md bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg p-8"
+      >
+        <h2 className="text-3xl font-poppins font-bold text-center text-primary mb-6">
           {t("loginPage.welcomeBack")}
         </h2>
         {serverError && (
-          <div className="mb-6 p-3 bg-red-100 text-red-700 text-sm rounded-lg text-center animate-fade-in">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className="mb-6 p-3 bg-red-50 text-red-600 text-sm rounded-lg text-center animate-fade-in"
+          >
             {serverError}
-          </div>
+          </motion.div>
         )}
-        <form onSubmit={handleSubmit} className="space-y-2">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <FormInput
             label={t("loginPage.emailOrUsername")}
             type="text"
@@ -113,33 +124,51 @@ const LoginPage: React.FC = () => {
             autoComplete="current-password"
             placeholder={t("loginPage.enterYourPassword")}
           />
-          <button
-            type="submit"
-            disabled={Object.keys(errors).length > 0}
-            className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-indigo-700 transition-colors duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4, duration: 0.3 }}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
           >
-            {t("loginPage.login")}
-          </button>
+            <button
+              type="submit"
+              disabled={Object.keys(errors).length > 0}
+              className="w-full bg-gradient-primary text-white py-3 px-4 rounded-lg font-poppins font-semibold hover:bg-gradient-primary-hover transition-all duration-200 focus:outline-none focus:ring-2 focus-ring-accent shadow-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              {t("loginPage.login")}
+            </button>
+          </motion.div>
         </form>
-        <p className="mt-6 text-center text-sm text-gray-600">
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5, duration: 0.3 }}
+          className="mt-6 text-center text-sm text-dark font-poppins"
+        >
           {t("loginPage.dontHaveAccount")}{" "}
-          <a
-            href="/register"
-            className="text-indigo-600 hover:text-indigo-800 font-semibold hover:underline transition-colors duration-200"
+          <Link
+            to="/register"
+            className="text-accent hover:text-primary font-semibold hover:underline transition-all duration-200"
           >
             {t("loginPage.register")}
-          </a>
-        </p>
-        <p className="mt-2 text-center text-sm text-gray-600">
+          </Link>
+        </motion.p>
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.6, duration: 0.3 }}
+          className="mt-2 text-center text-sm text-dark font-poppins"
+        >
           {t("loginPage.forgotPassword")}{" "}
-          <a
-            href="/forgot-password"
-            className="text-indigo-600 hover:text-indigo-800 font-semibold hover:underline transition-colors duration-200"
+          <Link
+            to="/forgot-password"
+            className="text-accent hover:text-primary font-semibold hover:underline transition-all duration-200"
           >
             {t("loginPage.reset")}
-          </a>
-        </p>
-      </div>
+          </Link>
+        </motion.p>
+      </motion.div>
     </div>
   );
 };

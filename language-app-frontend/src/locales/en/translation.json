@@ -1,4 +1,21 @@
 {
+  "landingPage": {
+    "getStarted": "Get Started for Free",
+    "heroTitle": "Learn Languages with Langster",
+    "heroSubtitle": "Master new languages with interactive flashcards, quizzes, and progress tracking. Join our community and start your journey today! 🌍",
+    "flashcardsTitle": "Master Vocabulary with Flashcards",
+    "flashcardsDescription": "Practice words and phrases with our intuitive flashcard system, designed to help you memorize effectively. 📚",
+    "quizzesTitle": "Test Your Knowledge with Quizzes",
+    "quizzesDescription": "Challenge yourself with fun and interactive quizzes to test your language skills and reinforce learning. ✅",
+    "progressTitle": "Track Your Progress",
+    "progressDescription": "Monitor your learning journey with detailed stats and achievement badges to stay motivated. 📊",
+    "communityTitle": "Join Our Community",
+    "communityDescription": "Connect with other learners, share your progress, and get inspired by a global community. 🤝",
+    "ctaTitle": "Start Your Language Journey Today",
+    "ctaDescription": "Sign up now and explore a fun, effective way to learn languages with Langster! 🚀",
+    "tryNow": "Try Now",
+    "footerText": "All rights reserved."
+  },
   "reviewCardsPage": {
     "course": "Course",
     "selectLanguage": "Select a Language",
@@ -35,7 +52,7 @@
     "yourAnswer": "Your answer",
     "levelCompleted": "Level Completed!",
     "shareAttemptLink": "Share Attempt Link",
-    "returnToLevels": "Return to Levels",
+    "retryLevel": "Retry Level",
     "copiedToClipboard": "Copied to clipboard!",
     "failedToLoadFilters": "Failed to load filters",
     "failedToLoadCards": "Failed to load cards",
@@ -62,7 +79,8 @@
     "cards": "Cards",
     "profile": "Profile",
     "logout": "Logout",
-    "login": "Login"
+    "signUp": "Sign Up",
+    "signIn": "Sign In"
   },
   "statisticsPage": {
     "statistics": "Statistics",
@@ -130,7 +148,8 @@
     "exerciseType": "Exercise Type",
     "score": "Score",
     "date": "Date",
-    "joinLangster": "Join Langster to try it!"
+    "joinLangster": "Join Langster to try it!",
+    "ctaDescription": "Start your language learning journey with Langster today!"
   },
   "resetPasswordPage": {
     "resetYourPassword": "Reset Your Password",
@@ -157,6 +176,8 @@
     "interfaceLanguage": "Interface Language",
     "nativeLanguage": "Native Language",
     "learningLanguages": "Learning Languages",
+    "selectLanguage": "Select Language",
+    "selectLanguages": "Select Languages",
     "none": "None",
     "enterYourEmail": "Enter your email",
     "enterYourUsername": "Enter your username",
@@ -172,7 +193,9 @@
     "failedToRegister": "Failed to register new profile",
     "registrationSuccessful": "Registration successful! Please verify your email.",
     "alreadyHaveAccount": "Already have an account?",
-    "login": "Login"
+    "login": "Login",
+    "forgotPassword": "Forgot password?",
+    "reset": "Reset"
   },
   "profilePage": {
     "editProfile": "Edit Profile",
@@ -187,6 +210,8 @@
     "enterYourEmail": "Enter your email",
     "enterYourUsername": "Enter your username",
     "enterNewPassword": "Enter new password",
+    "selectLanguage": "Select Language",
+    "selectLanguages": "Select Languages",
     "emailRequired": "Email is required",
     "emailInvalid": "Invalid email format",
     "usernameRequired": "Username is required",
@@ -311,7 +336,7 @@
   "adminModulesPage": {
     "adminPanel": "Admin Panel",
     "addCategory": "Add Module",
-    "loadingCategories": "Loading categories...",
+    "loadingModules": "Loading modules...",
     "failedToLoadCategories": "Failed to load categories",
     "noCategoriesAvailable": "No categories available",
     "order": "Order",
@@ -341,7 +366,7 @@
     "filterByName": "Filter by Name",
     "allLanguages": "All Languages",
     "searchByNamePlaceholder": "Search by name...",
-    "failedToUpdateCategoryOrder": "Failed to update module order",
+    "failedToUpdateModuleOrder": "Failed to update module order",
     "namePlaceholder": "Greetings",
     "descriptionPlaceholder": "Words for greetings and introductions",
     "selectLanguage": "Select Language",
@@ -366,7 +391,7 @@
     "addCardModalTitle": "Add Card",
     "editCardModalTitle": "Edit Card",
     "confirmDeletionTitle": "Confirm Deletion",
-    "confirmDeletionMessage": "Are you sure you want to delete the card \"{{word}} | {{translation}}\"?",
+    "confirmDeletionMessage": "Are you sure you want to delete the card {{firstWord}} | {{secondWord}}?",
     "cancel": "Cancel",
     "add": "Add",
     "save": "Save",
@@ -382,7 +407,7 @@
     "searchByWordPlaceholder": "Search by word...",
     "searchByModulePlaceholder": "Search by module...",
     "selectWord": "Select Word",
-    "selectTranslation": "Select Translation",
+    "selectModules": "Select Modules",
     "searchWords": "Search Words...",
     "searchModules": "Search Modules...",
     "previous": "Previous",

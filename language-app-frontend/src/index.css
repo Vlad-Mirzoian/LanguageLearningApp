@@ -1,5 +1,89 @@
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap");
 @import "tailwindcss";
 
+:root {
+  --color-primary: #4c78d6; /* Bright soft blue */
+  --color-accent: #f4a261; /* Warm peach */
+  --color-background: #e2e8f0; /* Warmer, darker gray-beige */
+  --color-secondary: #34c759; /* Vibrant green */
+  --color-dark: #2d3748; /* Dark gray for text */
+  --font-poppins: "Poppins", sans-serif;
+}
+
+/* Background colors */
+.bg-primary {
+  background-color: var(--color-primary);
+}
+.bg-accent {
+  background-color: var(--color-accent);
+}
+.bg-background {
+  background-color: var(--color-background);
+}
+.bg-secondary {
+  background-color: var(--color-secondary);
+}
+.bg-gradient-primary {
+  background: linear-gradient(
+    to right,
+    var(--color-primary),
+    var(--color-accent)
+  );
+}
+.bg-gradient-primary-hover {
+  background: linear-gradient(
+    to right,
+    var(--color-primary),
+    var(--color-accent)
+  );
+  opacity: 0.9;
+}
+
+/* Opacity variants for backgrounds */
+.bg-primary-opacity-10 {
+  background-color: rgba(76, 120, 214, 0.1); /* Equivalent to bg-primary/10 */
+}
+.bg-accent-opacity-10 {
+  background-color: rgba(244, 162, 97, 0.1); /* Equivalent to bg-accent/10 */
+}
+.bg-primary-opacity-20 {
+  background-color: rgba(76, 120, 214, 0.2); /* Equivalent to bg-primary/20 */
+}
+.bg-accent-opacity-20 {
+  background-color: rgba(244, 162, 97, 0.2); /* Equivalent to bg-accent/20 */
+}
+
+/* Text colors */
+.text-primary {
+  color: var(--color-primary);
+}
+.text-accent {
+  color: var(--color-accent);
+}
+.text-background {
+  color: var(--color-background);
+}
+.text-secondary {
+  color: var(--color-secondary);
+}
+.text-dark {
+  color: var(--color-dark);
+}
+
+/* Font */
+.font-poppins {
+  font-family: var(--font-poppins);
+}
+
+/* Focus rings */
+.focus-ring-primary {
+  --tw-ring-color: var(--color-primary);
+}
+.focus-ring-accent {
+  --tw-ring-color: var(--color-accent);
+}
+
+/* Animations */
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -11,6 +95,61 @@
   }
 }
 
+@keyframes scale-up {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.05);
+  }
+}
+
 .animate-fade-in {
   animation: fade-in 0.3s ease-out forwards;
+}
+
+.animate-scale-up {
+  animation: scale-up 0.2s ease-out forwards;
+}
+
+/* Hover states */
+.hover\:bg-primary-opacity-10:hover {
+  background-color: rgba(76, 120, 214, 0.1);
+}
+.hover\:bg-accent-opacity-10:hover {
+  background-color: rgba(244, 162, 97, 0.1);
+}
+.hover\:bg-primary-opacity-20:hover {
+  background-color: rgba(76, 120, 214, 0.2);
+}
+.hover\:bg-primary-opacity-90:hover {
+  background-color: rgba(76, 120, 214, 0.9);
+}
+.hover\:bg-accent-opacity-20:hover {
+  background-color: rgba(244, 162, 97, 0.2);
+}
+.hover\:text-accent:hover {
+  color: var(--color-accent);
+}
+.hover\:bg-gradient-primary-hover:hover {
+  background: linear-gradient(
+    to right,
+    var(--color-primary),
+    var(--color-accent)
+  );
+  opacity: 0.9;
+}
+
+input[type="file"]::file-selector-button {
+  background-color: var(--color-primary);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+input[type="file"]::file-selector-button:hover {
+  opacity: 0.9;
 }

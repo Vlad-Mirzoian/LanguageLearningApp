@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import FormInput from "../components/ui/FormInput";
 import { AuthAPI } from "../services/index";
 import { useTranslation } from "react-i18next";
 import type { ApiError } from "../types/index";
+import { motion } from "framer-motion";
 
 const ForgotPasswordPage: React.FC = () => {
   const { t } = useTranslation();
@@ -76,22 +77,37 @@ const ForgotPasswordPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
-        <h2 className="text-3xl font-bold text-center text-indigo-700 mb-6">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-md bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg p-8"
+      >
+        <h2 className="text-3xl font-poppins font-bold text-center text-primary mb-6">
           {t("forgotPasswordPage.forgotPassword")}
         </h2>
         {serverError && (
-          <div className="mb-6 p-3 bg-red-100 text-red-700 text-sm rounded-lg text-center animate-fade-in">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className="mb-6 p-3 bg-red-50 text-red-600 text-sm rounded-lg text-center animate-fade-in"
+          >
             {serverError}
-          </div>
+          </motion.div>
         )}
         {successMessage && (
-          <div className="mb-6 p-3 bg-green-100 text-green-700 text-sm rounded-lg text-center animate-fade-in">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className="mb-6 p-3 bg-green-50 text-green-600 text-sm rounded-lg text-center animate-fade-in"
+          >
             {successMessage}
-          </div>
+          </motion.div>
         )}
-        <form onSubmit={handleSubmit} className="space-y-2">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <FormInput
             label={t("forgotPasswordPage.email")}
             type="email"
@@ -101,24 +117,37 @@ const ForgotPasswordPage: React.FC = () => {
             autoComplete="email"
             placeholder={t("forgotPasswordPage.enterYourEmail")}
           />
-          <button
-            type="submit"
-            disabled={Object.keys(errors).length > 0}
-            className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-indigo-700 transition-colors duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4, duration: 0.3 }}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
           >
-            {t("forgotPasswordPage.forgot")}
-          </button>
+            <button
+              type="submit"
+              disabled={Object.keys(errors).length > 0}
+              className="w-full bg-gradient-primary text-white py-3 px-4 rounded-lg font-poppins font-semibold hover:bg-gradient-primary-hover transition-all duration-200 focus:outline-none focus:ring-2 focus-ring-accent shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              {t("forgotPasswordPage.forgot")}
+            </button>
+          </motion.div>
         </form>
-        <p className="mt-6 text-center text-sm text-gray-600">
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5, duration: 0.3 }}
+          className="mt-6 text-center text-sm text-dark font-poppins"
+        >
           {t("forgotPasswordPage.rememberedPassword")}{" "}
-          <a
-            href="/login"
-            className="text-indigo-600 hover:text-indigo-800 font-semibold hover:underline transition-colors duration-200"
+          <Link
+            to="/login"
+            className="text-accent hover:text-primary font-semibold hover:underline transition-all duration-200"
           >
             {t("forgotPasswordPage.login")}
-          </a>
-        </p>
-      </div>
+          </Link>
+        </motion.p>
+      </motion.div>
     </div>
   );
 };

@@ -341,7 +341,7 @@
     "filterByName": "Nach Name filtern",
     "allLanguages": "Alle Sprachen",
     "searchByNamePlaceholder": "Nach Name suchen...",
-    "failedToUpdateCategoryOrder": "Fehler beim Aktualisieren der Modulreihenfolge",
+    "failedToUpdateModuleOrder": "Fehler beim Aktualisieren der Modulreihenfolge",
     "namePlaceholder": "Grüße",
     "descriptionPlaceholder": "Wörter für Grüße und Vorstellungen",
     "selectLanguage": "Sprache auswählen",

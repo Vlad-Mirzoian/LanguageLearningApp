@@ -341,7 +341,7 @@
     "filterByName": "Фільтрувати за назвою",
     "allLanguages": "Усі мови",
     "searchByNamePlaceholder": "Пошук за назвою...",
-    "failedToUpdateCategoryOrder": "Не вдалося оновити порядок модуля",
+    "failedToUpdateModuleOrder": "Не вдалося оновити порядок модуля",
     "namePlaceholder": "Вітання",
     "descriptionPlaceholder": "Слова для вітань та знайомства",
     "selectLanguage": "Виберіть мову",

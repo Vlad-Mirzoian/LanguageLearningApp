@@ -1,9 +1,10 @@
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { AuthAPI } from "../services/index";
 import { ArrowPathIcon } from "@heroicons/react/24/solid";
 import { useTranslation } from "react-i18next";
 import type { ApiError } from "../types/index";
+import { motion } from "framer-motion";
 
 const VerifyEmailPage: React.FC = () => {
   const { t } = useTranslation();
@@ -43,47 +44,66 @@ const VerifyEmailPage: React.FC = () => {
   }, [token, navigate, t]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
-        <h2 className="text-3xl font-bold text-center text-indigo-700 mb-6">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-md bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg p-8"
+      >
+        <h2 className="text-3xl font-poppins font-bold text-center text-primary mb-6">
           {t("verifyEmailPage.verifyYourEmail")}
         </h2>
-        <div
-          className={`p-3 text-sm rounded-lg text-center animate-fade-in ${
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
+          className={`p-3 text-sm rounded-lg text-center font-poppins animate-fade-in ${
             success
-              ? "bg-green-100 text-green-700"
+              ? "bg-green-50 text-green-600"
               : error
-              ? "bg-red-100 text-red-700"
-              : "bg-gray-100 text-gray-700"
+              ? "bg-red-50 text-red-600"
+              : "bg-gray-50 text-dark"
           }`}
         >
           {loading && (
-            <div className="flex items-center mb-4">
-              <ArrowPathIcon className="h-5 w-5 text-indigo-600 animate-spin" />
-              <span className="ml-2 text-gray-600">
-                {t("verifyEmailPage.verifying")}
-              </span>
+            <div className="flex items-center justify-center">
+              <ArrowPathIcon className="h-5 w-5 text-primary animate-spin" />
+              <span className="ml-2">{t("verifyEmailPage.verifying")}</span>
             </div>
           )}
-        </div>
+
+          {!loading && success && <span>{success}</span>}
+          {!loading && error && <span>{error}</span>}
+        </motion.div>
         {success && (
-          <p className="mt-4 text-center text-sm">
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4, duration: 0.3 }}
+            className="mt-4 text-center text-sm text-dark font-poppins"
+          >
             {t("verifyEmailPage.redirectToLogin")}
-          </p>
+          </motion.p>
         )}
         {error && (
-          <p className="mt-4 text-center text-sm text-gray-600">
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4, duration: 0.3 }}
+            className="mt-4 text-center text-sm text-dark font-poppins"
+          >
             {t("verifyEmailPage.tryAgainOrRegister")}{" "}
-            <a
-              href="/register"
-              className="text-indigo-600 hover:text-indigo-800 font-semibold hover:underline transition-colors duration-200"
+            <Link
+              to="/register"
+              className="text-accent hover:text-primary font-semibold hover:underline transition-all duration-200"
             >
               {t("verifyEmailPage.register")}
-            </a>{" "}
+            </Link>{" "}
             {t("verifyEmailPage.newAccount")}
-          </p>
+          </motion.p>
         )}
-      </div>
+      </motion.div>
     </div>
   );
 };

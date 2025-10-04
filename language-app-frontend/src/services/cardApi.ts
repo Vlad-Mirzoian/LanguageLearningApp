@@ -1,10 +1,5 @@
 import api from "./apiClient";
-import type {
-  CardResponse,
-  Card,
-  Attempt,
-  ReviewCard,
-} from "../types/index";
+import type { CardResponse, Card, Attempt, ReviewCard } from "../types/index";
 import type {
   CardFiltersDTO,
   CreateCardDTO,
@@ -42,7 +37,7 @@ export const deleteCard = async (
 
 export const getReviewCards = async (
   filters: ReviewCardsFiltersDTO
-): Promise<{ cards: ReviewCard[]; attemptId: string | null }> => {
+): Promise<ReviewCard[]> => {
   const response = await api.get("/cards/review", { params: filters });
   return response.data;
 };
