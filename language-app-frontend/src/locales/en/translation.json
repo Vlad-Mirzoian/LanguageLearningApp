@@ -335,10 +335,10 @@
   },
   "adminModulesPage": {
     "adminPanel": "Admin Panel",
-    "addCategory": "Add Module",
+    "addModule": "Add Module",
     "loadingModules": "Loading modules...",
-    "failedToLoadCategories": "Failed to load categories",
-    "noCategoriesAvailable": "No categories available",
+    "failedToLoadModules": "Failed to load categories",
+    "noModulesAvailable": "No categories available",
     "order": "Order",
     "name": "Name",
     "description": "Description",
@@ -347,8 +347,8 @@
     "actions": "Actions",
     "edit": "Edit",
     "delete": "Delete",
-    "addCategoryModalTitle": "Add Module",
-    "editCategoryModalTitle": "Edit Module",
+    "addModuleModalTitle": "Add Module",
+    "editModuleModalTitle": "Edit Module",
     "confirmDeletionTitle": "Confirm Deletion",
     "confirmDeletionMessage": "Are you sure you want to delete the module \"{{name}}\"? This will also remove related cards.",
     "cancel": "Cancel",
@@ -359,9 +359,9 @@
     "orderRequired": "Order must be a positive integer",
     "orderTaken": "Order is already taken",
     "requiredScoreInvalid": "Required score must be a non-negative integer",
-    "failedToCreateCategory": "Failed to create module",
-    "failedToUpdateCategory": "Failed to update module",
-    "failedToDeleteCategory": "Failed to delete module",
+    "failedToCreateModule": "Failed to create module",
+    "failedToUpdateModule": "Failed to update module",
+    "failedToDeleteModule": "Failed to delete module",
     "filterByLanguage": "Filter by Language",
     "filterByName": "Filter by Name",
     "allLanguages": "All Languages",
@@ -413,8 +413,5 @@
     "previous": "Previous",
     "next": "Next",
     "pageInfo": "Page {{currentPage}} of {{totalPages}}"
-  },
-  "formSelect": {
-    "selectOption": "Select an option"
   }
 }

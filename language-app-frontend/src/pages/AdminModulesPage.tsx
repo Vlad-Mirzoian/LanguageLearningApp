@@ -70,7 +70,7 @@ const AdminModulesPage: React.FC = () => {
         setLanguages(langData);
       } catch (err) {
         const error = err as ApiError;
-        setError(error.message || t("adminModulesPage.failedToLoadCategories"));
+        setError(error.message || t("adminModulesPage.failedToLoadModules"));
       } finally {
         setLoading(false);
       }
@@ -168,7 +168,7 @@ const AdminModulesPage: React.FC = () => {
     } catch (err) {
       const error = err as ApiError;
       setServerError(
-        error.message || t("adminModulesPage.failedToCreateCategory")
+        error.message || t("adminModulesPage.failedToCreateModule")
       );
     }
   };
@@ -220,7 +220,7 @@ const AdminModulesPage: React.FC = () => {
     } catch (err) {
       const error = err as ApiError;
       setServerError(
-        error.message || t("adminModulesPage.failedToUpdateCategory")
+        error.message || t("adminModulesPage.failedToUpdateModule")
       );
     }
   };
@@ -255,7 +255,7 @@ const AdminModulesPage: React.FC = () => {
     } catch (err) {
       const error = err as ApiError;
       setServerError(
-        error.message || t("adminModulesPage.failedToDeleteCategory")
+        error.message || t("adminModulesPage.failedToDeleteModule")
       );
     }
   };
@@ -423,7 +423,7 @@ const AdminModulesPage: React.FC = () => {
           </div>
           <div className="flex flex-col items-center w-full sm:w-auto">
             <label className="block text-sm font-poppins font-bold text-dark mb-1">
-              {t("adminModulesPage.addCategory")}
+              {t("adminModulesPage.addModule")}
             </label>
             <motion.button
               whileHover={{ scale: 1.03 }}
@@ -443,7 +443,7 @@ const AdminModulesPage: React.FC = () => {
               }}
               className="w-48 sm:w-64 bg-gradient-primary text-white py-2.75 px-4 rounded-lg font-poppins font-semibold hover:bg-gradient-primary-hover transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-accent shadow-md"
             >
-              {t("adminModulesPage.addCategory")}
+              {t("adminModulesPage.addModule")}
             </motion.button>
           </div>
         </motion.div>
@@ -477,7 +477,7 @@ const AdminModulesPage: React.FC = () => {
             transition={{ duration: 0.3 }}
             className="text-center text-dark font-poppins text-lg"
           >
-            {t("adminModulesPage.noCategoriesAvailable")}
+            {t("adminModulesPage.noModulesAvailable")}
           </motion.div>
         )}
         {!loading && !error && modules.length > 0 && (
@@ -753,7 +753,7 @@ const AdminModulesPage: React.FC = () => {
             className="bg-white/98 backdrop-blur-sm p-6 rounded-2xl shadow-lg w-full max-w-md"
           >
             <DialogTitle className="text-lg font-poppins font-bold text-primary">
-              {t("adminModulesPage.addCategoryModalTitle")}
+              {t("adminModulesPage.addModuleModalTitle")}
             </DialogTitle>
             {serverError && (
               <motion.div
@@ -947,7 +947,7 @@ const AdminModulesPage: React.FC = () => {
             className="bg-white/98 backdrop-blur-sm p-6 rounded-2xl shadow-lg w-full max-w-md"
           >
             <DialogTitle className="text-lg font-poppins font-bold text-primary">
-              {t("adminModulesPage.editCategoryModalTitle")}
+              {t("adminModulesPage.editModuleModalTitle")}
             </DialogTitle>
             {serverError && (
               <motion.div
