@@ -12,6 +12,9 @@ const getTransporter = (): Transporter => {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
     },
+    tls: {
+      rejectUnauthorized: false,
+    },
   });
 
   transporter.verify((error, success) => {
@@ -31,7 +34,7 @@ export const sendVerificationEmail = async (
 ): Promise<void> => {
   const verificationUrl = `${process.env.FRONTEND_URL}/verify/${token}`;
   const mailOptions = {
-    from: `"Langster" <${process.env.SMTP_USER}>`,
+    from: `"Langster" <noreply@demomailtrap.co>`,
     to: email,
     subject: "Verify Your Account",
     html: `
@@ -87,7 +90,7 @@ export const sendResetPasswordEmail = async (
 ): Promise<void> => {
   const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${token}`;
   const mailOptions = {
-    from: `"Langster" <${process.env.SMTP_USER}>`,
+    from: `"Langster" <noreply@demomailtrap.co>`,
     to: email,
     subject: "Reset Your Password",
     html: `
